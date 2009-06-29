@@ -1,0 +1,586 @@
+#!/usr/bin/env perl
+#===============================================================================
+#                                    lmtsh
+#-------------------------------------------------------------------------------
+#  Purpose:     Interactive LMT-shell for querying LMT tables
+#
+#  Author:      Jeff Long, LLNL, 02/17/2007
+#  Notes:       
+#	This is part of LMT2 -- the second generation of Lustre Monitoring
+#	Tools.
+#
+#  Modification History:
+#       02/17/2007 - jwl: Initial version.
+#===============================================================================
+
+BEGIN {
+    $ENV{PERL_READLINE_NOWARN} = 1;
+    push @INC, "/usr/share/lmt/lib/perl";
+    push @INC, "../lib/perl";
+}
+
+use strict;
+use Date::Manip;
+use Getopt::Std;
+use LMT;
+use Term::ReadLine;
+
+my @allOstAggTables = ("OST_AGGREGATE_HOUR",  "OST_AGGREGATE_DAY", "OST_AGGREGATE_WEEK",
+		       "OST_AGGREGATE_MONTH", "OST_AGGREGATE_YEAR");
+
+my @commands = qw/cat clr dt fs getwindow head ost t tail ts ts1 tsn vo vt help/;
+
+$| = 1;
+
+Usage() if (not getopts('c:dhvf:'));
+
+my $verbose   = (defined $main::opt_v) ? 1 : 0;
+my $debug     = (defined $main::opt_d) ? 1 : 0;
+my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
+my $config    = (defined $main::opt_c) ? $main::opt_c : "$ENV{HOME}/.lmtrc";
+Usage() if (defined $main::opt_h);
+
+
+my $lmt = LMT->new($config);
+my @filesystems = $lmt->getFilesystemList();
+
+$filesys = $filesystems[0] if (not defined($filesys));
+$lmt->connect($filesys) or die ("Could not connect to FS: $filesys\n");
+$lmt->dieOnError(0);
+my @tables = $lmt->getTableList();
+
+my $prompt = "$filesys> ";
+my $where = "";
+
+my $term = new Term::ReadLine::Perl 'LMT Shell';
+
+$readline::rl_completion_function = "main::completion";
+
+while ( defined (my $cmd = $term->readline($prompt)) ) {
+
+    $term->AddHistory($cmd);	## normally this is done implictly
+#    my @args = split /\s+/, $cmd;
+
+    my @args=smartSplit($cmd);
+
+    my $op = shift @args;
+    last if ($op eq "exit");
+    next if ($op =~ /^\s*$/);
+
+    $_ = $op;
+
+    if (/^f[s]{0,1}$/) {
+	#----------------------------------------------------------------------
+	# List all filesystems (if no args given), or switch to given filesys
+	#----------------------------------------------------------------------
+	if (scalar(@args) == 0) {
+	    print "Available filesystems:\n";
+	    foreach my $t (@filesystems) {
+		print "\t$t\n";
+	    }
+	} else {
+	    my $fs = shift @args;
+	    if (grep /^$fs$/, @filesystems) {
+		$lmt->disconnect();
+		$lmt->connect($fs);
+		$prompt = "lmt-$fs> ";
+	    } else {
+		print "Unknown filesystem: $fs\n";
+	    }
+	}
+    } elsif (/^t$/) {
+	#----------------------------------------------------------------------
+	# List all tables (if no args given), or describe given table
+	#----------------------------------------------------------------------
+	if (scalar(@args) == 0) {
+	    print "Available tables for " . $lmt->getActiveFilesystem() . ":\n";
+	    printf "\t%30s   %s\n", "Table Name", "Row Count";
+	    my @t = $lmt->getTableList();
+	    foreach my $table (@t) {
+		printf "\t%30s   %d\n", $table, $lmt->getTableRowCount($table);
+	    }
+	} else {
+	    print "Table: $args[0] =\n";
+	    my $table = shift @args;
+	    my %d = $lmt->getTableDescription($table);
+	    foreach my $key (keys %d) {
+		printf "\t%20s\t%s\n", $key, $d{$key};
+	    }
+	    print "\nNumber of rows in table=" . $lmt->getTableRowCount($table) . "\n";
+	}
+    } elsif (/^debug$/) {
+	#----------------------------------------------------------------------
+	#  Toggle debug mode
+	#----------------------------------------------------------------------
+	$debug = ($debug) ? 0 : 1;
+	print "Debug mode: $debug\n";
+    } elsif (/^verbose$/) {
+	#----------------------------------------------------------------------
+	#  Toggle verbose mode
+	#----------------------------------------------------------------------
+	$verbose = ($verbose) ? 0 : 1;
+	print "Verbose mode: $verbose\n";
+    } elsif (/^cat$/) {
+	#----------------------------------------------------------------------
+	#  Cat (dump contents of) given table
+	#----------------------------------------------------------------------
+	if (scalar(@args) != 1) {
+	    print "Usage: cat table\n";
+	    next;
+	}
+	my $q = "select * from $args[0]";
+	execAndPrintQuery2 ($lmt, $q, 0);
+    } elsif (/^getFirstTime/ or /^ts1$/) {
+	#----------------------------------------------------------------------
+	#  Print first timestamp from given table
+	#----------------------------------------------------------------------
+	my ($ts,$tsid) = $lmt->getFirstTimestamp(@args);
+	print "\tFirst timestamp from $args[0]: $ts (id=$tsid)\n";
+    } elsif (/^getFinalTime/ or /^getLastTime/ or /^tsn$/) {
+	#----------------------------------------------------------------------
+	#  Print final timestamp from given table
+	#----------------------------------------------------------------------
+	my ($ts,$tsid) = $lmt->getFinalTimestamp(@args);
+	print "\tFinal timestamp from $args[0]: $ts (id=$tsid)\n";
+    } elsif (/^ts$/) {
+	#----------------------------------------------------------------------
+	#  Print timestamp info about given TS or TSID
+	#----------------------------------------------------------------------
+	printf "\t%15s    %s\n", "TS_ID", "TIMESTAMP";
+	foreach my $t (@args) {
+	    my ($tsid,$ts);
+	    if ($t =~ /^\d+$/) {	# Timestamp ID
+		$tsid = $t;
+		$ts   = $lmt->getTimestampFromTimestampId ($tsid);
+	    } else {
+		$ts   = $t;
+		$tsid = $lmt->getTimestampIdFromTimestamp ($ts);
+		$tsid = -1 if (not defined $tsid);
+	    }
+	    printf "\t%15d    %s\n", $tsid, $ts;
+	}
+    } elsif (/^dt$/) {
+	#----------------------------------------------------------------------
+	#  Print difference in seconds between two timestamps
+	#----------------------------------------------------------------------
+	printf "\t%15s    %s\n", "TS_ID", "TIMESTAMP";
+	my ($ts1,$ts2);
+	if (scalar(@args) != 2) {
+	    print "Usage: dt t1 t2\n";
+	    next;
+	}
+	if ($args[0] =~ /^\d+$/) {	# Timestamp ID
+	    $ts1 = $lmt->getTimestampFromTimestampId ($args[0]);
+	} else {
+	    $ts1 = $args[0];
+	}
+	if ($args[1] =~ /^\d+$/) {	# Timestamp ID
+	    $ts2 = $lmt->getTimestampFromTimestampId ($args[1]);
+	} else {
+	    $ts2 = $args[1];
+	}
+	printf "\tDifference between %s and %s = %d seconds\n", $ts1, $ts2, $lmt->diffTimestamps($ts1,$ts2);
+    } elsif (/^ost$/) {
+	#----------------------------------------------------------------------
+	#  Print info about all (or requested) OSTs
+	#----------------------------------------------------------------------
+	printf "\t%15s    %s\n", "OST_ID", "OST_NAME";
+	if (scalar(@args) == 0) {
+	    # No args, just list all osts
+	    my $sth = $lmt->execQuery("select * from OST_INFO order by OST_ID");
+	    while (my $ref = $sth->fetchrow_hashref()) {
+		printf "\t%15d    %s\n", $ref->{OST_ID}, $ref->{OST_NAME};
+	    }
+	    $sth->finish();
+	    
+	} else {
+	    # Print info for just the given osts
+	    foreach my $t (@args) {
+		my ($ostid,$ostname);
+		if ($t =~ /^\d+$/) {	# OST ID
+		    $ostid   = $t;
+		    $ostname = $lmt->getOstNameFromId ($ostid);
+		    $ostname = "*Not a valid OST*" if (not $ostname);
+		} else {
+		    $ostname = $t;
+		    $ostid   = $lmt->getOstIdFromName ($ostname);
+		    $ostid   = -1 if (not defined $ostid);
+		}
+		printf "\t%15d    %s\n", $ostid, $ostname;
+	    }
+	}
+    } elsif (/^vo$/) {
+	#----------------------------------------------------------------------
+	#  Print info about all (or requested) OST variables
+	#----------------------------------------------------------------------
+	printf "\t%15s    %s\n", "VARIABLE_NAME", "VARIABLE_ID";
+	if (scalar(@args) == 0) {
+	    # Print all variable ids 
+	    my %vids = $lmt->getAllOstVariableIdsAndNames();
+	    foreach my $vname (sort keys %vids) {
+		printf "\t%15s    %s\n", $vname, $vids{$vname};
+	    }
+	} else {
+	    # Print info about requested variable id
+	    foreach my $t (@args) {
+		my ($vname,$vid);
+		if ($t =~ /^\d+$/) {	# Var id
+		    $vid   = $t;
+		    $vname = $lmt->getOstVariableName ($vid);
+		} else {
+		    $vname = $t;
+		    $vid   = $lmt->getOstVariableId ($vname);
+		    $vid   = -1 if (not defined $vid);
+		}
+		printf "\t%15s    %d\n", $vname, $vid;
+	    }
+	}
+    } elsif (/^getTablesVariableIds/ or /^vt$/) {
+	#----------------------------------------------------------------------
+	#  Print info about all variables in given table
+	#----------------------------------------------------------------------
+	if (scalar(@args) < 1) {
+	    print "Usage: vt table\n";
+	    next;
+	}
+	printf "\t%15s    %s\n", "VARIABLE_NAME", "VARIABLE_ID";
+	my @vids = $lmt->getTablesVariableIds(@args);
+	foreach my $vid (@vids) {
+	    printf "\t%15s    %s\n", $lmt->getOstVariableName($vid), $vid;
+	}
+    } elsif (/^clear$/ or /^clr$/) {
+	#----------------------------------------------------------------------
+	#  Remove contents of given table
+	#----------------------------------------------------------------------
+	if (scalar(@args) < 1) {
+	    print "Usage: clr table\n";
+	    next;
+	} else {
+	    print "Are you sure you want to clear contents of these tables: @args ? (yes/no): ";
+	    my $a = <>; chomp $a;
+	    if ($a ne "yes") {
+		print "Cancelled.\n";
+		next;
+	    }
+	}
+	if ($args[0] eq "agg") {
+	    print "Clearing contents of tables: @allOstAggTables\n";
+	    $lmt->clearTable(@allOstAggTables);
+	} elsif (@args) {
+	    print "Clearing contents of tables: @args\n";
+	    $lmt->clearTable(@args);
+	}
+    } elsif (/^exec$/ or /^do$/) {
+	#----------------------------------------------------------------------
+	#  Execute given query and display result set
+	#----------------------------------------------------------------------
+	my $q = join ' ', @args;
+	execAndPrintQuery ($lmt, $q);
+    } elsif (/^tail$/ or /^head$/) {
+	#----------------------------------------------------------------------
+	#  Print first (or final) N lines from table ordered by time
+	#----------------------------------------------------------------------
+	my $op = $_;
+	my $order = ($op eq "tail") ? "desc" : "";
+	my $n=100;  # Num records
+	if ($args[0] =~ /^-/) {
+	    $n = shift @args;
+	    $n =~ s/\-//;
+	}
+	my $table = shift @args;
+	if ($n !~ /^\d+$/ or not $table) {
+	    print "Usage: $op [-numrecords] table\n";
+	    next;
+	}
+	my $q;
+	
+	if ($table eq "TIMESTAMP_INFO") {
+	    $q = "select * from TIMESTAMP_INFO order by TIMESTAMP $order limit $n";
+	} elsif ($table eq "OST_DATA") {
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
+		"order by TIMESTAMP $order,OST_ID $order limit $n";
+	} elsif ($table eq "OST_OPS_DATA") {
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
+		"order by TIMESTAMP $order,OST_ID $order,OPERATION_ID $order limit $n";
+	} elsif ($table eq "ROUTER_DATA") {
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
+		"order by TIMESTAMP $order,ROUTER_ID $order limit $n";
+	} elsif ($table eq "MDS_DATA") {
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
+		"order by TIMESTAMP $order,MDS_ID $order limit $n";
+	} elsif ($table eq "MDS_OPS_DATA") {
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
+		"order by TIMESTAMP $order,MDS_ID $order,OPERATION_ID $order limit $n";
+	} elsif ($table eq "EVENT_DATA") {
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
+		"order by TIMESTAMP $order,EVENT_ID $order,OST_ID $order,MDS_ID $order,ROUTER_ID $order limit $n";
+	} elsif ($table =~ /^OST_AGGREGATE_/) {
+	    # Agg tables have TS_ID, OST_ID, VAR_ID
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID ";
+	    $q .= "and $where " if ($where);
+	    $q .= "order by TIMESTAMP $order,OST_ID $order,VARIABLE_ID $order limit $n";
+	} elsif ($table =~ /^ROUTER_AGGREGATE_/) {
+	    # Agg tables have TS_ID, ROUTER_ID, VAR_ID
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID ";
+	    $q .= "and $where " if ($where);
+	    $q .= "order by TIMESTAMP $order,ROUTER_ID $order,VARIABLE_ID $order limit $n";
+	} elsif ($table =~ /^MDS_AGGREGATE_/) {
+	    # Agg tables have TS_ID, MDS_ID, VAR_ID
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID ";
+	    $q .= "and $where " if ($where);
+	    $q .= "order by TIMESTAMP $order,MDS_ID $order,VARIABLE_ID $order limit $n";
+	} elsif ($table =~ /^FILESYSTEM_AGGREGATE_/) {
+	    # Agg tables have TS_ID, FS_ID, VAR_ID
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID ";
+	    $q .= "and $where " if ($where);
+	    $q .= "order by TIMESTAMP $order,FILESYSTEM_ID $order,VARIABLE_ID $order limit $n";
+	} else {
+	    # Info and other tables don't have TS_ID. Bail.
+	    print "Sorry. Can't perform the $op operation on this table.\n";
+	    next;
+	}
+	execAndPrintQuery2 ($lmt, $q, ($op eq "tail") ? 1 : 0);
+    } elsif (/^where$/) {
+	if (scalar (@args) > 0) {
+	    $where = "@args";
+	}
+	print "where:$where\n";
+    } elsif (/^getwindow$/) {
+	#----------------------------------------------------------------------
+	#  Get window of data from table
+	#----------------------------------------------------------------------
+	my $table  = shift @args || do {print "Usage: table startTime endTime|+interval field(s)\n"; next;};
+	my $startT = shift @args || do {print "Usage: table startTime endTime|+interval field(s)\n"; next;};
+	my $endT   = shift @args || do {print "Usage: table startTime endTime|+interval field(s)\n"; next;};
+	my @fields = @args;
+	if (not @fields) {print "Usage: table startTime endTime|+interval field(s)\n"; next;}
+
+	$startT = $lmt->getTimestampFromTimestampId($startT) if ($startT =~ /^\d+$/);
+	$endT   = $lmt->getTimestampFromTimestampId($endT)   if ($endT   =~ /^\d+$/);
+	$endT   =~ s/^+//;	# In case +interval notation used
+	
+	my $q = $lmt->generateGetDataWindowQuery($table,$startT,$endT,@fields);
+	$q .= " and $where" if ($where);
+	execAndPrintQuery ($lmt, $q, 1);
+    } elsif (/^\!/) {
+	#----------------------------------------------------------------------
+	#  Execute local unix command
+	#----------------------------------------------------------------------
+	$op =~ s/^\!//;
+	system($op, @args);
+    } elsif (/^help$/) {
+	printHelp();
+    } else {
+	print "Unrecognized command: $op\n";
+    }
+}
+
+exit 0;
+
+
+sub printHelp {
+    print<<EOF;
+Available commands:
+
+  cat table           : Print contents of table
+  clr table           : Clear contents of table; 'agg' to clear all agg tables
+  dt t1 t2            : Show diff in seconds between two timestamps (or ts ids)
+  fs [filesys]        : List available filesystems, or connect to given one
+  getwindow table startTime endTime|+interval field(s)
+                      : Get window of data between startTime (ts|tsid) and
+                         endTime (ts or tsid or +interval), returning field(s)
+  head [-N] table     : Print the first N records from table (default=100)
+  ost [ostname|ostid] : List available OSTs, or info about specific one
+  t [table]           : List available tables, or describe given table
+  tail [-N] table     : Print the last N records from table (default=100)
+  ts ts|tsid ...      : Print information about given timestamp or timestamp id
+  ts1 table           : Print earliest timestamp (and id) from table
+  tsn table           : Print latest timestamp (and id) from table
+  vo [varname|vid]    : Print all ost var id/names, or just the specific one(s)
+  vt table            : List all variable ids associated with table
+  ! command           : Execute command in a shell
+EOF
+return;
+}
+
+sub smartSplit {
+    # Derived from shellwords.pl, standard Perl distribution subroutine
+    local($_) = join('', @_) if @_;
+    my (@words,$snippet,$field);
+
+    s/^\s+//;
+    while ($_ ne '') {
+	$field = '';
+	for (;;) {
+	    if (s/^"(([^"\\]|\\.)*)"//) {
+		($snippet = $1) =~ s#\\(.)#$1#g;
+	    }
+	    elsif (/^"/) {
+		die "Unmatched double quote: $_\n";
+	    }
+	    elsif (s/^'(([^'\\]|\\.)*)'//) {
+		($snippet = $1) =~ s#\\(.)#$1#g;
+	    }
+	    elsif (/^'/) {
+		die "Unmatched single quote: $_\n";
+	    }
+	    elsif (s/^\\(.)//) {
+		$snippet = $1;
+	    }
+	    elsif (s/^([^\s\\'"]+)//) {
+		$snippet = $1;
+	    }
+	    else {
+		s/^\s+//;
+		last;
+	    }
+	    $field .= $snippet;
+	}
+	push(@words, $field);
+    }
+    @words;
+}
+
+sub Usage {
+    print<<EOF;
+Usage: $0 [-d] [-v] [-f filesys]
+
+  -d          Debug mode
+  -v          Verbose mode
+  -f filesys  Connect to filesys (default is ti1)
+
+EOF
+
+    printHelp();
+
+    print<<EOF;
+    
+Examples:
+
+  clr OST_AGGREGATE_YEAR  - Clear contents of OST_AGGREGATE_YEAR
+  dt 41 '2007-02-03 04:05:06' Print number of seconds between TS_ID 41 and time
+  fs ti2                  - Disconnect from current filesys and connect to ti2
+  ost 3                   - Print info about ost 3
+  t                       - List all tables
+  t VERSION               - Describe table VERSION
+  ts 455790               - Print into about TS_ID 455790
+  ts '2007-02-03 04:05:06'  Print into about given timestamp
+  ts1 OST_DATA            - Print earliest timestamp and id from OST_DATA
+  tsn OST_DATA            - Print latest timestamp and id from OST_DATA
+  v                       - Print all variable id/names
+  vt OST_AGGREGATE_HOUR   - List all var ids associated with OST_AGGREGATE_HOUR
+EOF
+
+exit 1;
+}
+
+sub execAndPrintQuery {
+    my $lmt = shift;
+    my $q = shift;
+    my $printColumns = shift || 0;
+
+    print "Issuing query: '$q'\n" if ($debug);
+    my $sth = $lmt->execQuery($q);
+
+    my $ncols;
+    my $n = 1;
+    while (my $ref = $sth->fetchrow_hashref()) {
+	if ($n == 1 and $printColumns) {
+	    # Print header if doing by-column printing
+	    $ncols = scalar(keys %{$ref});
+	    my $format = "%6s" . "  %20s" x $ncols . "\n";
+	    printf $format, "Hit ID",  sort keys %{$ref};
+	}
+
+	if ($printColumns) {
+	    my $format = "%-6d" . "  %20s" x $ncols . "\n";
+	    my @vals=();
+	    foreach my $key (sort keys %{$ref}) {
+		push @vals, $ref->{$key};
+	    }
+	    printf $format, $n,  @vals;
+	} else {
+	    foreach my $key (sort keys %{$ref}) {
+		printf "\tRecord %-6d: %15s = %s\n", $n, $key, $ref->{$key};
+	    }
+	}
+	$n++;
+	print "\t-\n" if (not $printColumns);
+    }
+    $sth->finish();
+}
+
+sub execAndPrintQuery2 {
+    my $lmt = shift;
+    my $q = shift;
+    my $reverse = shift || 0;
+
+    print "Issuing query: '$q'\n" if ($debug);
+    my $sth = $lmt->execQuery($q);
+
+    my $colnameRef = $sth->{NAME_uc};
+    my $ncols;
+    my $header;
+    my @output=();
+    my @colnames = @{$colnameRef};
+    my @maxlen=();
+    my $n = 1;
+
+    while (my $ref = $sth->fetchrow_hashref()) {
+	if ($n == 1) {
+	    # Header line
+	    $ncols = scalar(@colnames);
+	    my $format = "%s" . "\t%s" x ($ncols-1);
+	    $header = sprintf($format, @colnames);
+	    my $j=0;
+	    foreach (@colnames) {
+		$maxlen[$j++] = length($_);
+	    }
+	}
+
+	my $format = "%s" . "\t%s" x ($ncols-1);
+	my @vals=();
+	foreach my $key (@colnames) {
+	    push @vals, $ref->{$key};
+	}
+	my $line = sprintf($format, @vals);
+	push @output, $line;
+	my $j=0;
+	foreach (@vals) {
+	    $maxlen[$j] = LMT::max($maxlen[$j], length($_));
+	    $j++;
+	}
+	$n++;
+    }
+    $sth->finish();
+
+    # Build up final format based on max width of each column
+    my $format = "%${maxlen[0]}s";
+    for (my $i=1; $i < scalar(@maxlen); $i++) {
+	$format .= "   %-${maxlen[$i]}s";
+    }
+    $format .= "\n";
+
+    printf $format, split /\t/, $header;
+
+    # Reverse output if requested (e.g., for 'tail' so latest record is last)
+    @output = reverse(@output) if ($reverse);
+    
+    foreach my $line (@output) {
+	printf $format, split /\t/, $line;
+    }
+}
+
+sub completion {
+    # Command line completion 
+    my $text = shift;    # The string being completed
+    $_ = shift;          # The full input line so far
+    my $start = shift;	 # The starting column for the current string
+
+    return grep (/^${text}/, @commands) if ($start == 0);
+    # Map lc to uc, - to _
+    $text = uc($text);
+    $text =~ s/-/_/g;
+
+    return grep (/^${text}/, @tables)   if ($start > 0);
+}

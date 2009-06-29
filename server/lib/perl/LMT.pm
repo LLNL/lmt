@@ -1,0 +1,1127 @@
+#===============================================================================
+#                                     LMT.pm
+#-------------------------------------------------------------------------------
+#  Purpose:     Methods for interacting with an LMT database and tables.
+#
+#  Author:      Jeff Long, LLNL, 02/17/2007
+#  Notes:       
+#	This is part of LMT2 -- the second generation of Lustre Monitoring
+#	Tools.
+#
+#  Modification History:
+#       02/17/2007 - jwl: Initial version.
+#===============================================================================
+package LMT;
+
+use strict;
+use Cwd;
+use DBI;
+use Time::Local;
+#use Date::Manip;
+
+#  Class Variables...
+my $DBH             = undef;		# Database handle
+my $BOOTSTRAPPED    = 0;		# Have we read bootstrapping info yet?
+my $CONNECTED       = 0;		# Have we connected to a DB?
+my $ACTIVE_DB       = "";		# Active DBI DB string
+my $ACTIVE_FILESYSTEM = "";		# Name of active filesystem
+my %FILESYS_HASHES  = ();		# Info about available filesystems
+my @FILESYS_NAMES   = ();		# Names of avail filesystems, in original order
+
+my $DIE_ON_ERROR    = 1;		# Die if an error is encountered
+my $VERBOSE         = 0;		# Basic diagnostics?
+my $DEBUG           = 0;		# Detailed diagnostics?
+
+
+###############################
+#  Method: new
+###############################
+sub new {
+    my $class = shift;
+ 
+    my $self = {};
+    bless $self, $class;
+    if ($self->_init(@_)) {           # Call _init with remaining args
+        return $self;
+    } else {
+        return 0;
+    }
+}
+
+###############################
+#  Private Method: _init
+###############################
+sub _init {
+    my $self = shift;
+    my $lmtrc = shift;
+
+    # Get bootstrap info from ~/.lmtrc if not supplied on exec line
+    $lmtrc = "$ENV{HOME}/.lmtrc"
+      if (not $lmtrc or not -r $lmtrc);
+
+    my %fsHash = _parseConf($lmtrc, "filesys.0");
+	
+    die ("[LMT:init] Missing configuration file or configuration info: $lmtrc\n")
+      if (not %fsHash);
+
+    $self->{ACTIVE_DB} = "";
+    $self->{CONNECTED} = 0;
+    $self->{ACTIVE_FILESYSTEM} = "";
+
+    # Store filesys info for items listed in lmtrc
+    foreach my $key (sort keys %fsHash) {
+	my %h = %{$fsHash{$key}};
+	push @{$self->{FILESYS_NAMES}}, $h{dbname};
+	$self->{FILESYS_HASHES}->{$h{dbname}} = \%h;
+    }
+    $self->{BOOTSTRAPPED} = 1;
+}
+
+###############################
+#  Method: connect
+###############################
+sub connect {
+    my $self = shift;
+    my $filesys = shift || die ("[LMT::connect] -- Missing filesystem argument\n");
+    my %connectInfo = @_;   # Optionally supply connect info
+
+    my %fsinfo = ();
+    if (%connectInfo and defined $connectInfo{host}) {
+	# Connect using info from caller
+	$fsinfo{name}   = $connectInfo{name};
+	$fsinfo{dbname} = $connectInfo{db};
+	$fsinfo{dbhost} = $connectInfo{host};
+	$fsinfo{dbport} = $connectInfo{port};
+	$fsinfo{dbuser} = $connectInfo{user};
+	$fsinfo{dbauth} = $connectInfo{auth};
+    } else {
+	# Connect using info from bootstramp DB
+	die ("[LMT::connect] - System not bootstrapped\n") if (not $self->{FILESYS_HASHES});
+	die ("[LMT::connect] - Unknown filesystem: $filesys\n")
+	    if (not defined $self->{FILESYS_HASHES}{$filesys});
+	%fsinfo = %{$self->{FILESYS_HASHES}{$filesys}};
+    }
+    
+    my $db = "DBI:mysql:database=$fsinfo{dbname};host=$fsinfo{dbhost};port=$fsinfo{dbport}";
+    print "db=$db\nconnected=" . $self->{ACTIVE_DB} ."\n" if ($self->debug());
+
+    return 1 if ($db eq $self->{ACTIVE_DB});  # Already connected to desire db
+
+    die ("[LMT::connect] Missing configuration information.\n")
+	if (not %fsinfo or 
+	    not defined $fsinfo{dbhost} or not defined $fsinfo{dbport} or
+	    not defined $fsinfo{dbuser} or not defined $fsinfo{dbauth} or
+	    not defined $fsinfo{dbname});
+
+    # Connect to new DB
+    $self->{DBH}->disconnect() if ($self->{CONNECTED});
+    $self->{CONNECTED} = 0;
+
+#    print "[LMT::connect] Attempting to connect using:\n\tdb=$db\n\tuser=lwatchadmin\n"
+    print "[LMT::connect] Attempting to connect using:\n\tdb=$db\n\tuser=$fsinfo{dbuser}\n"
+	if ($self->verbose());
+#    $self->{DBH} = DBI->connect($db, "lwatchadmin","",
+    $self->{DBH} = DBI->connect($db, $fsinfo{dbuser}, $fsinfo{dbauth},
+				{'RaiseError' => 1});
+
+    die ("[LMT::connect] Could not connect to database $filesys\n")
+	if (not $self->{DBH});
+
+    $self->{ACTIVE_DB} = $db;
+    $self->{CONNECTED} = 1;
+    $self->{ACTIVE_FILESYSTEM} = $filesys;
+
+    return 1;
+}
+
+###############################
+#  Method: disconnect
+###############################
+sub disconnect {
+    my $self = shift;
+
+    return if (not $self->{CONNECTED});
+
+    $self->{DBH}->disconnect();
+    $self->{CONNECTED} = 0;
+    $self->{ACTIVE_DB} = "";
+}
+
+################################################################################
+#  Method: do - Execute given query without looking at result set.
+################################################################################
+sub doQuery {
+    my $self = shift;
+    my $query = shift;
+    my @args = @_;
+
+    die ("LMT::doQuery] -- Not connected to a db!\n")
+	if (not $self->{CONNECTED});
+
+    if ($self->debug()) {
+	print "[LMT::doQuery] -- Query=$query\nargs=@args\n";
+    }
+
+    if (scalar(@args)) {
+	return $self->{DBH}->do($query, undef, @args);
+    } else {
+	return $self->{DBH}->do($query);
+    }
+}
+
+################################################################################
+#  Method: execQuery - Prepare and execute given query. Returns ref to result set.
+################################################################################
+sub execQuery {
+    my $self = shift;
+    my $query = shift;
+    my @args  = @_;
+
+    die ("LMT::execQuery] -- Not connected to a db!\n")
+	if (not $self->{CONNECTED});
+
+    if ($self->debug()) {
+	print "[LMT::execQuery] -- Query=$query\nargs=@args\n";
+    }
+
+    my $sth = $self->{DBH}->prepare($query);
+    if (scalar(@args)) {
+	$sth->execute(@args);
+    } else {
+	$sth->execute();
+    }
+
+    return $sth;
+}
+
+###############################
+#  Method: DESTROY
+###############################
+sub DESTROY { }
+
+###############################
+#  Method: quit
+###############################
+sub quit {
+    my $self = shift;
+}
+
+###############################
+#  Method: verbose
+###############################
+sub verbose {
+    my $self = shift;
+
+    return $self->{VERBOSE} if (not scalar (@_));
+
+    $self->{VERBOSE} = ($_[0]) ? 1 : 0;
+    return $self->{VERBOSE};
+}
+
+###############################
+#  Method: debug
+###############################
+sub debug {
+    my $self = shift;
+
+    return $self->{DEBUG} if (not scalar (@_));
+
+    $self->{DEBUG} = ($_[0]) ? 1 : 0;
+    return $self->{DEBUG};
+}
+
+###############################
+#  Method: dieOnError
+###############################
+sub dieOnError {
+    my $self = shift;
+
+    return $self->{DIE_ON_ERROR} if (not scalar (@_));
+
+    $self->{DIE_ON_ERROR} = ($_[0]) ? 1 : 0;
+
+    if ($self->{DIE_ON_ERROR}) {
+	$self->{DBH}->{RaiseError} = 1;
+	$self->{DBH}->{PrintError} = 0;
+    } else {
+	$self->{DBH}->{RaiseError} = 0;
+	$self->{DBH}->{PrintError} = 1;
+    }
+    return $self->{DIE_ON_ERROR};
+}
+
+###############################
+#  Method: getActiveDatabase
+###############################
+sub getActiveDatabase {
+    my $self = shift;
+
+    return $self->{ACTIVE_DB};
+}
+
+###############################
+#  Method: getActiveFilesystem
+###############################
+sub getActiveFilesystem {
+    my $self = shift;
+
+    return $self->{ACTIVE_FILESYSTEM};
+}
+
+###############################
+#  Method: getFilesystemList
+###############################
+sub getFilesystemList {
+    my $self = shift;
+    
+    return @{$self->{FILESYS_NAMES}};
+}
+
+###############################
+#  Method: getFilesystemIdFromName
+###############################
+sub getFilesystemIdFromName {
+    my $self = shift;
+    my $fsname = shift;
+
+    # fsname may contain 'filesytem_' prefix, which by convention is not used in the DB
+    $fsname =~ s/^filesystem_//;
+
+    # Get filesystem name and use that to look up entry in DB
+    my $fsid = $self->_getCol1WhereCol2 ("FILESYSTEM_INFO", "FILESYSTEM_ID", "FILESYSTEM_NAME",
+					 $fsname);
+
+    return $fsid;
+}
+
+###############################
+#  Method: getTableList
+###############################
+sub getTableList {
+    my $self = shift;
+
+    my @tables=();
+    my $sth = $self->execQuery ("show tables");
+    while (my $ref = $sth->fetchrow_hashref()) {
+	foreach (keys %{$ref}) {
+	    if (/Tables/) {
+		push @tables, $ref->{$_};
+	    }
+	}
+    }
+    return sort @tables;
+}
+
+###############################
+#  Method: getTableDescription
+###############################
+sub getTableDescription {
+    my $self = shift;
+    my $table = shift || die ("[getTableDescription] - Missing table argument\n");
+
+    my %desc = ();
+    
+    my $sth = $self->execQuery("describe $table");
+    while (my $ref = $sth->fetchrow_hashref()) {
+	$desc{$ref->{Field}} = $ref->{Type};
+    }
+    $sth->finish();
+    return %desc;
+}
+
+###############################
+#  Method: getTableRowCount
+###############################
+sub getTableRowCount {
+    my $self = shift;
+    my $table = shift || die ("[getTableRowCount] - Missing table argument\n");
+
+    my %desc = ();
+    
+    my $sth = $self->execQuery("select count(*) from $table");
+    my $ref = $sth->fetchrow_hashref();
+    if ($ref and $ref->{'count(*)'}) {
+	return $ref->{'count(*)'};
+    } else {
+	return 0;
+    }
+}
+
+#######################################################################################
+#  Method: clearTable  - Clear contents of given table, leaving table intact.
+#######################################################################################
+sub clearTable {
+    my $self = shift;
+    my $table = shift || die ("[clearTable] - Missing table argument\n");
+
+    my $sth = $self->doQuery ("delete from $table where TS_ID > -1");
+}
+
+my %cachedOstIds=();
+my %cachedOstNames=();
+
+sub getOstIdFromName {
+    my $self = shift;
+    my $ostname = shift;
+
+    return $cachedOstIds{$ostname}
+       if (defined $cachedOstIds{$ostname});
+
+    my $ostid = $self->_getCol1WhereCol2 ("OST_INFO", "OST_ID", "OST_NAME", $ostname);
+
+    # Cache so we don't have to issue a query next time...
+    $cachedOstIds{$ostname} = $ostid;
+    $cachedOstNames{$ostid} = $ostname;
+
+    return $ostid;
+}
+
+sub getOstNameFromId {
+    my $self = shift;
+    my $ostid = shift;
+
+    return $cachedOstNames{$ostid}
+       if (defined $cachedOstNames{$ostid});
+
+    my $ostname = $self->_getCol1WhereCol2 ("OST_INFO", "OST_NAME", "OST_ID", $ostid);
+
+    # Cache so we don't have to issue a query next time...
+    $cachedOstNames{$ostid} = $ostname;
+    $cachedOstIds{$ostname} = $ostid;
+
+    return $ostname;
+}
+
+#######################################################################################
+#  Method: getFirstTimestamp  - Return earliest timestamp (and id) for given table
+#######################################################################################
+sub getFirstTimestamp {
+    my $self = shift;
+    my $table = shift;
+    my $after = shift || "";   # First timestamp *after* this timestamp
+
+    my ($firstTimestamp,$firstTimestampId) = (undef,undef);
+
+    # Get first TIMESTAMP (and associated TS_ID)
+    my $query;
+    if ($table eq "TIMESTAMP_INFO") {
+	$query = "select distinct TS_ID,TIMESTAMP from TIMESTAMP_INFO ".
+	    "where TIMESTAMP=(select min(TIMESTAMP) from TIMESTAMP_INFO ";
+    } else {
+	$query = "select distinct TS_ID,TIMESTAMP from TIMESTAMP_INFO ".
+	    "where TIMESTAMP=(select min(TIMESTAMP) from TIMESTAMP_INFO,$table " .
+	    "where TIMESTAMP_INFO.TS_ID=$table.TS_ID";
+    }
+    if ($after) {
+	$query .= " and TIMESTAMP>= \'$after\')";
+    } else {
+	$query .= ")";
+    }
+
+    my $sth = $self->execQuery($query);
+    if (my $ref = $sth->fetchrow_hashref()) {
+	$firstTimestamp = $ref->{TIMESTAMP};
+	$firstTimestampId = $ref->{TS_ID};
+    } else {
+	# Table is empty
+    }
+    $sth->finish();
+
+    return ($firstTimestamp,$firstTimestampId);
+}
+
+#######################################################################################
+#  Method: getFinalTimestamp  - Return latest timestamp (and id) for given table
+#######################################################################################
+sub getFinalTimestamp {
+    my $self = shift;
+    my $table = shift;
+
+    my ($finalTimestamp,$finalTimestampId) =  (undef,undef);
+
+    # Get final TIMESTAMP (and associated TS_ID)
+    my $query;
+    my $optimized = 0;
+    if ($table eq "TIMESTAMP_INFO") {
+	$query = "select distinct TS_ID,TIMESTAMP from TIMESTAMP_INFO ".
+	    "where TIMESTAMP=(select max(TIMESTAMP) from TIMESTAMP_INFO)";
+    } elsif ($table eq "OST_DATA" or $table eq "ROUTER_DATA" or $table eq "MDS_DATA") {
+	# For raw data tables, this is considerably faster than searching through all data.
+	$optimized=1;
+	$query = "select distinct TS_ID,TIMESTAMP from TIMESTAMP_INFO ".
+	  "where TIMESTAMP=(select max(TIMESTAMP) from TIMESTAMP_INFO,$table " .
+	    "where TIMESTAMP_INFO.TS_ID=$table.TS_ID and TIMESTAMP > DATE_ADD(NOW(), INTERVAL -6 HOUR))";
+    } else {
+	$query = "select distinct TS_ID,TIMESTAMP from TIMESTAMP_INFO ".
+	    "where TIMESTAMP=(select max(TIMESTAMP) from TIMESTAMP_INFO,$table " .
+	    "where TIMESTAMP_INFO.TS_ID=$table.TS_ID)";
+    }
+
+    my $sth = $self->execQuery($query);
+    if (my $ref = $sth->fetchrow_hashref()) {
+	$finalTimestamp = $ref->{TIMESTAMP};
+	$finalTimestampId = $ref->{TS_ID};
+    } else {
+	# Table is empty.
+	if ($optimized) {
+	    # Optimized query failed to return a hit; try non-optimized one.
+	    $query = "select distinct TS_ID,TIMESTAMP from TIMESTAMP_INFO ".
+	      "where TIMESTAMP=(select max(TIMESTAMP) from TIMESTAMP_INFO,$table " .
+		"where TIMESTAMP_INFO.TS_ID=$table.TS_ID)";
+	    $sth = $self->execQuery($query);
+	    if ($ref = $sth->fetchrow_hashref()) {
+		$finalTimestamp = $ref->{TIMESTAMP};
+		$finalTimestampId = $ref->{TS_ID};
+	    }
+	}
+    }
+    $sth->finish();
+
+    return ($finalTimestamp,$finalTimestampId);
+}
+
+#######################################################################################
+#  Method: getTimestampIdFromTimestamp  - given a timestamp, return associated TS_ID
+#######################################################################################
+sub getTimestampIdFromTimestamp {
+    my $self = shift;
+    my $timestamp = shift;
+    
+    return $self->_getCol1WhereCol2 ("TIMESTAMP_INFO", "TS_ID", "TIMESTAMP", $timestamp);
+}
+
+#######################################################################################
+#  Method: getTimestampIdFromTimestamp  - given a TS_ID, return associated TIMESTAMP
+#######################################################################################
+my %cachedTimestamps=();
+
+sub getTimestampFromTimestampId {
+    my $self = shift;
+    my $timestampId = shift;
+    
+    return $cachedTimestamps{$timestampId}
+       if (defined $cachedTimestamps{$timestampId});
+
+    my $t = $self->_getCol1WhereCol2("TIMESTAMP_INFO", "TIMESTAMP", "TS_ID", $timestampId);
+    $cachedTimestamps{$timestampId} = $t if (defined $t and $t);
+    return $t;
+}
+
+#######################################################################################
+# Method: diffTimestampIds - return difference in seconds between times represented by 
+#				two timestamp ids
+#######################################################################################
+sub diffTimestampIds {
+    my $self = shift;
+    my $ts_id1 = shift;
+    my $ts_id2 = shift;
+
+    my $date1 = ParseDate($self->getTimestampFromTimestampId($ts_id1));
+    my $date2 = ParseDate($self->getTimestampFromTimestampId($ts_id2));
+    my $err;
+
+    my $diff = DateCalc($date1, $date2, \$err);
+    die ("date calc error: $err\n") if (not $diff or $err);
+
+    # Convert $diff (a delta) into seconds
+    my $s = Delta_Format($diff, 0, "%st");
+
+# print "[diffTimestamps] id1=$ts_id1, id2=$ts_id2, diff=$s\n";
+
+    return (int($s));
+}
+    
+
+#######################################################################################
+# Method: diffTimestamps - return difference in seconds between times represented by 
+#                          two timestamps
+#######################################################################################
+sub diffTimestamps {
+    my $self = shift;
+    my $ts1 = shift;
+    my $ts2 = shift;  # Form: yyyy-mm-dd hh:mm:ss
+
+    my ($yr,$mo,$day,$hr,$min,$sec) = ($ts1 =~ /(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)/);
+    my $ts1_epoch = timelocal($sec,$min,$hr,$day,$mo-1,$yr);
+
+    ($yr,$mo,$day,$hr,$min,$sec) = ($ts2 =~ /(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)/);
+    my $ts2_epoch = timelocal($sec,$min,$hr,$day,$mo-1,$yr);
+
+    return abs($ts2_epoch - $ts1_epoch);
+
+# The Date::Manip stuff works great but is way too slow. jwl, 2/12/07
+#    my $date1 = ParseDate($ts1);
+#    my $date2 = ParseDate($ts2);
+#    my $err;
+#    my $diff = DateCalc($date1, $date2, \$err);
+#    die ("date calc error: $err\n") if (not $diff or $err);
+    # Convert $diff (a delta) into seconds
+#    my $s = Delta_Format($diff, 0, "%st");
+#    return (int($s));
+}
+
+#######################################################################################
+# Method: getOstVariableId -- Given a var name, return its var id.
+#######################################################################################
+my %cachedOstVarIds=();
+my %cachedOstVarNames=();
+
+sub getOstVariableId {
+    my $self = shift;
+    my $varname = shift;
+
+    return $cachedOstVarIds{$varname}
+       if (defined $cachedOstVarIds{$varname});
+
+    my $varid = $self->_getCol1WhereCol2 ("OST_VARIABLE_INFO", "VARIABLE_ID", "VARIABLE_NAME", $varname);
+
+    # Cache so we don't have to issue a query next time...
+    $cachedOstVarIds{$varname} = $varid;
+    $cachedOstVarNames{$varid} = $varname;
+
+    return $varid;
+}    
+
+#######################################################################################
+# Method: getOstVariableName -- Given a var id, return its name.
+#######################################################################################
+sub getOstVariableName {
+    my $self = shift;
+    my $varid = shift;
+
+    return $cachedOstVarNames{$varid}
+       if (defined $cachedOstVarNames{$varid});
+
+    my $varname = $self->_getCol1WhereCol2 ("OST_VARIABLE_INFO", "VARIABLE_NAME", "VARIABLE_ID", $varid);
+
+    # Cache so we don't have to issue a query next time...
+    $cachedOstVarNames{$varid} = $varname;
+    $cachedOstVarIds{$varname} = $varid;
+
+    return $varname;
+}    
+
+#######################################################################################
+# Method: getAllOstVariableIdsAndNames - Return hash of all varids/varnames in OST_VARIABLE_INFO
+#######################################################################################
+sub getAllOstVariableIdsAndNames {
+    my $self = shift;
+
+    return $self->getTablesVariableIdsAndNames("OST_VARIABLE_INFO");
+}
+
+#######################################################################################
+# Method: getMdsVariableId -- Return varid associated with given mds varname
+#######################################################################################
+sub getMdsVariableId {
+    my $self = shift;
+    my $varname = shift;
+
+    return $self->_getCol1WhereCol2 ("MDS_VARIABLE_INFO", "VARIABLE_ID", "VARIABLE_NAME", $varname);
+}    
+
+#######################################################################################
+# Method: getRouterVariableId -- Return varid associated with given router varname
+#######################################################################################
+sub getRouterVariableId {
+    my $self = shift;
+    my $varname = shift;
+
+    return $self->_getCol1WhereCol2 ("ROUTER_VARIABLE_INFO", "VARIABLE_ID", "VARIABLE_NAME", $varname);
+}    
+
+#######################################################################################
+# Method: getRouterVariableName -- Return varname associated with given router varid
+#######################################################################################
+sub getRouterVariableName {
+    my $self = shift;
+    my $varid = shift;
+
+    return $self->_getCol1WhereCol2 ("ROUTER_VARIABLE_INFO", "VARIABLE_NAME", "VARIABLE_ID", $varid);
+}    
+
+#######################################################################################
+# Method: getAllVariableIdsAndNames - Return hash of all varids/varnames in ROUTER_VARIABLE_INFO
+#######################################################################################
+sub getAllRouterVariableIdsAndNames {
+    my $self = shift;
+
+    return $self->getTablesVariableIdsAndNames("ROUTER_VARIABLE_INFO");
+}
+
+
+#######################################################################################
+# Method: getTablesVariableIdsAndNames - Return hash of all varids/varnames in given table.
+#######################################################################################
+sub getTablesVariableIdsAndNames {
+    my $self = shift;
+    my $table = shift;
+
+    my %ids = ();
+    my ($sth,$ref);
+
+    $sth = $self->execQuery("select distinct VARIABLE_ID,VARIABLE_NAME from $table");
+    while ($ref = $sth->fetchrow_hashref()) {
+	if (defined $ref->{VARIABLE_ID}) {
+	    $ids{$ref->{VARIABLE_NAME}} = $ref->{VARIABLE_ID};
+	}
+    }
+    $sth->finish();
+    return (%ids);
+}
+
+#######################################################################################
+# Method: getTablesVariableIds - Return array of all varids in given table.
+#######################################################################################
+sub getTablesVariableIds {
+    my $self = shift;
+    my $table = shift || return undef;
+
+    return $self->_getColumn ($table, "VARIABLE_ID");
+}
+
+#######################################################################################
+# Method: getTablesOstIds - Return list of all ostids in given table
+#######################################################################################
+sub getTablesOstIds {
+    my $self = shift;
+
+    return $self->_getColumn ("OST_INFO", "OST_ID");
+}
+
+#######################################################################################
+# Method: getTablesMdsIds - Return list of all mdsids in given table
+#######################################################################################
+sub getTablesMdsIds {
+    my $self = shift;
+
+    return $self->_getColumn ("MDS_INFO", "MDS_ID");
+}
+
+#######################################################################################
+# Method: getTablesRouterIds - Return list of all routerids in given table
+#######################################################################################
+sub getTablesRouterIds {
+    my $self = shift;
+
+    return $self->_getColumn ("ROUTER_INFO", "ROUTER_ID");
+}
+
+#######################################################################################
+# Private Method: _getCol1WhereCol2 - Return col1 where col2 equals 'value'
+#######################################################################################
+sub _getCol1WhereCol2 {
+    my $self = shift;
+    my $table = shift;
+    my $col1 = shift;
+    my $col2 = shift;
+    my $value = shift;
+
+    my $sth = $self->execQuery("select distinct $col1 from $table where $col2=?", $value);
+    my $ref = $sth->fetchrow_hashref();
+	
+    if (not $ref or not $ref->{$col1}) {
+	die ("Trouble retrieving $col1 for $value\n")
+	    if ($self->{DIE_ON_ERROR});
+	return undef;
+    }
+    return $ref->{$col1};
+}
+
+
+#######################################################################################
+# Private Method: _getColumn - Return a sorted column from given table
+#######################################################################################
+sub _getColumn {
+    my $self = shift;
+    my $table = shift;
+    my $column = shift;
+
+    my @vals = ();
+    my ($sth,$ref);
+
+    $sth = $self->execQuery("select distinct $column from $table order by $column");
+    while ($ref = $sth->fetchrow_hashref()) {
+	push @vals, $ref->{$column};
+    }
+    $sth->finish();
+    return (@vals);
+}
+    
+#######################################################################################
+# Method: createOrFetchTimestampId - Either return existing TS_ID for given timestamp,
+#				     or create a new one.
+#######################################################################################
+sub createOrFetchTimestampId {
+    my $self = shift;
+    my $ts  = shift;
+
+    my $ref;
+    # First see if given timestamp already exists
+    my $sth = $self->execQuery("select distinct TS_ID from TIMESTAMP_INFO where TIMESTAMP=?", $ts);
+
+    if (not $ref = $sth->fetchrow_hashref()) {
+	# Doesn't exist. Create new one
+	print "Creating new timestamp: $ts\n" if ($self->verbose());
+
+	$sth = $self->doQuery("insert into TIMESTAMP_INFO (TIMESTAMP) values (\"$ts\")");
+
+	$sth = $self->execQuery("select distinct TS_ID from TIMESTAMP_INFO where TIMESTAMP=?", $ts);
+	$ref = $sth->fetchrow_hashref();
+    }	
+    die ("Trouble creating new timestamp for $ts\n")
+	if (not $ref or not $ref->{TS_ID});
+
+    return $ref->{TS_ID};
+}
+
+#######################################################################################
+# Method: generateGetDataWindowQuery - Return the sql query used to retrieve a data
+#				       window from the given table for the given window.
+#######################################################################################
+sub generateGetDataWindowQuery {
+    my $self = shift;
+    my $table = shift;
+    my $startTime = shift;
+    my $endTime = shift;        # May be an interval instead
+    my @fields = @_;		# Fields to return
+
+    my $interval = 0;
+    if ($endTime =~ /^\d+$/) {
+	$interval = $endTime;	# User specified an interval (in minutes), not an ending timestamp
+	$endTime = "";
+    }
+
+    # Build up query string
+    my $query = "select distinct ";
+    foreach (@fields) {
+	if (/TIMESTAMP/) {
+	    $query .= "TIMESTAMP,";
+	} else {
+	    $query .= "x1.$_,";
+	}
+    }
+    $query =~ s/,$/ /;
+    $query .= " from $table as x1, TIMESTAMP_INFO where x1.TS_id=TIMESTAMP_INFO.TS_ID and ";
+
+    if ($endTime) {
+	# User requested start and end time, rather than interval. Build query accordingly.
+	$query .= "TIMESTAMP >= '" . $startTime . "' and TIMESTAMP <= '" . $endTime . "' ";
+    } else {
+	# User requested start time and interval.
+	$query .= "TIMESTAMP >= '" . $startTime . "' and " .
+	    "TIMESTAMP <= DATE_ADD('" . $startTime . "', INTERVAL $interval MINUTE) ";
+    }
+    return $query;
+}
+
+###############################
+#  Private Method: _parseConf
+###############################
+sub _parseConf {
+    my $file = shift;
+
+    my %filesysHash=(); # Hash of hash refs - one per filesystem
+    
+    if (not $file or not -r $file) {
+	print STDERR "[LMT::_parseConf] Could not access configuration file: $file\n";
+	return ();
+    }
+
+    my %out=();
+    open (CONF,"$file") || die ("[LMT::_parseConf] Could not open config file: $file\n");
+    while (<CONF>) {
+	next unless (/^filesys/); # ...and anything in other sections.
+	chomp;
+
+	my ($k,$v) = split(/=/, $_, 2);
+	my ($section,$num,$keyword) = split(/\./, $k, 3);
+
+	if (not defined($filesysHash{$num})) {
+	    my %h=();
+	    $filesysHash{$num} = *%{h};
+	}
+	$filesysHash{$num}->{$keyword} = $v;
+    }
+    close CONF;
+    return %filesysHash;
+}
+
+sub max {
+    my($max) = shift(@_);
+
+    foreach my $temp (@_) {
+        $max = $temp if $temp > $max;
+    }
+    return($max);
+}
+
+sub min {
+    my($min) = shift(@_);
+
+    foreach my $temp (@_) {
+        $min = $temp if $temp < $min;
+    }
+    return($min);
+}
+
+sub getStartAndFinalAggTimestamps {
+    my $self = shift;
+    my $rawTable = shift;
+    my $hourlyTable = shift;
+
+    # Get latest timestamp from aggregate hourly table.
+    print "Final timestamp from $hourlyTable:  ";
+    my ($lastAggTimestamp,$lastAggTimestampId) = $self->getFinalTimestamp ($hourlyTable);
+    if (not $lastAggTimestamp) {
+	$lastAggTimestamp = "2006-01-01 00:00:00";
+	$lastAggTimestampId = 0;
+    }
+    print "$lastAggTimestamp, id=$lastAggTimestampId\n";	
+    
+    # Get latest timestamp info from raw data table...
+    print "Final timestamp from $rawTable (raw):      ";
+    my ($lastRawTimestamp,$lastRawTimestampId) = $self->getFinalTimestamp ($rawTable);
+    print "$lastRawTimestamp, id=$lastRawTimestampId\n";	
+    
+    # Find first timestamp from raw data that needs to be processed (i.e., the first
+    # record with a later timestamp than the final agg table entry.)
+    print "First timestamp from $rawTable:            ";
+    my ($firstRawTimestamp,$firstRawTimestampId) =
+	$self->getFirstTimestamp ($rawTable, $lastAggTimestamp);
+    die ("No matching timestamp in raw data\n") if (not $firstRawTimestampId);
+
+    my $startTimestamp = $lastAggTimestamp;
+#    my $startTimestamp = substr($firstRawTimestamp,0,10) . " 00:00:00";
+    print "$firstRawTimestamp, id=$firstRawTimestampId\n";
+    
+    # Convert start and final timestamps into form that's easier to manipulate
+    my $finalTimestamp = $lastRawTimestamp;
+    $startTimestamp =~ s/[- :]//g;
+    $finalTimestamp =~ s/[- :]//g;
+
+    return ($startTimestamp, $finalTimestamp);
+}
+    
+
+1;
+
+
+__END__
+
+=head1 NAME
+
+LMT - Methods for interacting with Lusture Monitoring Tools (LMT) MySQL tables
+
+=head1 SYNOPSIS
+
+  use LMT;
+
+  $lmt = LMT->new()
+  $lmt->connect("ti1");
+
+  # Get list of all tables
+  @tables = $lmt->getTableList();
+
+  # Get a timestamp from a timestamp id
+  $ts = $lmt->getTimestampFromTimestampId($tsid);
+
+  # Get info about OST variable names
+  %vinfo = $lmt->getAllOstVariableIdsAndNames();
+
+=head1 DESCRIPTION
+
+This class is used to perform operations on and query Lustre data
+in a MySQL database. It is assumed the tables have been set up based
+on the official LMT schema.
+
+=over 4
+
+=item B<CLASS METHODS>
+
+=item new( [conf] )
+
+Returns an LMT database object which will operate on a MySQL database.
+If the user has a ~/.lmtrc configuration file, that will be used for
+determining bootstrapping information (i.e., the list of available
+filesystems and DB connection information for each.) If there is no
+~/.lmtrc file, the %conf hash  must be provided, with the following required keys: 
+
+   dbhost = Hostname where MySQL DB is running
+   dbport = MySQL port number
+   dbuser = Username to use for DB connection
+   dbauth = Password to use for DB connection
+   dbname = Name of database to connect with
+   table  = Name of bootstrapping table
+
+=item connect( filesys, [info] )
+
+Connects to the given filesystem, which if no info argument is given must have been
+defined via ~/.lmtrc or via the conf hash given to the new() method. Alternatively,
+connection information can be supplied by the info hash using these keys:
+
+   LMT_DB_HOST     = Hostname where MySQL DB is running
+   LMT_DB_PORT     = MySQL port number
+   LMT_DB_USERNAME = Username to use for DB connection
+   LMT_DB_AUTH     = Password to use for DB connection
+   LMT_DB_DBNAME   = Name of database to connect with
+
+=item disconnect( )
+
+Disconnects from the database.
+
+=item doQuery( query, [preparedArgs] )
+
+Prepare and execute the given query, with optional prepared statement arguments (i.e., substitutes for
+'?' characters in the query.) The status value is returned, so this method is best for
+performing queries that do not generate output or where you do not care about the output.
+
+=item execQuery( query, [preparedArgs] )
+
+Prepare and execute the given query, with optional prepared statement arguments (i.e., substitutes for
+'?' characters in the query.) The statement handle is returned.
+
+=item verbose( [boolean] )
+
+Set the verbosity value to boolean. Method returns the current setting.
+
+=item debug( [boolean] )
+
+Set the debug value to boolean. Method returns the current setting.
+
+=item dieOnError( [boolean] )
+
+Set the "die on error" value to boolean. True means that die() will be invoked if the package
+encounters a SQL error. False means that SQL errors will cause error messages to be printed
+but will not be fatal. Method returns the current setting.
+
+=item getActiveDatabase( )
+
+Returns name of active database.
+
+=item getActiveFilesystem( )
+
+Returns name of active filesystem.
+
+=item getFilesystemList( )
+
+Returns list of available filesystems (as defined by bootstrapping info via new()).
+
+=item getTableList( )
+
+Returns list of available tables in current filesystems.
+
+=item getTableDescription( table )
+
+Returns hash describing given table. Keys are the field names, values are the field types.
+
+=item getTableRowCount( table )
+
+Returns number of rows in given table. 
+
+=item clearTable( table )
+
+Removes contents of given table. Does not delete table itself.
+
+=item getOstIdFromName( ostname )
+
+Returns OST id associated with OST name.
+
+=item getOstNameFromId( ostname )
+
+Returns OST name associated with OST id.
+
+=item getFirstTimestamp( table [,after] )
+
+Returns earliest timestamp and associated timestamp ID from given table.
+If optional after argument is supplied, returns the first TS and TSID
+from given table after the given time. after can be either a TS or a TSID.
+
+=item getFinalTimestamp( table )
+
+Returns latest timestamp and associated timestamp ID from given table.
+
+=item getTimestampFromTimestampID( timestamp )
+
+Returns timestamp associated with given TSID.
+
+=item getTimestampIdFromTimestamp( timestamp_id )
+
+Returns TSID associated with given TS.
+
+=item diffTimestampIds( tsid1, tsid2 )
+
+Returns the difference in seconds represented by the times associated
+with the given timestamp ids.
+
+=item diffTimestamps( ts1, ts2 )
+
+Returns the difference in seconds between the two timestamps. Timestamps are
+given in the form "yyyy-mm-dd hh:mm:ss".
+
+=item getOstVariableId( ost_varname )
+
+Return OST varid from OST varname.
+
+=item getOstVariableName( ost_varid )
+
+Return OST varname from OST varid.
+
+=item getAllOstVariableIdsAndNames( )
+
+Return hash containing all OST variable info.
+
+=item getMdsVariableId( mds_varname )
+
+Return MDS varid from MDS varname.
+
+=item getRouterVariableId( router_varname )
+
+Return router varid from router varname.
+
+=item getRouterVariableName( router_varid )
+
+Return router varname from router varid.
+
+=item getAllRouterVariableIdsAndNames( )
+
+Return hash containing all router variable info.
+
+=item getTablesVariableIdsAndNames( table )
+
+Return hash containing all variable info from given table.
+
+=item getTablesVariableIds( table )
+
+Return list of variable ids from given table.
+
+=item getTablesOstIds( table )
+
+Return list of OST ids from given table.
+
+=item getTablesMdsIds( table )
+
+Return list of MDS ids from given table.
+
+=item getTablesRouterIds( table )
+
+Return list of router ids from given table.
+
+=item createOrFetchTimestampId( timestamp )
+
+Determine if given timestamp exists. If not, create it. In either case,
+return associated TSID.
+
+=item generateGetDataWindowQuery( table, startTime, endTime|interval, fields )
+
+Return the SQL query used to retrieve a data window from the given table
+for the given time window. This query would then be executed with the
+execQuery() method.
+
+=item getStartAndFinalAggTimestamps( raw_table, hourly_table )
+
+Return the first and last timestamps from the raw_table to use for processing
+the given aggregate hourly table. This is useful for determining which set of
+data needs to be processed when doing aggregate updates.
+
+

@@ -1,0 +1,389 @@
+#!/usr/bin/env perl
+#===============================================================================
+#                                lmt_update_router_agg
+#-------------------------------------------------------------------------------
+#  Purpose:     Update the aggregate-hour table from raw data (ROUTER)
+#
+#  Author:      Jeff Long, LLNL, 02/17/2007
+#  Notes:       
+#	This is part of LMT2 -- the second generation of Lustre Monitoring
+#	Tools.
+#
+#	This script updates the ROUTER_AGGREGATE_HOUR table with information
+#	collected from the raw ROUTER_DATA table.
+#
+#  Modification History:
+#       02/17/2007 - jwl: Initial version.
+#===============================================================================
+
+BEGIN {
+    push @INC, "/usr/share/lmt/lib/perl";
+    push @INC, "../lib/perl";
+}
+
+use strict;
+use Date::Manip;
+use Getopt::Std;
+use LMT;
+
+$| = 1;
+
+Usage() if (not getopts('c:dvf:t:'));
+
+my $verbose   = (defined $main::opt_v) ? 1 : 0;
+my $debug     = (defined $main::opt_d) ? 1 : 0;
+my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
+my $hourlyTable=(defined $main::opt_t) ? $main::opt_t : "ROUTER_AGGREGATE_HOUR";
+my $rawTable   =(defined $main::opt_r) ? $main::opt_r : "ROUTER_DATA";
+my $config    = (defined $main::opt_c) ? $main::opt_c : "$ENV{HOME}/.lmtrc";
+
+Usage("Must specify filesystem") if (not defined($filesys));
+
+print "Updating $hourlyTable for $filesys...\n";
+
+my $lmt = LMT->new($config);
+$lmt->connect($filesys) || die ("Could not connect to $filesys\n");
+
+print "Determining starting and ending points in various tables...\n";
+my ($startTimestamp, $finalTimestamp) = $lmt->getStartAndFinalAggTimestamps($rawTable, $hourlyTable);
+
+# For printing of per-router summaries
+my ($total_bytes_sum,$total_bytes_max,$total_bytes_min,$total_bytes_avg) = 0 x 4;
+
+# Use a hash of hashes to store the aggregate data. Top-level hash (e.g., read_bytes)
+# is per OST. Low-level hash has all info for given variable in given ost.
+my %bytes      =("label" => "BYTES");
+my %rate       =("label" => "RATE");
+my %pct_cpu    =("label" => "PCT_CPU");
+my %bandwidth  =("label" => "BANDWIDTH");
+
+# Update the following array if you add additional vars to OST data collection:
+my @routerHashRefs=(\%bytes, \%pct_cpu, \%bandwidth, \%rate);
+my %prev_ts=();
+my ($sth,$ref);
+
+# Important initialization step. Must get BYTES from the 
+# previous timestamp to allow proper differencing below. Each router may have a 
+# different timestamp, so must get the preceding timestamp separately for each one.
+print "Initializing read-bytes and write-bytes from previous timestamp record...\n";
+my @allRouterIds = $lmt->getTablesRouterIds ($rawTable);
+foreach my $routerid (@allRouterIds) {
+    # Get BYTES from the record immediately preceding the one at startTimestamp
+    my $query = "select distinct x1.TS_ID,x1.BYTES,TIMESTAMP from $rawTable as " .
+	"x1,TIMESTAMP_INFO " .
+	"where x1.TS_ID=TIMESTAMP_INFO.TS_ID and ROUTER_ID=? and " .
+	"TIMESTAMP=(select max(x2.TIMESTAMP) from TIMESTAMP_INFO as x2,$rawTable where " .
+	"ROUTER_ID=? and x2.TS_ID=$rawTable.TS_ID and (TIMESTAMP > DATE_ADD(?, INTERVAL -2 HOUR) and TIMESTAMP < ?))";
+
+    my $sth = $lmt->execQuery ($query, $routerid, $routerid, $startTimestamp, $startTimestamp);
+    my $ref = $sth->fetchrow_hashref();
+
+    next if (not $ref);
+    my %bh = ("type" => "ROUTER");
+    $bytes{$routerid} = \%bh;
+    $bytes{$routerid}->{prev_bytes} = $ref->{BYTES};
+
+    $prev_ts{$routerid} = $ref->{TIMESTAMP};
+}
+
+# Loop hour-by-hour getting pertinent data
+
+print "Starting timestamp=$startTimestamp\nEnding timestamp  =$finalTimestamp\n";
+print "Each '.' represents one hour's worth of data:\n" if (not $verbose);
+
+while ($startTimestamp lt $finalTimestamp) {
+    print "Doing timestamp: $startTimestamp\n" if ($verbose);
+
+    my %counts=();
+
+    my $query = "select distinct x1.*,TIMESTAMP from $rawTable as x1, TIMESTAMP_INFO where " .
+	"x1.TS_ID=TIMESTAMP_INFO.TS_ID and TIMESTAMP >= ? and " .
+	"TIMESTAMP <= DATE_ADD(?, INTERVAL 60 MINUTE) " .
+	"order by TIMESTAMP";
+    print "Issuing query for retrieving one hour's worth of data:\n$query\n" if ($verbose);
+
+    $sth = $lmt->execQuery ($query, $startTimestamp, $startTimestamp);
+
+    while ($ref = $sth->fetchrow_hashref()) {
+	my $routerId = $ref->{ROUTER_ID};
+	$counts{$routerId}++;
+	
+	if ($counts{$routerId} == 1) {   # First time for this ROUTER so init everything
+	    if (not defined $prev_ts{$routerId} or not $prev_ts{$routerId}) {
+		$prev_ts{$routerId} = $ref->{TIMESTAMP};
+	    }
+
+	    foreach my $hashref (@routerHashRefs) {
+		if (not defined $hashref->{$routerId}) {
+		    # Create initial hash if first time through...
+		    %{$hashref->{$routerId}}=("type" => "ROUTER");
+		}
+		# Set initial values in hash
+		initVar($lmt, $ref, $hashref->{label}, \$hashref->{$routerId});
+	    }
+	}
+	
+	# Process the "complex" values that require differencing...
+	updateVar($ref, \$bytes{$routerId});
+
+	# Process the derived vars
+	my ($nbytes,$timediff,$trate);
+	$nbytes = $bytes{$routerId}->{nbytes};
+	$timediff = $lmt->diffTimestamps ($ref->{TIMESTAMP}, $prev_ts{$routerId});
+	if ($timediff > 0) {
+	    $trate = $nbytes / $timediff;
+	} else {
+	    $trate = 0;
+	}
+	$ref->{RATE} = $trate;
+	updateVar($ref, \$rate{$routerId});
+	$prev_ts{$routerId} = $ref->{TIMESTAMP};
+
+	# Process the "simple" scalars that don't require differencing
+	updateVar($ref, \$pct_cpu{$routerId});
+	updateVar($ref, \$bandwidth{$routerId});
+    } # While loop over result set for one hour
+
+    # Compute averages...
+    foreach my $i (keys %bytes) {
+	next if ($i eq "label");
+	next if ($counts{$i} == 0);	# Don't update if no new data read
+
+	# Only bytes variable has meaningful AGGREGATE value.
+	# For other vars (e.g., pct_cpu) it won't be written to the DB.
+	$bytes{$i}->{AGGREGATE}  = $bytes{$i}->{sum};
+
+	next if (not defined $counts{$i} or $counts{$i} == 0);
+	
+	$bytes{$i}->{AVERAGE}     = $bytes{$i}->{sum}     / $counts{$i};
+	$rate{$i}->{AVERAGE}      = $rate{$i}->{sum}      / $counts{$i};
+	$pct_cpu{$i}->{AVERAGE}   = $pct_cpu{$i}->{sum}   / $counts{$i};
+	$bandwidth{$i}->{AVERAGE} = $bandwidth{$i}->{sum} / $counts{$i};
+    }
+
+    if ($verbose) {
+	print "Data for one hour period starting at $startTimestamp\n";
+	foreach my $i (sort keys %bytes) {
+	    next if ($i eq "label");
+	    printf "%d (%s): min=%d, max=%d, sum=%d, avg=%d\n",
+   	        $i, "BYTES", $bytes{$i}->{MINVAL}, $bytes{$i}->{MAXVAL},
+	        $bytes{$i}->{AGGREGATE}, $bytes{$i}->{AVERAGE};
+	}
+    }
+    # Generate summaries across all ROUTERs.
+    foreach my $i (keys %bytes) {
+	next if ($i eq "label");
+	next if ($counts{$i} == 0);	# Don't update if no new data read
+
+	$total_bytes_sum += $bytes{$i}->{AGGREGATE};  
+	$total_bytes_max += $bytes{$i}->{MAXVAL}; 
+	$total_bytes_min += $bytes{$i}->{MINVAL}; 
+	$total_bytes_avg += $bytes{$i}->{AVERAGE};
+    }
+
+    # Insert record into aggregate table
+    # 1. Create timestamp for 'startTimestamp'
+    # 2. Insert record for each variable (BYTES_READ,BYTES_WRITTEN) into agg table
+    my $ts_id = $lmt->createOrFetchTimestampId ($startTimestamp);
+
+    foreach my $i (sort keys %bytes) {
+	next if ($i eq "label");
+	next if ($counts{$i} == 0);	# Don't update if no new data read
+
+	my %extras = ("ROUTER_ID" => $i, "TS_ID" => $ts_id, "NUM_SAMPLES" => $counts{$i});
+
+	writeVar($lmt, $hourlyTable, \%extras, $bytes{$i});
+	writeVar($lmt, $hourlyTable, \%extras, $rate{$i});
+	writeVar($lmt, $hourlyTable, \%extras, $pct_cpu{$i});
+	writeVar($lmt, $hourlyTable, \%extras, $bandwidth{$i});
+    }
+
+    # Add one hour to startTimestamp
+    my $date = ParseDate($startTimestamp);
+    my $err;
+    $date = DateCalc($date, "+ 1hour", \$err);
+    die ("date calc error: $err\n") if (not $date or $err);
+    $startTimestamp = $date;
+    $startTimestamp =~ s/://g;
+    print "Next loop start date = $date ($startTimestamp)\n" if ($verbose);
+
+    print "." if (not $verbose);
+}
+print "\n";
+
+# Disconnect from the database.
+$lmt->disconnect();
+
+
+# Print sums across all routers
+print "Total: min=$total_bytes_min, max=$total_bytes_max, sum=$total_bytes_sum, avg=$total_bytes_avg\n";
+exit;
+
+
+#
+# initVar -- Initialize an aggregate ROUTER variable hash
+#
+sub initVar {
+    my $lmt = shift;
+    my $ref = shift;
+    my $name = shift;
+    my $var = shift;
+
+    my $varref=$$var;
+
+    if (not $varref) {
+	print "[initVar] -- Failed start-up check. varref is null!\n" if ($verbose);
+	return;
+    }
+
+    $varref->{VARIABLE_ID} = $lmt->getRouterVariableId($name);
+    $varref->{name} = $name;  # $rawTable column name
+    $varref->{MAXVAL} = -1;
+    $varref->{MINVAL} = 1.0e+50;
+    $varref->{AVERAGE} = 0;
+    $varref->{sum} = 0;
+    if ($name eq "BYTES") {
+	if (not defined $varref->{prev_bytes}) {
+	    $varref->{prev_bytes} = 0;
+	    $varref->{nbytes} = 0;
+	}
+    }
+}
+
+#
+#  updateVar -- Update various elements of aggregate data for this variable
+#
+sub updateVar {
+    my $dbref = shift;
+    my $var = shift;
+    my $varref=$$var;
+
+    if (not $varref) {
+	print "[updateVar] -- Failed start-up check. varref is null!\n" if ($verbose);
+	return;
+    }
+
+    my $name = $varref->{name};
+
+    if ($name eq "BYTES") {
+	# BYTES is a running sum of bytes that passed through this router.
+	# To get actual number of bytes read over a given period have to diff with prev value.
+	# Also, value is reset to 0 if Lustre or a router is restarted, so have to watch
+	# for that special case.
+
+	my $nbytes = $dbref->{$name} - $varref->{prev_bytes};
+	$nbytes = $dbref->{$name} if ($nbytes < 0);
+	
+	$varref->{MAXVAL} = LMT::max($varref->{MAXVAL}, $nbytes);
+	$varref->{MINVAL} = LMT::min($varref->{MINVAL}, $nbytes);
+	$varref->{sum} += $nbytes;                # For averaging purposes
+	$varref->{prev_bytes} = $dbref->{$name};  # Set for next time around
+	$varref->{nbytes} = $nbytes;              # For use in calculating rates
+
+    } else {
+
+	if (defined $dbref->{$name}) {  # Skip undefined db values
+	    # (Normal) variables are handled more simply...
+	    $varref->{MAXVAL} = LMT::max($varref->{MAXVAL}, $dbref->{$name});
+	    $varref->{MINVAL} = LMT::min($varref->{MINVAL}, $dbref->{$name});
+	    $varref->{sum} += $dbref->{$name};   # For averaging purposes
+	} else {
+	    print "[updateVar] -- Skipping undefined var for $name\n" if ($verbose);
+	    if ($debug) {
+		foreach my $k (keys %{$dbref}) {
+		    print "[updateVar] dbref: $k = " . $dbref->{$k} . "\n";
+		}
+	    }
+	}
+    }
+}
+
+#
+# writeVar -- Insert record into aggregate table containing information in this variable
+#
+sub writeVar {
+    my $lmt = shift;
+    my $tableName = shift;
+    my $extraref = shift;
+    my $varref = shift;
+    
+    my $name = $varref->{name};
+    print "[writeVar] Writing record for $name...\n" if ($debug);
+
+    # Tack extra column values onto main hash before writing
+    if ($extraref) {
+	foreach (keys %{$extraref}) {
+	    $varref->{$_} = $extraref->{$_};
+	}
+    }
+
+    if (not defined $varref->{VARIABLE_ID}) {
+	print "[writeVar] ERROR -- null variable id\n";
+	print "[writeVar] Offending var: " . $varref->{ROUTER_ID} . " tsid=" . $varref->{TS_ID} .
+	    " name=" . $varref->{name} . "\n";
+	die();
+    }
+
+    if (not defined $varref->{NUM_SAMPLES}) {
+	$varref->{NUM_SAMPLES} = 0;
+    }
+
+    if (defined $varref->{sum} and $varref->{sum} == 0) {
+	# No data was entered for this record. Could either ignore this record,
+	# or put int a bunch of NULL values for MIN, MAX, etc.
+#	$varref->{MINVAL} = 0;
+#	$varref->{MAXVAL} = 0;
+	return;
+    }
+
+    # Delete previous record
+    my $query = "delete from $tableName where ROUTER_ID=? and TS_ID=? and VARIABLE_ID=?";
+    print "[writeVar] Doing delete query:\n$query\n" if ($debug);
+    my $res = $lmt->doQuery($query, $varref->{ROUTER_ID}, $varref->{TS_ID}, $varref->{VARIABLE_ID});
+
+    
+    # Add new record
+    #--------------------
+    # Generate list of keys. Note that only upper case fields will be
+    # written. Lower case fields are for working values, etc.
+    my @keys = ();  
+    foreach (keys %{$varref}) {
+	if ($_ =~ /^[A-Z]/) { 
+	    push @keys, $_;
+	}
+    }
+
+    $query = "insert into $tableName (";
+    foreach (@keys) {
+	$query .= "$_,";
+    }
+    chop $query; # Trailing comma
+    $query .= ") values (";
+    foreach (@keys) {
+	$query .= $varref->{$_} . ",";
+    }
+    chop $query; # Trailing comma
+    $query .= ")";
+
+    print "insert query=\n$query\n" if ($debug);
+    my $res = $lmt->doQuery($query);
+
+    return $res;
+}
+
+sub Usage {
+    my $msg = shift;
+    print "$msg\n\n" if ($msg);
+
+    print<<EOF;
+Usage: $0 [-d] [-v] [-t table] -f filesys
+
+ Where:
+    -d         : Enables debug mode
+    -v         : Enables verbose mode
+    -f filesys : Operates on given filesystem (required)
+    -t table   : Updates given table (default is ROUTER_AGGREGATE_HOUR)
+EOF
+
+  exit 1;
+}
