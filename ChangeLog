@@ -1,0 +1,400 @@
+2008-04-04 Herb Wartens <wartens2@llnl.gov>
+
+	* : Do not try to contact the local database for the
+	configuration of a particular filesystem, instead
+	read from the admin-only-readable configuration file
+	/usr/share/lmt/cron/lmtrc.  This should make it possible
+	to write to non-local databases and also password-protect
+	databases if necessary.
+	
+2008-02-13 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.5.4
+
+	* : Created an initial manpage for create_lmtconfig.
+
+2008-02-12 Herb Wartens <wartens2@llnl.gov>
+
+	* : Update create_lmtconfig to include uuids to the
+	script file.  This should help to make this less LLNL
+	specific.  Still need to have some documentation for
+	the config file though. Cleanup whitespace.
+	Also make a manpage for create_lmtconfig and its
+	configuration file.
+
+2008-01-28 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.5.3
+
+	* : Fix coverity bugs found.
+	run 16:
+	    cid-1765,
+	    cid-1766,
+	    cid-1767,
+	    cid-1768,
+	    cid-1769,
+	    cid-1770,
+	    cid-1771
+
+2008-01-25 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.5.2
+
+	* : Removed debug statements when polling for a particular
+	lustre service and the service is not found.
+
+2008-01-24 Herb Wartens <wartens2@llnl.gov>
+
+	* : Fix bz197ch.  Need to report iowait time with the cpu usage.
+	Also use unsigned long long to hold the cpu usage.
+
+2008-01-16 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.5.1
+
+	* : Fix ost crashing bug bz173.  Also made sure to initialize
+	some variables that weren't properly being initialized which could
+	lead to inconsistent behavior.
+
+	* : Ensure that we always build with debugging symbols
+	and highest optimization level of -O2.  Do not strip libraries
+	when building rpms.
+
+	* : Instead of specofocall looking for the numrefs file
+	just skip over all non directories.  This makes the
+	readdir code more generic.
+
+2008-01-12 Herb Wartens <wartens2@llnl.gov>
+
+	* : close mds directory after use.
+
+2008-01-11 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.5.0
+
+	* : Add in fix to ensure that if cerebro is running
+	before mds is started, that the mds module will still
+	successfully load.  When the mds is finally started
+	the module will function properly.
+
+2008-01-10 Herb Wartens <wartens2@llnl.gov>
+
+	* : Only install the *.so files to the cerebro module directory.
+
+2008-01-08 Herb Wartens <hwartems@llnl.gov>
+
+	* : Added initial functionality for automatic ost detection.
+	Now the parent thread will try to check if a thread is running
+	and restart threads for any ost service that is not currently
+	running.
+
+	* : Fixed units for ost_read and ost_write.
+
+	* : Try to address mds issue.  I suspect that the problem
+	was that I was using an int for the number of samples.
+	Even this number can get pretty large.  Try using an
+	unsigned long long here.  Also print out a more verbose
+	error to help track down which metric was causing an issue.
+
+2008-01-07 Herb Wartens <wartens2@llnl.gov>
+
+	* : Properly use prepared statement for router as well.
+
+	* : Fixed client to properly get CPU usage for the OSS data.
+	Also modified ltop to stop displaying CPU usage for the
+	OST data.  Now it will only be shown with the OSS data.
+
+2007-12-28 Herb Wartens <wartens2@llnl.gov>
+
+	* : Modified xwatchadmin and xwatchclient accounts to
+	lwatchadmin and lwatchclient respectively. Added a global
+	SCHEMA_VERSION field to the FILESYSTEM_INFO table.
+
+	* : Fixed CEREBRO_MODULE_DIR to point to proper directory.
+	Fixed function typo for
+	common_metric_lmt_destroy_metric_value_do_nothing.
+	Removed insertion success lines that were being sent to
+	/var/log/messages.
+
+2007-12-27 Herb Wartens <wartens2@llnl.gov>
+
+	* : When installing the rpm estart cerebrod if it is currently running.
+	Compile with -Wall. Fix some compile warnings
+
+	* : Use cerebro_err_debug instead old macro CEREBRO_DBG
+
+	* : Updated the monitor module to handle the mysql
+	server stopping/crashing from underneath it.
+	There is still an issue at initial reconnection where
+	some values inserted seem to be incorrect.
+
+	* : Added in new server source
+
+2007-12-26 Herb Wartens <wartens2@llnl.gov>
+
+	* : Rebasing code to 2.5 branch to prepare for removal of old
+	python server code.
+
+2007-12-21 Herb Wartens <wartens2@llnl.gov>
+
+	* client/java/gov/llnl/lustre/ltop/Ltop.java : Updated file to
+	allow for longer mds oeration name lengths.
+
+2007-12-13 Herb Wartens <wartens2@llnl.gov>
+
+	* server/cron/lmt_agg.cron : Updated file to make sure to set
+	and pass $keep properly to lmt_agg.sh
+
+2007-10-11 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.1.0
+
+	* lmt.spec : Updated specfile to ensure that we are building with
+	glibc-2.5-18 or greater on chaos4 systems due to glibc bug.  Also
+	make sure to require ncurses-devel.
+
+	* scripts/build-lmt-client.sh: If JAVA_HOME is not set try to use the
+	default redhat location, so that jni.h is properly found.
+
+2007-10-05 Herb Wartens <wartens2@llnl.gov>
+
+	* lmt.spec : Updated specfile to require ant-nodeps,
+	ant-scripts, and java-sdk-ibm on build.
+
+	* : Tagging lmt-2.0.10
+
+	* lmt.spec : Updated specfile to require ant on build.
+
+	* : Tagging lmt-2.0.9
+
+	* Makefile : Updated Makefile to check out latest copy of build
+	script and use that for building rpms.
+
+	* : Tagging lmt-2.0.8
+
+	* scripts/install-lmt-server.sh : Make the install-lmt-server.sh
+	actually build the *.pyc and *.pyo files.
+
+	* : Tagging lmt-2.0.7
+
+	* lmt.spec : Removed the lmt-legacy client.  This means no
+	more wxpython! =)
+	Modified the name of xwatch-collector to lmtupdatedb.
+
+	* doc/schema.txt : Added in a flat file for the current schema.
+
+2007-10-02 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.0.6
+
+	* lmt.spec : Removed the default atrributes for most executables
+	so that rpm will decide what the defaults should be.  Hopefully
+	it will pick sane defaults.
+
+2007-10-02 Jim Garlick <garlick@llnl.gov>
+
+	* lmt.spec : If chaos4, update BuildRequires and package stray 
+	pyo files.
+
+2007-10-01 Paul Spencer <spencer9@llnl.gov>
+
+	* : Fixed problem where cell highlighting was not following
+	    sorting order. Now, only individual cells, that are out
+	    of range, are highlighted.
+	
+2007-09-12 Paul Spencer <spencer9@llnl.gov>
+
+	* : Added router aggregate plotting mods.
+
+	* : Renamed JWatch to LWatch.
+
+2007-09-10 Paul Spencer <spencer9@llnl.gov>
+
+	* : Added initial preferences support to jwatch.
+	
+2007-09-04 Paul Spencer <spencer9@llnl.gov>
+
+	* : Fixed problem where history plot End/Duration
+	    setting was not being preserved between plots.
+	
+2007-08-31 Paul Spencer <spencer9@llnl.gov>
+
+	* : Added SelectAll & DeselectAll buttons below
+	    OST/Router list selector on history plot frame.
+
+	* : Added "Shift Click" selection capability where
+	    elements between the last click and the current
+	    one are toggled on history plot frame.
+
+	* : Added "Now" button to the "End" time interval as
+	    a shortcut for setting the "End" time to the current
+	    time on history plot frame.
+
+	* : Changed "RawLive" granularity specification to
+	    "Heartbeat" on history plot frame.
+
+	* : When more than 8 curves are specified on history plot frame,
+	    the legend is supressed. This fixes the problem where too
+	    much real estate was being consumed by the legend.
+
+	: * Cursor is now changed to "WAIT_CURSOR" when data is
+	    being (re)loaded.
+
+	* : Default granualrity, plot interval and refresh rate
+	    for history plot was changed to "RAW", 2 hours, and
+	    15 seconds. Future plans are for this to be driven
+	    by preferences or last setting.
+
+	* : Added Hide/Show buttons to collapse and re-display
+	    the control panel and overview panel on the history
+	    plot frame.
+	
+2007-08-09 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.0.4
+
+	* : Fixed create_lmtconfig.pl to properly
+	    populate FILESYSTEM_INFO.  Also added
+	    a FILESYSTEM_ID field to the MDS_INFO
+	    table.  Properly set OFFLINE when initially
+	    populating the database.
+
+	* : Various cron fixes for aggragate table population.
+	    jwlong
+
+	* : Scrolling capability added to ltop.
+	    njoneill
+
+2007-07-26 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.0.3
+
+	* : Added in copyright information.  We are
+	    "ready" for first release into the world.
+	    wartens2 and jwlong
+	
+	* : OST_INFO no longer has FAILOVERHOST column.
+	    njoneill
+
+2007-07-25 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.0.2
+
+	* : Initial version of alert dialog for use with jwatch.
+	    spencerp
+
+	* : Added live update of raw data. spencerp
+
+	* : Added router activation of history plots. spencerp
+
+	* : Added plotting for Router and MDS and generalized data loading
+	    method. spencerp
+
+	* : Added in password generation to create_lmtconfig.
+	    Fixed bug in CreateOST.
+
+	* : Fixed error in MDS_AGGREGATE_HOUR table creation.
+
+	* : Add in change to only allow xwatchadmin to log in from
+	    localhost automatically.
+	    Add in change to allow xwatchclient to log in from anywhere.
+	    xwatchclient access will be restricted using iptables.
+
+2007-05-30 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging lmt-2.0.1
+
+	* : Removed linuxdev group from the specfile.
+
+	* : Modified init script permissions to 755.
+
+	* : Try to use /usr/bin/java by default since we are
+	    requiring the ibm java to be installed anyway.
+
+	* : Modified so that the overview curve color matches the
+	    legend and chart curve color. spencerp
+
+	* : Added slider handles to the expander rectangles on the overview
+	    panel. spencerp
+
+2007-05-30 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging a release for lmt-2.0
+
+	* : Fixed permissions on files installed.
+	    For now we are using linuxdev as the group.
+
+	* : Force use of the jre-ibm for now.
+
+	* : Fixed problem where left/right overview shift results in
+	    difference between chart data interval and overview highlight
+	    interval. spencerp
+
+	* : Removed dead code.  Reduced connection timeout to 3 sec.
+	    Explicitly close lmtrc files after reading.  Added comments.
+	    njoneill
+
+	* : Numerous minor tweaks to get better termination behavior,
+	    especially after exceptions are thrown. njoneill
+
+	* : Show help screen for any unexpected user input. njoneill
+
+	* : Made local lmtrc fully override global lmtrc file.  Added
+	    error checking on lmtrc file. njoneill
+
+	* : Removed local path additions from configure. jwlong
+
+	* : Fixed bug caused by differing # of data values in DB tables
+	    for different variables in load method. spencerp
+
+2007-05-29 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging a beta release for lmt-2.0
+	    lmt-2.0b6
+
+	* : Fixed issue where filesystems were diplayed
+	    out-of-order. njoneill
+
+	* : Fixed issue for choosing filesystems with ltop.
+	    njoneill
+
+	* : Fixed ltop ncurses issue when running ltop --help.
+	    njoneill
+
+
+2007-04-17 Herb Wartens <wartens2@llnl.gov>
+
+	* : Tagging a beta release for lmt-2.0
+	    lmt-2.0b1
+
+2007-03-16 Herb Wartens <wartens2@llnl.gov>
+
+	* xwatch-collector : Added in xwatch-collector to send data to
+	  mysql database.  This is to be used for xwatch-2.0.
+
+	* create_lmtconfig : Added in tool to populate mysql database initially.
+	  This tool uses the same .cfg file as we use to configure lustre.
+
+2007-01-17 Herb Wartens <wartens2@llnl.gov>
+	* : Tag lmt-1.21
+	* xwatch-lustre : Fixed bug in MDS stats collection where the collector
+	  time was being used as opposed to the lmtd time from the mds.
+
+2006-11-02 Jim Garlick <garlick@llnl.gov>
+	* README : Added from the lmt-1.17 SF download page.
+
+2006-10-27 Jim Garlick <garlick@llnl.gov>
+	* : Tag lmt-1.20
+	* lmt.spec : Force /usr/bin/python to avoid mutant one in /usr/local.
+
+2006-10-26 Jim Garlick <garlick@llnl.gov>
+	* lmtd : Update --help output to document -c option,
+	show correct port number.
+	* lmtcollect : Update --help output to document -c, -t, -x options.
+	* lmt.spec : Add doc files, misc cleanup.
+	* NEWS, META, DISCLAIMER, COPYING, ChangeLog : New, std. templates.
+	* example_syslog.py, query-lustre-config : Add legal headers.
+
+2006-10-25 Herb Wartens <wartens2@llnl.gov>
+	* : Tag lmt-1.19
+	* : Organize internal changes since sourceforge release of 1.17.
