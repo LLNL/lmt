@@ -1,0 +1,1053 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<html>
+<head>
+    <title>CHARVA: A Java Windowing Toolkit for Text Terminals</title>
+    <meta name="keywords" content="java, text, terminal, user, interface, VT100, curses, ncurses">
+    <style type="text/css">
+        <!--
+        body {
+            font-family: Verdana, Arial, Helvetica, sans-serif;
+            font-size: 12px;
+        }
+
+        table {
+            font-family: Verdana, Arial, Helvetica, sans-serif;
+            font-size: 12px;
+        }
+
+        #contentpanel {
+        20 px;
+            border-style: solid;
+            border-color: silver;
+            border-width: 1px;
+            padding: 0;
+        }
+
+        .question {
+            background-color: #A4FFFF;
+            border-style: solid;
+            border-color: silver;
+            border-top-width: 1px;
+            border-bottom-width: 1px;
+            border-left-width: 0px;
+            border-right-width: 0px;
+        }
+
+        .answer {
+            padding-left: 20px;
+        }
+
+        .menuButtonSelected {
+            PADDING-LEFT: 15px;
+            FONT-SIZE: 8pt;
+            CURSOR: pointer;
+            COLOR: white;
+            FONT-FAMILY: Arial;
+            BACKGROUND-COLOR: #6484d7;
+            TEXT-ALIGN: left
+        }
+
+        .menuButton {
+            PADDING-LEFT: 15px;
+            FONT-SIZE: 8pt;
+            CURSOR: pointer;
+            COLOR: white;
+            FONT-FAMILY: Arial;
+            BACKGROUND-COLOR: #284a7d;
+            TEXT-ALIGN: left;
+            TEXT-DECORATION: none
+        }
+
+        -->
+    </style>
+</head>
+
+<body>
+<h1 align=center>A Java Windowing Toolkit for Text Terminals</h1>
+<table border=0 width="100%" cellspacing="5">
+<tr>
+
+<!-- Start of left (navigation) panel -->
+<td valign="top">
+<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td>
+<table width="160" border="0" cellspacing="1">
+<tr bgcolor="#008000">
+    <td style="padding: 5px"><font color="#FFFFFF" size="4">Menu</font></td>
+</tr>
+<tr><td
+        class=menuButton id=0
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='index.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Introduction </td></tr>
+
+<tr><td
+        class=menuButton id=1
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Features.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Features </td></tr>
+
+<tr><td
+        class=menuButton id=2
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Status.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Status </td></tr>
+
+<tr><td
+        class=menuButton id=3
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='FAQ.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> FAQ </td></tr>
+
+<tr><td
+        class=menuButton id=4
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Licence.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Licence </td></tr>
+
+<tr><td
+        class=menuButton id=5
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Screenshots.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Screenshots </td></tr>
+
+<tr><td
+        class=menuButton id=6
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Documentation.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Documentation </td></tr>
+
+<tr><td
+        class=menuButton id=7
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Download.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Download </td></tr>
+
+<tr><td
+        class=menuButton id=8
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Applications.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Applications </td></tr>
+
+<tr><td
+        class=menuButton id=9
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Support.html';"
+        onmouseout="this.className='menuButton';"
+        height=18
+        nowrap> Support </td></tr>
+
+<tr><td
+        class=menuButton id=10
+        onmouseover="this.className='menuButtonSelected';"
+        onclick="top.location='Contribute.html';"
+        onmouseout="this.className='menuButton';"
+        height="18"
+        nowrap> Contribute </td></tr>
+<!-- End of navigation panel -->
+
+<tr><td height="10"></td></tr> <!-- Separator -->
+
+<tr>
+    <td bgcolor="#008000" style="padding: 5px"><font color="#FFFFFF" size="4">Quick Info</font></td>
+</tr>
+
+<tr><td>
+    <table summary="quick info" cellspacing="0" cellpadding="0" border="0">
+
+        <tr style="font-size: 8pt">
+            <td nowrap="nowrap">Operating System: <a href="http://www.linux.org">Linux</a></td>
+        </tr>
+        <tr style="font-size: 8pt">
+            <td nowrap="nowrap">Language: <a href="http://java.sun.com">Java</a>, C</td>
+        </tr>
+        <tr style="font-size: 8pt">
+            <td nowrap="nowrap">Licence: <a href="http://www.gnu.org">GNU</a></td>
+        </tr>
+        <tr style="font-size: 8pt">
+            <td nowrap="nowrap">Author: <a href="http://www.pitman.co.za">Rob Pitman</a></td>
+        </tr>
+    </table>
+    <!-- End of Quick Info -->
+</td></tr>
+
+</table>
+</td></tr>
+<tr><td height="10"></td></tr> <!-- Separator -->
+<tr><td>
+    <table cellpadding="0" cellspacing="0">
+
+        <tr><td>
+            <script type="text/javascript"><!--
+            google_ad_client = "pub-1886875109433545";
+            google_ad_width = 160;
+            google_ad_height = 600;
+            google_ad_format = "160x600_as";
+            google_ad_type = "text";
+            google_ad_channel = "";
+            google_color_border = "336699";
+            google_color_bg = "FFFFFF";
+            google_color_link = "0000FF";
+            google_color_url = "008000";
+            google_color_text = "000000";
+            //--></script>
+            <script type="text/javascript"
+                    src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+            </script>
+
+        </td></tr>
+    </table>
+</td></tr>
+</table>
+</td> <!-- End of left (navigation) panel -->
+
+
+<!-- Start of right (content) panel -->
+<td valign="top" width="100%">
+<table border="0" cellpadding="10" cellspacing="0" id="contentpanel">
+<tr>
+    <td bgcolor="#B6C0FF"><font size="+1">Frequently Asked Questions</font></td>
+</tr>
+
+<tr>
+    <td> This page is under construction. Please
+        <a href="mailto:rob@pitman.co.za">mail me</a> your questions to
+        be added to the FAQ.</td>
+</tr>
+
+<tr>
+    <td bgcolor="#B6C0FF"><font size="4">General</font></td>
+</tr>
+
+<tr>
+    <td class="question"><i>Why is the library called "Charva"?</i></td>
+</tr>
+<tr>
+    <td class="answer">
+        It's a contraction of <i>CHARacter-mode jaVA</i>.
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>Why not name the "Charva Swing" package <code>javax.swing</code>
+        instead of <code>charvax.swing</code>? That way, you could run
+        an existing Swing application as a Charva application just by
+        changing the classpath.</i></td>
+</tr>
+<tr>
+    <td class="answer">
+        According to the Sun license:<p>
+        <code>You may not create, or authorize your licensees to create, additional classes,
+            interfaces, or subpackages that are in any way identified as "java", "javax" or "sun".
+        </code>
+
+        <p> In any case, it is not practical to run Swing applications as Charva
+            applications without modifying <i>some</i> lines of source code. In Swing, for
+            example, dimensions are measured in pixels, whereas in Charva they are in rows and
+            columns.</p>
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>How scalable is Charva? Can Charva handle multiple users in one JVM?</i></td>
+</tr>
+<tr>
+    <td class="answer">
+        Because Charva uses <i>ncurses</i>, each user requires his/her own instance of Charva, in its own JVM.
+
+        <p>Having said that, I've found that I can easily run 40 instances of the Charva "Tutorial" program
+            (included with the download tarball), each simulating a busy user, on a single-CPU Pentium with a
+            1.5GHz CPU and 768 MByte of memory. With this number of simultaneous instances there is no swapping
+            of memory to disk. Though each instance has quite a high usage of virtual memory
+            (about 200 MBytes), the RSS (Resident Set Size) of each instance is only 10 MBytes.</p>
+    </td>
+</tr>
+
+<tr>
+    <td bgcolor="#B6C0FF"><font size="+1">Getting CHARVA to run</font></td>
+</tr>
+
+<tr>
+    <td class="question"><i>When I run my CHARVA program, it just displays the message
+        "<code>Exception in main</code>", and returns to the shell command prompt.
+        How do I find out the cause?
+    </i></td>
+</tr>
+<tr>
+    <td class="answer">Any time an uncaught exception occurs in CHARVA, a stack-trace is produced
+        in the file <code>$HOME/charva.log</code>. This gives detailed information
+        about the cause of the error.
+    </td>
+</tr>
+
+<tr>
+<td class="question"><i>When I run the example programs, I get the error message
+    <code>"java.lang.NoClassDefFoundError java/lang/Object"</code>. Why?</i></td>
+<tr>
+    <td class="answer">
+        In versions of the Charva package before 0.8.5, the example script executed
+        the java interpreter by just calling an executable called "java". There may be
+        another executable called "java" in your PATH, occurring before the
+        JDK1.3/JDK1.4 version of "java". Check which executable is being executed by
+        using the command <code>"which -a java"</code>. (In Charva version 0.8.5 the
+        example scripts were changed to execute $JAVA_HOME/bin/java).
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>When I run a Charva program,
+        I get the error message <code>"Exception in thread main"</code>, and the
+        $HOME/charva.log file reports <code>Java.lang.UnsatisfiedLinkError: no
+        Terminal in java.library.path</code>. What is wrong? </i></td>
+</tr>
+<tr>
+    <td class="answer">
+        Java cannot find the shared library file <code>libTerminal.so</code> in
+        its library search path. Different flavors of Unix have different
+        methods of specifying the library search path. On Linux, use the command:<p>
+        <pre>
+            export LD_LIBRARY_PATH=<var>directory_containing_libTerminal.so</var>:$LD_LIBRARY_PATH
+        </pre>
+        AIX uses LIBPATH and HP-UX uses SHLIB_PATH instead of LD_LIBRARY_PATH. Note
+        that on HP-UX, the library file name must be <code>libTerminal.sl</code>, not
+        <code>libTerminal.so</code>.
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>My CHARVA program throws the following exception:
+        <code>"charva.awt.IllegalComponentStateException: no focus-traversable
+            components inside this Container"</code>. What is wrong?
+    </i></td>
+</tr>
+<tr>
+    <td class="answer">
+        When displaying a Window (i.e. a JFrame or a JDialog), CHARVA needs
+        to move the keyboard input focus to a component (such as a JButton
+        or JTextField) inside that Window. If there are no focus-traversable
+        components in the window, CHARVA will throw the exception.<p/>
+
+        A focus-traversable component is one which is capable of accepting the keyboard
+        input focus, and of passing it on to the next component, when the user
+        presses TAB or BACK-TAB. Note that JLabel is <em>not</em>
+        focus-traversable. Also, components that are normally focus-traversable
+        become non-focus-traversable when their <code>setEnabled(false)</code> method
+        is called.<p/>
+
+        To my knowledge, there is never any need in a real-world application to
+        display a Window that contains only non-focus-traversable components such as
+        labels.
+    </td>
+</tr>
+<tr>
+    <td class="question"><i>When I try to debug a Charva program inside my
+        IDE (Eclipse, IDEA or other), it throws the following exception:
+        <code>"LINES value must be &gt;= 2 and &lt;=8021: got 1; initscr(): LINES=1
+            COLS=1: too small"</code>. What is wrong?
+    </i></td>
+</tr>
+<tr>
+    <td class="answer">
+        You can't run ncurses programs <i>inside</i> a graphical IDE. You have to run
+        them in a "terminal session" (i.e. in an "xterm" session, or an "rlogin" or "ssh"
+        session, or on a real physical terminal, or in a DOS shell if you're running
+        Windows). Having said that, you <i>can</i> use the IDE's debugger to debug
+        Charva programs (see the question "How can I debug Charva applications?"
+        below).
+    </td>
+</tr>
+
+<tr>
+    <td bgcolor="#B6C0FF"><font size="+1">Why does CHARVA do this, that or
+        the other?</font></td>
+</tr>
+
+<tr>
+    <td class="question"><i>When I run a Charva program, garbage is displayed on
+        my terminal. Why?</i></td>
+</tr>
+<tr>
+    <td class="answer">
+        It is essential that the <code>$TERM</code> environment variable is correctly
+        set to match the type of terminal you are using, and that the terminfo
+        description file correctly describes the capabilities of your terminal. For
+        more information on ncurses and terminfo, look at
+        <a href="http://en.tldp.org/HOWTO/Text-Terminal-HOWTO.html">
+            http://en.tldp.org/HOWTO/Text-Terminal-HOWTO.html</a> and
+        <a href="http://www.gnu.org/software/ncurses/ncurses.html">
+            http://www.gnu.org/software/ncurses/ncurses.html</a>. There is also an
+        <a href="http://www.oreilly.com/catalog/term/">O'Reilly book on
+            terminfo</a>.<p>
+
+        Incidentally, don't use the "gnome-terminal" application, which is the standard
+        xterm emulator in the GNOME desktop environment; it is buggy and won't work
+        properly with Charva. Rather use the "konsole" emulator which is the standard
+        emulator in the KDE environment (see next question).
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>On Red Hat Linux, using the KDE "konsole" terminal emulator
+        (which sets the $TERM environment variable to "xterm"), the cursor behaves
+        erratically. Why?
+    </i></td>
+</tr>
+<tr>
+    <td class="answer">I have found that the standard "xterm" terminfo description file
+        (distributed with Red Hat Linux) is not totally compatible with the Konsole terminal
+        emulator. In the root directory of the Charva download tarball you will
+        find a file named "xterm.ti", which is a terminfo description in source form;
+        it works fine with Charva and the Konsole emulator. You can compile it
+        using the command "tic xterm.ti" (you have to be root to do this). You may
+        want to save the original xterm description file (<i>/usr/share/terminfo/x/xterm</i>)
+        before doing this.<p>
+
+        Note that this terminfo description defines CTRL-B as the back-tab key.
+
+        <p>
+
+            The "gnome-terminal" emulator, on the other hand, doesn't seem to work properly
+            with any terminfo file.
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>If I run "ps aux" while a Charva program is
+        running, I see about a dozen instances of the same java process running. Why?</i></td>
+    <tr>
+        <td class="answer">
+            In Linux kernels before version 2.6, native threads are implemented as separate kernel
+            processes, so that each thread shows up separately in the output of "ps". To avoid this
+            you can use "green threads" instead of "native threads"; just use the
+            "-classic" command-line switch with the java interpreter (this option works
+            with Sun's JDK1.3, but is no longer supported in JDK1.4). In Linux kernel 2.6, and in
+            Red Hat Enterprise Linux, threads are implemented within a single process.
+        </td>
+    </tr>
+
+    <tr>
+        <td class="question"><i>The JDialog component in Charva is always modal, in other
+            words its setVisible(true) method (and the equivalent show() method) always
+            blocks until the dialog is hidden again. Why?
+        </i></td>
+    </tr>
+    <tr>
+        <td class="answer">I felt it didn't make sense to have non-modal dialogs on a text terminal.<p>
+            Note that the JFrame.show() method also blocks, <i>except for the first
+            time that the application program calls it</i>.
+        </td>
+    </tr>
+
+    <tr>
+        <td class="question"><i>When I press TAB the cursor moves to the next enabled component,
+            but I can't get the cursor to move back to the previous component.
+            Why?</i></td>
+    </tr>
+    <tr>
+        <td class="answer">The back-tab key must be defined in the terminfo file, and
+            must be mapped to the correct key (usually SHIFT-TAB) so that
+            you can back-tab to the previous field or component. Enter
+            the <code>infocmp</code> command to check whether the
+            <code>kcbt</code> key is defined (use the <i>man terminfo</i> command and search
+            for <code>kcbt</code> to get more info on this). By default, the
+            <code>kcbt</code> capability is <b>not</b> defined for an xterm terminal on Red Hat
+            Linux. If the back-tab is not defined, edit the terminfo description
+            for your terminal, and add in a suitable key-code for the
+            <code>kcbt</code> capability (for example, <code>kcbt=^B</code> will set
+            it to CTRL-B); then use the <code>tic</code> command to compile the terminfo
+            description. To find out the suitable key-code, see the next item in this FAQ.<p>
+
+            To get more information about the <code>infocmp</code> and <code>tic</code>
+            commands, use <i>man infocmp</i> and <i>man tic</i>
+
+            <p>
+        </td>
+    </tr>
+
+    <tr>
+        <td bgcolor="#B6C0FF"><font size="+1">How do I .....?</font></td>
+    </tr>
+
+<tr>
+    <td class="question"><i>How can I debug Charva applications?</i></td>
+    <tr>
+        <td class="answer">
+            <p>Since version 1.1.3, Charva uses <a href="http://jakarta.apache.org/commons/logging/index.html">Jakarta
+                commons-logging</a>. You should use the same mechanism for adding debug statements to your code.
+                See the commons-logging website for details. </p>
+
+            <p>Another way is to use a commercial IDE such as <a href="http://www.jetbrains.com">
+                IntelliJ IDEA</a> which has a good debugger built into it. You have to start the debuggee application
+                with certain command-line options which cause it to listen on a specified TCP port;
+                the debugger then opens a connection to this port. The test scripts (test.sh and test.bat)
+                in the distribution tarball show examples of the required command-line options.</p>
+
+            <p>I am told that other IDEs such as NetBeans, Eclipse and JBuilder
+                have the same capabilities.</p>
+        </td>
+    </tr>
+
+<tr>
+<td class="question"><i>How can I find out the key-code seen by curses when I press
+    key x?</i></td>
+<tr>
+    <td class="answer">To find out what key-code is produced by any arbitrary key, run your
+        CHARVA program with the "charva.script.record" system property set to a
+        filename, as in the following example:
+
+        <pre> java -Dcharva.script.record=<var>scriptfile</var> \
+            -classpath ../classes:../lib/charva.jar <var>classname</var></pre>
+
+        <p>This will cause CHARVA to log the hexadecimal key-code of each key (and its
+            equivalent symbolic name, if it is a control character or function-key) in
+            the file "<var>scriptfile</var>".</p>
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>
+        I'm having trouble capturing function-keys in CHARVA; when I define the
+        <code>charva.script.record=scriptfile</code> property as described above, the output in
+        the scriptfile indicates that a sequence of bytes such as <code>"ESC [ [
+        A"</code> is produced when I press the F1 key, instead of the <code>KeyEvent.VK_F1</code> code.
+    </i></td>
+</tr>
+<tr>
+    <td class="answer">
+        Check that the $TERM environment variable is set correctly for your terminal
+        type. Then run the Linux/Unix command <code>"infocmp"</code> to display what the terminfo
+        file for your terminal-type <em>thinks</em> the byte-sequence for the F1 key
+        should be. The output of the infocmp command will contain a string such as
+        <code>"kf1=\EOP"</code>, for example; this indicates that terminfo expects the F1 key to
+        produce the byte-sequence "ESC O P".<p>
+
+        There are two ways of fixing the problem. If you are using a terminal-emulator,
+        there is usually some way of configuring the key-mapping so that any particular
+        key will generate a specified byte-sequence. You should configure the terminal
+        emulator so that each function-key generates the same byte-sequence as specified
+        by the terminfo file. The same applies to the cursor keys.
+
+        <p>
+
+            If you are using a non-programmable terminal or a terminal emulator with a
+            hardcoded key-mapping, you will have to edit the terminfo file itself. To do
+            this:
+        <ul>
+            <li> run <code>infocmp &gt; /tmp/termfile</code> to decompile the terminfo file into a
+                human-readable format.
+
+            <li> Edit the file <code>/tmp/termfile</code> with an ASCII editor. It may be
+                advisable to rename the terminal-type in this file, thus creating a new
+                customized terminal-type.
+
+            <li> Recompile the edited terminfo file with the command
+                <code>tic /tmp/termfile</code>.
+        </ul>
+
+        To get more information about the <code>infocmp</code> and <code>tic</code>
+        commands, use <i>man infocmp</i> and <i>man tic</i>
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>
+        Can I use function keys like ALT F1 in my CHARVA program? What about SHIFT F1
+        or CTRL F1?
+    </i></td>
+</tr>
+<tr>
+    <td class="answer">
+        It depends on your terminal or terminal-emulator. If your terminal-emulator
+        can be configured to produce a unique escape-sequence for each function key
+        (with the SHIFT, CTRL or ALT modifier), then that escape-sequence can be
+        mapped to a function-key in the terminfo file. Note that terminfo and the
+        ncurses library do not know or care about the SHIFT, CTRL or ALT modifiers;
+        they only know about function keys kf1 to kf<i>n</i>, where <i>n</i> is some arbitrarily large
+        integer. The unmodified function-keys are mapped to kf1 to kf12 (on a keyboard
+        with 12 function-keys). Typically you would map the SHIFTed function-keys to
+        kf13 - kf24, and so on. To do this you would have to edit and recompile the
+        terminfo file as described above.<p>
+
+        As far as your Java application code is concerned, you would have to write it
+        to handle key-codes such as KeyEvent.VK_F13 and above; your application would
+        not receive an indication that the SHIFT, CTRL or ALT modifier-key was pressed
+        together with the function key.
+
+        <p>
+
+            Currently CHARVA defines only F1 to F20, but the definitions
+            can easily be extended.
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>
+        I'm having trouble getting the cursor control keys mapped correctly. Which
+        fields must I edit in the terminfo file?
+    </i></td>
+</tr>
+<tr>
+    <td class="answer">
+        Note that all the symbols for key strings in the terminfo file start with "k".
+        Symbols that don't start with "k" refer to strings that are <i>received</i>
+        by the terminal, not to strings that are <i>sent</i> by the terminal. For
+        example, <code>cuf1</code> is the byte-sequence which, if sent to the terminal,
+        will move the cursor forward one column; whereas <code>kcuf1</code> is the
+        byte-sequence sent by the terminal when the RIGHT CURSOR key is pressed.<p>
+
+        Here is a list of useful key symbols in the terminfo file (i.e. in the output
+        of <i>infocmp</i> or the input to <i>tic</i>):
+        <ul>
+            <li><code>kcub1</code> is the left-arrow key.
+            <li><code>kcuf1</code> is the right-arrow key.
+            <li><code>kcuu1</code> is the up-arrow key.
+            <li><code>kcud1</code> is the down-arrow key.
+            <li><code>kend</code> is the END key.
+            <li><code>khome</code> is the HOME key.
+            <li><code>knp</code> is the PAGE DOWN key.
+            <li><code>kpp</code> is the PAGE UP key.
+            <li><code>kich1</code> is the INSERT key.
+            <li><code>kdch1</code> is the DELETE key.
+        </ul>
+    </td>
+</tr>
+
+<tr>
+    <td class="question"><i>After running my Charva application for a while, the
+        screen becomes corrupted with control characters. Is there a way to force a
+        refresh of the screen?</i></td>
+<tr>
+    <td class="answer">
+        Yes, call the Toolkit.redrawWin() method (to indicate to the ncurses library
+        that all the lines of the screen have changed and need to be redrawn), followed
+        by the Toolkit.sync() method to actually redraw the screen.<p>
+
+        The underlying cause of the screen corruption may be that your terminal or
+        terminal-emulator is not 100% compatible with the terminfo file corresponding
+        to your $TERM environment variable (see questions above). Try running your
+        application on a different type of terminal, with <code>$TERM</code> set
+        appropriately.
+    </td>
+
+<tr>
+    <td class="question"><i>Can I record and play back scripts?</i></td>
+    <tr class="answer">
+        <td>
+            Yes, you can record a script file as shown above by defining the system
+            property "charva.script.record" as a filename. To play the
+            script back, define the system property "charva.script.playback" as
+            in the following example:<p>
+
+            <pre> java -Dcharva.script.playback=<var>scriptfile</var> \
+                -classpath ../classes:../lib/charva.jar <var>classname</var></pre>
+
+            <p>
+
+                Charva will then play back the keystrokes that were recorded in the script
+                file, with the original time delays between keystrokes. Since the script file
+                is an ASCII file, you can edit it and modify the time delays and the
+                keystrokes. Each line of the script file has three fields; the first field
+                is the hexadecimal code for the keystroke, the second field is the time
+                delay in milliseconds, and the third field is the symbolic name of the
+                keystroke (which is ignored on playback).
+
+            <p>
+
+                While the script file is being played back, any keys that you enter via the
+                keyboard will also be injected into the playback stream.
+
+            <p>
+
+                You can record a script on one type of terminal and play it back on another
+                (incompatible) terminal, because the function-keys and cursor-keys are
+                interpreted by ncurses before they are recorded in the script-file.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>How do I display colors?</i></td>
+    <tr>
+        <td class="answer">
+            To display colors, you need four things:<p>
+            <ul>
+                <li>Ensure that your terminfo description supports color capability. Run
+                    <code>infocmp</code> and check that the string <code>colors#8</code>
+                    appears in the output (or <code>colors#<var>n</var></code> where
+                    <code><var>n</var></code> is the number of colors supported).
+
+                <p>
+
+                <li>Ensure that the terminal or emulator itself supports colors and is compatible
+                    with its terminfo description.
+
+                <p>
+
+                <li>Define the system property "charva.color". You can either do this on the
+                    command-line with the option <code>-Dcharva.color</code>, or you can define it
+                    inside your program (before calling any Charva methods):
+
+                <p>
+                <pre>
+                    System.setProperty("charva.color","");
+                </pre>
+
+                <p>
+
+                <li>The source code of the Charva program must set foreground and/or background
+                    colors of components (using the <code>setForeground()</code> and
+                    <code>setBackground()</code> methods inherited from the charva.awt.Component class).
+            </ul>
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>Using the LayoutManagers provided with Charva is too
+        complicated. Can't I lay out my components "manually"? </i></td>
+    <tr>
+        <td class="answer">
+            You don't have to use the layout managers; they are there for "compatibility"
+            with AWT and Swing, and for people who want to generate a user interface on
+            a GUI-building tool such as Borland JBuilder.<p>
+
+            For those who prefer to lay out the components manually, just use the "null"
+            layout manager:
+
+            <p>
+            <pre>
+                Container.setLayout(null);
+            </pre>
+            The container will then not attempt to lay out its children, and it is up to
+            the application to set their locations (using the <code>setLocation()</code>
+            method inherited from <code>charva.awt.Component</code>). In the case of
+            child components that are instances of <code>charva.awt.Container</code>
+            subclasses, the application must also set their size using
+            <code>setSize()</code>.<p>
+
+            Note that the <code>setLocation()</code> method sets the top left corner of
+            the component, <em>relative to the top left corner of its parent container</em>;
+            except in the case of a Window (i.e a Frame or Dialog), in which case
+            <code>setLocation()</code> sets the absolute location on screen.
+
+            <p>
+
+                Note also that if you set the size of a Window (i.e. a Frame or Dialog)
+                explicitly in your application, you must remember <em>not</em> to call
+                the <code>pack()</code> method, otherwise the window will be resized to
+                the smallest size that can contain all its child components.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>When writing a Charva program, should I use the components
+        in the <code>charva.awt</code> package or the <code>charvax.swing</code>
+        package? </i></td>
+    <tr>
+        <td class="answer">
+            Use the <code>charvax.swing</code> package. The components in the
+            <code>charvax.swing</code> package have a far richer API.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>I don't like the appearance of the components (buttons,
+        labels, frames etc) that the Charva library provides. How can I change the
+        appearance of the components without losing compatibility with Charva?
+    </i></td>
+    <tr>
+        <td class="answer">
+            Thanks to the power of class inheritance, you can easily create your own set of
+            components with a customized appearance. For each customized component, simply
+            subclass the appropriate Charva component and override the following methods:
+            <ul>
+                <li><code>getSize()</code>
+                <li><code>minimumSize()</code>
+                <li><code>getHeight()</code>
+                <li><code>getWidth()</code>
+                <li><code>draw()</code>
+            </ul>
+            You should of course create your customized widgets in a separate package.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>How do I get mouse support working?
+    </i></td>
+    <tr>
+        <td class="answer">
+            Mouse events are only generated by terminal-emulators which provide the
+            <code>kmous</code> capability. To see if your terminal-emulator generates
+            mouse-events, run "<code>terminfo | grep kmous</code>" to see whether
+            <code>kmous</code> is defined. I know that "xterm" and "putty" support
+            mouse-events; there may be others.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>Is Charva capable of handling non-ASCII character sets?</i></td>
+    <tr>
+        <td class="answer">
+            <b>Leos Urban</b> has kindly added support for unicode (UTF-8) characters. The changes
+            mainly involved linking with <b>libncursesw</b> instead of <b>libncurses</b>. To quote
+            Leos' email: &quot;I send to you my changes to Charva, tested with Linux (Fedora Core 5).
+            With my changes I can display unicode (UTF-8) characters without problem
+            (see attached screenshot <a href="images/animal_cz.gif">animal_cz.gif</a>
+            - grabbed from linux with cs_CZ.UTF-8 locale)&quot;.
+
+            <p>The English version of the same screen is
+                <a href="images/animal_en.gif">animal_en.gif</a></p>
+
+            <p>According to Leos, there are some limitations to the UTF-8 support:
+                &quot;With JTextArea I cannot type any national characters, after some changes
+                I can type most of characters in JTextEdit (but 0x11b and 0x10d do simply
+                nothing and 0x161 works as backtab).&quot; </p>
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>In the JFileChooser and JOptionPane, having to TAB
+        from one button to the next is too slow; I would like to set up
+        "hot-keys" or "accelerator keys" that are equivalent to individual
+        buttons. Also, I want to be able to customize the button-labels to indicate
+        these hot-keys.
+    </i></td>
+    <tr>
+        <td class="answer">
+            JFileChooser and JOptionPane allow you to customize the button-labels and set
+            up accelerator keys, by modifying static (class) variables. Look at the
+            javadoc-generated documentation of these classes, or at the tutorial
+            application (tutorial/charva/Tutorial.java) for more information on this feature.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>After I change the terminal to 132-column mode, Charva
+        still clips the display to 80 columns. How can I make it show all 132 columns?
+    </i></td>
+    <tr>
+        <td class="answer">
+            Call the following code after changing to 132-column mode:
+            <pre>
+                Toolkit.getDefaultToolkit().resetClipRect();
+            </pre>
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>How can I display a JFrame without the line-borders?
+        I need to be able to use all of the available space on the screen.
+    </i></td>
+    <tr>
+        <td class="answer">
+            Just create a subclass of JFrame that has zero-width insets, as follows:
+            <pre>
+                public class MyFrame extends JFrame {
+                public MyFrame() {
+                super();
+                super._insets = new Insets(0, 0, 0, 0);
+                }
+                }
+            </pre>
+            Then just use your customized subclass instead of JFrame - it will draw itself without
+            borders.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>In my CHARVA application, I have a collection of screens
+        that I want to display in any order, selectable at runtime. How can I do this?
+    </i></td>
+    <tr>
+        <td class="answer">
+            In the CHARVA application programming model, the very first window to be
+            displayed must be a JFrame (in other words, this must be the "main window"
+            of your application). This may be a full-screen frame (as described
+            above) or a frame with a border. This "main" frame then creates other JFrames
+            and/or JDialogs (collectively known as Windows) and displays them, using
+            their <code>show()</code> method. Each window can create and show further
+            windows, thus building up a "stack" of windows.<p>
+
+            Each window can hide itself by calling its <strong>own</strong>
+            <code>hide()</code> method. This effectively "pops" the window off the stack,
+            and causes the previous <code>show()</code> method to return.
+            Note that calling <code>hide()</code> does not destroy the window; it
+            remains in existence and can be redisplayed, in exactly the same state as
+            it was before, by calling its <code>show()</code> method again.
+
+            <p>
+
+                If your application is always going to display screens (windows) in the same
+                order, you can just get each window to create and show the next one in
+                the sequence, thus building up the "stack". On the other hand, if the
+                display order must be determined at
+                runtime, you can use the following approach. Assume you have three screen
+                classes A, B and C, and you want to show them in the order
+                A -&gt; B -&gt; C -&gt; A:
+            <pre>
+                A a = new A();
+                B b = new B();
+                C c = new C();
+                a.show(); // show() blocks until a hides itself
+                b.show(); // show() blocks until b hides itself
+                c.show(); // show() blocks until c hides itself
+                a.show(); // show() blocks until a hides itself
+            </pre>
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>How do I do pass-through printing (i.e. to a printer attached to
+        the terminal)?</i></td>
+    <tr>
+        <td class="answer">
+            The terminfo file for the terminal must have the "mc4" and "mc5" capabilities
+            defined, for turning the attached printer off and on. For more information
+            about these capabilities, do a "man terminfo" and look for "mc4" and "mc5". The
+            vt220 terminfo file, for example, does have these capabilities defined.<p>
+            Use the following code to do the printing:
+            <pre>
+                Toolkit toolkit = Toolkit.getDefaultToolkit();
+                .
+                .
+                .
+                try {
+                toolkit.print(<var>String_to_be_printed</var>);
+                } catch (TerminfoCapabilityException e) {
+                ...
+                }
+            </pre>
+            Thanks to Craig O'Shannessy for information about this issue.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>How do I print the screen contents (to a printer
+        attached to the terminal)?</i></td>
+    <tr bgcolor="#FFFFFF">
+        <td class="answer">
+            The terminfo file for the terminal must have the "mc0" capability
+            defined. Do a "man terminfo" and look for "mc0". The
+            vt220 terminfo file, for example, does have this capability defined.<p>
+            Use the following code to do the printing:
+
+            <p>
+            <pre>
+                Toolkit toolkit = Toolkit.getDefaultToolkit();
+                String print_screen = toolkit.getStringCapability("mc0");
+                .
+                .
+                toolkit.putp(print_screen);
+            </pre>
+        </td>
+    </tr>
+
+<tr bgcolor="#A4FFFF">
+    <td class="question"><i>My terminal has an output port (activated by an escape
+        sequence) for opening a cash drawer. How do I activate this port
+        using Charva?</i></td>
+    <tr bgcolor="#FFFFFF">
+        <td class="answer">
+            You have to define a "user-defined capability string" (containing the
+            escape-code sequence for activating the output) in your terminfo file. Do
+            a "man terminfo" and look for "u0". You will notice that you can define up to
+            ten user-defined capabilities, named u0 to u9. After adding the user-defined
+            capability, compile the terminfo file using "tic". Then use the
+            <code>Toolkit.putp()</code> method to output the user-defined string to the
+            terminal, as follows:<p>
+            <pre>
+                Toolkit toolkit = Toolkit.getDefaultToolkit();
+                String open_drawer = toolkit.getStringCapability("u0");
+                .
+                .
+                .
+                toolkit.putp(open_drawer);
+            </pre>
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>Can I use a bar-code scanner with Charva?</i></td>
+    <tr>
+        <td class="answer">
+            Yes, the bar-code scanner is typically attached to the keyboard port of the
+            terminal; Charva cannot tell whether characters are entered via the barcode
+            scanner or manually via the keyboard.
+        </td>
+    </tr>
+
+<tr>
+    <td class="question"><i>
+        Can I call the methods of the various CHARVA components from arbitrary threads
+        in a multi-threaded program?
+    </i></td>
+<tr>
+    <td class="answer">
+        No; as in Swing, most of the methods are not synchronized (for performance reasons,
+        as well as to avoid deadlocks). Exceptions are:
+        <ul>
+            <li>JTextComponent.setText
+            <li>JTextArea.insert
+            <li>JTextArea.append
+            <li>JTextArea.replaceRange
+        </ul>
+        The subject is very well explained in Chapter 1 of
+        <a href="http://www.horstmann.com/corejava.html">
+            "Core Java 2, Volume 2 - Advanced Features" by Horstmann and Cornell.</a>
+        (page 61, in the subsection titled "Threads and Swing").<p>
+
+        Like Swing, CHARVA does all of its drawing (i.e. all of the ncurses
+        function calls, besides reading the keyboard) in a single "event dispatcher"
+        thread. If you want to modify the display from other threads, you should use
+        the static <code>SwingUtilities.invokeLater(Runnable)</code> method, as described
+        in the Core Java book.
+    </td>
+
+<tr>
+    <td class="question"><i>
+        My Charva application performs a time-consuming operation (for example,
+        a network operation) and the user-interface "freezes" until the operation
+        has completed. How can I make the user interface responsive while the
+        time-consuming operation is progressing?
+    </i></td>
+    <tr>
+        <td class="answer">
+            Spawn a separate "worker" thread to do the time-consuming task, and use the
+            technique described above (the <code>EventQueue.invokeLater</code> method)
+            for the worker thread to communicate with the Charva event-handling thread.
+            The worker thread can call EventQueue.invokeLater at various stages of
+            its progress, causing Charva to (for example) update a JProgressBar.<p>
+
+            The Tutorial program (tutorial/charva/Tutorial.java) included in the
+            distribution tarball includes an example of how to perform a time-consuming
+            task in a separate worker thread.
+        </td>
+    </tr>
+
+    <!-- This is where the footer starts -->
+
+</table>
+</td>
+
+
+</tr>
+</table>
+<hr>
+<i>Last updated: 14 August, 2006</i>
+</body>
+</html>

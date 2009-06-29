@@ -1,0 +1,6 @@
+{
+  global:
+    monitor_module_info;
+  local:
+    *;
+};
