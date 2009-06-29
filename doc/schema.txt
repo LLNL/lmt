@@ -1,0 +1,647 @@
+#!/usr/bin/perl
+# =============================================================================
+#  Copyright (c) 2007, The Regents of the University of California.
+#  Produced at the Lawrence Livermore National Laboratory.
+#  Written by C. Morrone, H. Wartens, P. Spencer, N. O'Neill, J. Long
+#  UCRL-CODE-232438.
+#  All rights reserved.
+#
+#  This file is part of LMT-2. For details, see
+#  http://sourceforge.net/projects/lmt/.
+#
+#  Please also read Our Notice and GNU General Public License, available in the
+#  COPYING file in the source distribution.
+#
+#  This program is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU General Public License (as published by the Free
+#  Software Foundation) version 2, dated June 1991.
+#
+#  This program is distributed in the hope that it will be useful, but WITHOUT
+#  ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY or
+#  FITNESS FOR A PARTICULAR PURPOSE.  See the terms and conditions of the GNU
+#  General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License along with
+#  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+#  Place, Suite 330, Boston, MA 02111-1307 USA
+# =============================================================================
+
+create table FILESYSTEM_INFO (
+	FILESYSTEM_ID   integer         not null auto_increment,
+	FILESYSTEM_NAME varchar(128)    not null,
+	FILESYSTEM_MOUNT_NAME varchar(64) not null,
+	primary key (FILESYSTEM_ID),
+	index(FILESYSTEM_ID)
+);
+
+create table OSS_INFO (
+	OSS_ID          integer         not null auto_increment,
+	FILESYSTEM_ID   integer         not null,
+	HOSTNAME        varchar(128)    not null,
+	FAILOVERHOST    varchar(128),
+	foreign key(FILESYSTEM_ID) references FILESYSTEM_INFO(FILESYSTEM_ID),
+	primary key (OSS_ID),
+	index(OSS_ID)
+);
+
+create table OSS_INTERFACE_INFO (
+	OSS_INTERFACE_ID   integer      not null auto_increment,
+	OSS_ID             integer      not null,
+	OSS_INTERFACE_NAME varchar(128) not null,
+	EXPECTED_RATE      integer,
+	primary key (OSS_INTERFACE_ID),
+	index(OSS_INTERFACE_ID)
+);
+
+create table OST_INFO (
+	OST_ID          integer         not null auto_increment,
+	OSS_ID          integer         not null,
+	OST_NAME        varchar(128)    not null, 
+	# FIXME
+	# Add in HOSTNAME for now
+	HOSTNAME        varchar(128)    not null,
+	OFFLINE         boolean,
+	DEVICE_NAME     varchar(128),
+	foreign key(OSS_ID) references OSS_INFO(OSS_ID),
+	primary key (OST_ID),
+	index(OST_ID)
+);
+
+create table MDS_INFO (
+	MDS_ID          integer         not null auto_increment,
+	FILESYSTEM_ID   integer         not null,
+	MDS_NAME        varchar(128)    not null,
+	HOSTNAME        varchar(128)    not null,
+	DEVICE_NAME     varchar(128),
+	foreign key(FILESYSTEM_ID) references FILESYSTEM_INFO(FILESYSTEM_ID),
+	primary key (MDS_ID),
+	index(MDS_ID)
+);
+
+create table ROUTER_INFO (
+	ROUTER_ID       integer         not null auto_increment,
+	ROUTER_NAME     varchar(128)    not null,
+	HOSTNAME        varchar(128)    not null,
+	ROUTER_GROUP_ID integer         not null,
+	primary key(ROUTER_ID),
+	index(ROUTER_ID)
+);
+
+create table OPERATION_INFO (
+	OPERATION_ID    integer         not null auto_increment,
+	OPERATION_NAME  varchar(64)     not null unique,
+	UNITS           varchar(16)     not null,
+	primary key(OPERATION_ID),
+	index(OPERATION_ID),
+	index(OPERATION_NAME)
+);
+
+create table TIMESTAMP_INFO (
+	TS_ID           int unsigned    not null auto_increment,
+	TIMESTAMP       datetime        not null,
+	primary key(TS_ID),
+	key(TIMESTAMP),
+	index(TS_ID),
+	index(TIMESTAMP)
+);
+
+create table VERSION (
+	VERSION_ID      integer         not null auto_increment,
+	VERSION         varchar(255)    not null,
+	TS_ID           int unsigned    not null,
+	primary key(VERSION_ID),
+	key(TS_ID),
+	foreign key(TS_ID) references TIMESTAMP_ID(TS_ID),
+	index(VERSION_ID),
+	index(TS_ID)
+);
+
+create table EVENT_INFO (
+	EVENT_ID        integer         not null auto_increment,
+	EVENT_NAME      varchar(64)     not null,
+	primary key(EVENT_ID),
+	index(EVENT_ID)
+);
+
+create table OST_VARIABLE_INFO (
+	VARIABLE_ID     integer         not null auto_increment,
+	VARIABLE_NAME   varchar(64)     not null,
+	VARIABLE_LABEL  varchar(64),
+	THRESH_TYPE     integer,
+	THRESH_VAL1     float,
+	THRESH_VAL2     float,
+	primary key (VARIABLE_ID),
+	key (VARIABLE_NAME),
+	index(VARIABLE_ID)
+);
+
+create table OSS_VARIABLE_INFO (
+	VARIABLE_ID     integer         not null auto_increment,
+	VARIABLE_NAME   varchar(64)     not null,
+	VARIABLE_LABEL  varchar(64),
+	THRESH_TYPE     integer,
+	THRESH_VAL1     float,
+	THRESH_VAL2     float,
+	primary key (VARIABLE_ID),
+	key (VARIABLE_NAME),
+	index(VARIABLE_ID)
+);
+
+create table MDS_VARIABLE_INFO (
+	VARIABLE_ID     integer         not null auto_increment,
+	VARIABLE_NAME   varchar(64)     not null,
+	VARIABLE_LABEL  varchar(64),
+	THRESH_TYPE     integer,
+	THRESH_VAL1     float,
+	THRESH_VAL2     float,
+	primary key (VARIABLE_ID),
+	key (VARIABLE_NAME),
+	index(VARIABLE_ID)
+);
+
+create table ROUTER_VARIABLE_INFO (
+	VARIABLE_ID     integer         not null auto_increment,
+	VARIABLE_NAME   varchar(64)     not null,
+	VARIABLE_LABEL  varchar(64),
+	THRESH_TYPE     integer,
+	THRESH_VAL1     float,
+	THRESH_VAL2     float,
+	primary key (VARIABLE_ID),
+	key (VARIABLE_NAME),
+	index(VARIABLE_ID)
+);
+
+create table OST_DATA (
+	OST_ID          integer         not null comment 'OST ID',
+	TS_ID           int unsigned    not null comment 'TS ID',
+	READ_BYTES      bigint                   comment 'READ BYTES',
+	WRITE_BYTES     bigint                   comment 'WRITE BYTES', 
+	# FIXME
+	# Still need this here as well
+	PCT_CPU         float                    comment '%CPU',
+	KBYTES_FREE     bigint                   comment 'KBYTES FREE',
+	KBYTES_USED     bigint                   comment 'KBYTES USED',
+	INODES_FREE     bigint                   comment 'INODES FREE',
+	INODES_USED     bigint                   comment 'INODES USED',
+	primary key (OST_ID,TS_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(TS_ID)  references TIMESTAMP_INFO(TS_ID),
+	index(TS_ID),
+	index(OST_ID)
+) MAX_ROWS=2000000000;
+
+create table OST_OPS_DATA (
+	OST_ID          integer         not null comment 'OST ID',
+	TS_ID           int unsigned    not null comment 'TS ID',
+	OPERATION_ID    integer         not null comment 'OP ID',
+	SAMPLES         bigint                   comment 'SAMPLE',
+	primary key (OST_ID,TS_ID,OPERATION_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(TS_ID)  references TIMESTAMP_INFO(TS_ID),
+	foreign key(OPERATION_ID)  references OPERATION_INFO(OPERATION_ID),
+	index(TS_ID),
+	index(OST_ID),
+	index(OPERATION_ID)
+) MAX_ROWS=2000000000;
+
+create table OSS_DATA (
+	OSS_ID          integer         not null comment 'OSS ID',
+	TS_ID           int unsigned    not null comment 'TS ID',
+	PCT_CPU         float                    comment '%CPU',
+	PCT_MEMORY      float                    comment '%MEM',
+	primary key (OSS_ID,TS_ID),
+	foreign key(OSS_ID) references OSS_INFO(OSS_ID),
+	foreign key(TS_ID) references TIMESTAMP_ID(TS_ID),
+	index(TS_ID),
+	index(OSS_ID)
+);
+
+create table OSS_INTERFACE_DATA (
+	OSS_INTERFACE_ID integer        not null comment 'OSS INTER ID',
+	TS_ID           int unsigned    not null comment 'TS ID',
+	READ_BYTES      bigint                   comment 'READ BYTES',
+	WRITE_BYTES     bigint                   comment 'WRITE BYTES',
+	ERROR_COUNT     integer                  comment 'ERR COUNT',
+	LINK_STATUS     integer                  comment 'LINK STATUS',
+	ACTUAL_RATE     integer                  comment 'ACT RATE',
+	primary key (OSS_INTERFACE_ID,TS_ID),
+	foreign key(OSS_INTERFACE_ID) references OSS_INTERFACE_INFO(OSS_INTERFACE_ID),
+	foreign key(TS_ID) references TIMESTAMP_ID(TS_ID),
+	index(TS_ID),
+	index(OSS_INTERFACE_ID)
+);
+
+create table MDS_DATA (
+	MDS_ID          integer         not null comment 'MDS ID',
+	TS_ID           int unsigned    not null comment 'TS ID',
+	PCT_CPU         float                    comment '%CPU',
+	KBYTES_FREE     bigint                   comment 'KBYTES FREE',
+	KBYTES_USED     bigint                   comment 'KBYTES USED',
+	INODES_FREE     bigint                   comment 'INODES FREE',
+	INODES_USED     bigint                   comment 'INODES USED',
+	primary key (MDS_ID,TS_ID),
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	index(TS_ID),
+	index(MDS_ID)
+) MAX_ROWS=2000000000;
+
+create table MDS_OPS_DATA (
+	MDS_ID          integer         not null comment 'OST ID',
+	TS_ID           int unsigned    not null comment 'TS ID',
+	OPERATION_ID    integer         not null comment 'OP ID',
+	SAMPLES         bigint                   comment 'SAMPLES',
+	SUM             bigint                   comment 'SUM',
+	SUMSQUARES      bigint                   comment 'SUM SQUARES',
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(TS_ID)  references TIMESTAMP_INFO(TS_ID),
+	foreign key(OPERATION_ID)  references OPERATION_INFO(OPERATION_ID),
+	index(TS_ID),
+	index(MDS_ID),
+	index(OPERATION_ID)
+) MAX_ROWS=2000000000;
+
+create table ROUTER_DATA (
+	ROUTER_ID       integer         not null comment 'ROUTER ID',
+	TS_ID           int unsigned    not null comment 'TS ID',
+	BYTES           bigint                   comment 'BYTES',
+	PCT_CPU         float                    comment '%CPU',
+	primary key (ROUTER_ID,TS_ID),
+	foreign key(ROUTER_ID) references ROUTER_INFO(ROUTER_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	index(ROUTER_ID),
+	index(TS_ID)
+) MAX_ROWS=2000000000;
+
+create table EVENT_DATA (
+	EVENT_ID        integer         not null,
+	TS_ID           int unsigned    not null comment 'TS ID',
+	OSS_ID          integer                  comment 'OSS ID',
+	OST_ID          integer                  comment 'OST ID',
+	MDS_ID          integer                  comment 'MDS ID',
+	ROUTER_ID       integer                  comment 'ROUTER ID',
+	COMMENT         varchar(4096)            comment 'COMMENT',
+	foreign key(EVENT_ID) references EVENT_INFO(EVENT_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(ROUTER_ID) references ROUTER_INFO(ROUTER_ID),
+	index(EVENT_ID),
+	index(TS_ID),
+	index(OST_ID)
+) MAX_ROWS=2000000000;
+
+create table OST_AGGREGATE_HOUR (
+	OST_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (OST_ID,TS_ID,VARIABLE_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(OST_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+) MAX_ROWS=2000000000;
+
+create table OST_AGGREGATE_DAY (
+	OST_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (OST_ID,TS_ID,VARIABLE_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(OST_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table OST_AGGREGATE_WEEK (
+	OST_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (OST_ID,TS_ID,VARIABLE_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(OST_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table OST_AGGREGATE_MONTH (
+	OST_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (OST_ID,TS_ID,VARIABLE_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(OST_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table OST_AGGREGATE_YEAR (
+	OST_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (OST_ID,TS_ID,VARIABLE_ID),
+	foreign key(OST_ID) references OST_INFO(OST_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(OST_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table ROUTER_AGGREGATE_HOUR (
+	ROUTER_ID       integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (ROUTER_ID,TS_ID,VARIABLE_ID),
+	foreign key(ROUTER_ID) references ROUTER_INFO(ROUTER_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references ROUTER_VARIABLE_INFO(VARIABLE_ID),
+	index(ROUTER_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+) MAX_ROWS=2000000000;
+
+create table ROUTER_AGGREGATE_DAY (
+	ROUTER_ID       integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (ROUTER_ID,TS_ID,VARIABLE_ID),
+	foreign key(ROUTER_ID) references ROUTER_INFO(ROUTER_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references ROUTER_VARIABLE_INFO(VARIABLE_ID),
+	index(ROUTER_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table ROUTER_AGGREGATE_WEEK (
+	ROUTER_ID       integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (ROUTER_ID,TS_ID,VARIABLE_ID),
+	foreign key(ROUTER_ID) references ROUTER_INFO(ROUTER_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references ROUTER_VARIABLE_INFO(VARIABLE_ID),
+	index(ROUTER_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table ROUTER_AGGREGATE_MONTH (
+	ROUTER_ID       integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (ROUTER_ID,TS_ID,VARIABLE_ID),
+	foreign key(ROUTER_ID) references ROUTER_INFO(ROUTER_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references ROUTER_VARIABLE_INFO(VARIABLE_ID),
+	index(ROUTER_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table ROUTER_AGGREGATE_YEAR (
+	ROUTER_ID       integer         not null,
+	TS_ID           int unsigned    not nu
+	VARIABLE_ID     integer         not nu
+	AGGREGATE       flo
+	MINVAL          flo
+	MAXVAL          flo
+	AVERAGE         flo
+	NUM_SAMPLES     integ
+	primary key (ROUTER_ID,TS_ID,VARIABLE_I
+	foreign key(ROUTER_ID) references ROUTER_INFO(ROUTER_I
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_I
+	foreign key(VARIABLE_ID) references ROUTER_VARIABLE_INFO(VARIABLE_I
+	index(ROUTER_I
+	index(TS_I
+	index(VARIABLE_ID)
+);
+
+create table MDS_AGGREGATE_HOUR (
+	MDS_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (MDS_ID,TS_ID,VARIABLE_ID),
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references MDS_VARIABLE_INFO(VARIABLE_ID),
+	index(MDS_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+) MAX_ROWS=2000000000;
+
+create table MDS_AGGREGATE_DAY (
+	MDS_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (MDS_ID,TS_ID,VARIABLE_ID),
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references MDS_VARIABLE_INFO(VARIABLE_ID),
+	index(MDS_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table MDS_AGGREGATE_WEEK (
+	MDS_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (MDS_ID,TS_ID,VARIABLE_ID),
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references MDS_VARIABLE_INFO(VARIABLE_ID),
+	index(MDS_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table MDS_AGGREGATE_MONTH (
+	MDS_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (MDS_ID,TS_ID,VARIABLE_ID),
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references MDS_VARIABLE_INFO(VARIABLE_ID),
+	index(MDS_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table MDS_AGGREGATE_YEAR (
+	MDS_ID          integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	AGGREGATE       float,
+	MINVAL          float,
+	MAXVAL          float,
+	AVERAGE         float,
+	NUM_SAMPLES     integer,
+	primary key (MDS_ID,TS_ID,VARIABLE_ID),
+	foreign key(MDS_ID) references MDS_INFO(MDS_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references MDS_VARIABLE_INFO(VARIABLE_ID),
+	index(MDS_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table FILESYSTEM_AGGREGATE_HOUR (
+	FILESYSTEM_ID   integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	OST_AGGREGATE   float,
+	OST_MINVAL      float,
+	OST_MAXVAL      float,
+	OST_AVERAGE     float,
+	primary key (FILESYSTEM_ID,TS_ID,VARIABLE_ID),
+	foreign key(FILESYSTEM_ID) references FILESYSTEM_INFO(FILESYSTEM_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(FILESYSTEM_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+) MAX_ROWS=2000000000;
+
+create table FILESYSTEM_AGGREGATE_DAY (
+	FILESYSTEM_ID   integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	OST_AGGREGATE   float,
+	OST_MINVAL      float,
+	OST_MAXVAL      float,
+	OST_AVERAGE     float,
+	primary key (FILESYSTEM_ID,TS_ID,VARIABLE_ID),
+	foreign key(FILESYSTEM_ID) references FILESYSTEM_INFO(FILESYSTEM_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(FILESYSTEM_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table FILESYSTEM_AGGREGATE_WEEK (
+	FILESYSTEM_ID   integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	OST_AGGREGATE   float,
+	OST_MINVAL      float,
+	OST_MAXVAL      float,
+	OST_AVERAGE     float,
+	primary key (FILESYSTEM_ID,TS_ID,VARIABLE_ID),
+	foreign key(FILESYSTEM_ID) references FILESYSTEM_INFO(FILESYSTEM_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(FILESYSTEM_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table FILESYSTEM_AGGREGATE_MONTH (
+	FILESYSTEM_ID   integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	OST_AGGREGATE   float,
+	OST_MINVAL      float,
+	OST_MAXVAL      float,
+	OST_AVERAGE     float,
+	primary key (FILESYSTEM_ID,TS_ID,VARIABLE_ID),
+	foreign key(FILESYSTEM_ID) references FILESYSTEM_INFO(FILESYSTEM_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(FILESYSTEM_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);
+
+create table FILESYSTEM_AGGREGATE_YEAR (
+	FILESYSTEM_ID   integer         not null,
+	TS_ID           int unsigned    not null,
+	VARIABLE_ID     integer         not null,
+	OST_AGGREGATE   float,
+	OST_MINVAL      float,
+	OST_MAXVAL      float,
+	OST_AVERAGE     float,
+	primary key (FILESYSTEM_ID,TS_ID,VARIABLE_ID),
+	foreign key(FILESYSTEM_ID) references FILESYSTEM_INFO(FILESYSTEM_ID),
+	foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
+	foreign key(VARIABLE_ID) references OST_VARIABLE_INFO(VARIABLE_ID),
+	index(FILESYSTEM_ID),
+	index(TS_ID),
+	index(VARIABLE_ID)
+);

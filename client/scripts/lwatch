@@ -1,0 +1,138 @@
+#!/bin/bash
+#===============================================================================
+#  Copyright (c) 2007, The Regents of the University of California.
+#  Produced at the Lawrence Livermore National Laboratory.
+#  Written by C. Morrone, H. Wartens, P. Spencer, N. O'Neill, J. Long
+#  UCRL-CODE-232438.
+#  All rights reserved.
+#  
+#  This file is part of Lustre Monitoring Tools, version 2. 
+#  For details, see http:#sourceforge.net/projects/lmt/.
+#  
+#  Please also read Our Notice and GNU General Public License, available in the
+#  COPYING file in the source distribution.
+#  
+#  This program is free software; you can redistribute it and/or modify it under
+#  the terms of the GNU General Public License (as published by the Free Software
+#  Foundation) version 2, dated June 1991.
+#  
+#  This program is distributed in the hope that it will be useful, but WITHOUT ANY
+#  WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY or FITNESS FOR A
+#  PARTICULAR PURPOSE.  See the terms and conditions of the GNU General Public
+#  License for more details.
+#  
+#  You should have received a copy of the GNU General Public License along with
+#  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+#  Place, Suite 330, Boston, MA 02111-1307 USA
+#===============================================================================
+
+#======================================================================
+#                               lwatch
+#----------------------------------------------------------------------
+# Purpose:	Wrapper script for Lustre 'watch' utility.
+# Notes:
+#======================================================================
+
+LMT_JAR=/usr/share/lmt/lib/lmt-complete.jar
+
+getjava()
+{
+    # Try to find a decent java.
+    if [ "x$JAVA_HOME" != "x" -a -x $JAVA_HOME/bin/java ]
+    then
+	JAVA=$JAVA_HOME/bin/java
+    # Try to use the default java that is installed
+    elif [ -x /usr/bin/java ]
+    then
+        JAVA=/usr/bin/java
+    elif [ -x /etc/alternatives/java ]
+    then
+        JAVA=/etc/alternatives/java
+    else
+	JDIR=`/bin/ls -1dt /usr/java/{jdk*,jre*,j2re*,jre*} 2>/dev/null | head -1`
+	if [ -x $JDIR/bin/java ]
+	then
+	    JAVA=$JDIR/bin/java
+	else
+	    if [ -x /usr/lib/jvm/java/bin/java ]
+	    then
+		JAVA=/usr/lib/jvm/java/bin/java
+	    else
+		JAVA=`/usr/bin/which java 2> /dev/null`
+		if [ $? -eq 1 ]
+		then
+		    echo "***  Error: Java not found on this host. Try setting JAVA_HOME or"
+		    echo "***  modify your path to include a java executable."
+		    exit 1
+		fi
+	    fi
+	fi
+    fi
+    # Some RH3 systems have a useless placeholder java.
+    $JAVA -version 2>&1 | grep placeholder > /dev/null
+    if [ $? -eq 0 ]
+    then
+	echo "***  Error: The java we located ($JAVA) is a Gnu Java (gij)"
+	echo "***  placeholder, not a complete implementation of Java. Try"
+	echo "***  setting JAVA_HOME to point to a JDK from Sun, IBM, or BEA."
+	exit
+    fi
+    return
+}
+
+if [ ! -z $LMT_CLASSPATH ]
+then
+   # User user-defined classpath
+   CLASSPATH=$LMT_CLASSPATH
+else
+   if [ -r $LMT_JAR ]
+   then
+      CLASSPATH=$LMT_JAR
+   else
+       echo "***  Error: LMT jar file: $LMT_JAR was not found."
+       echo "***  Try installing the rpm, or setting LMT_CLASSPATH"
+       exit 1
+   fi
+fi
+
+
+while [ $# -gt 0 ]
+do
+   case $1 in
+      -debug)
+          JAVA_ARGS="$JAVA_ARGS -Ddebug=true"
+          shift
+          ;;
+      -c)
+          shift
+	  JAVA_ARGS="$JAVA_ARGS -Dlmtrc=$1"
+	  shift
+	  ;;
+      # Properties may contain values with funny characters, so we quote.
+      -D*)
+	  JAVA_ARGS="$JAVA_ARGS \"$1\""
+	  shift
+	  ;;
+      *)
+          # Actual application flags
+          PROG_ARGS="$PROG_ARGS $1"
+          shift
+          ;;
+   esac
+done
+
+getjava
+
+# Check for incompatible java. 
+#
+$JAVA -version 2>&1 | grep gij > /dev/null
+if [ $? -eq 0 ]
+then
+   echo "***  Error: Your default java ($JAVA) is Gnu Java (gij),"
+   echo "***  which does not implement the Swing classes required by GUIs."
+   echo "***  Try setting JAVA_HOME to point to a JDK from Sun, IBM, or BEA."
+   exit
+fi
+
+$JAVA -Xmx64m  $JAVA_ARGS -cp $CLASSPATH gov.llnl.lustre.lwatch.LWatch $PROG_ARGS
+

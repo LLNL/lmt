@@ -1,0 +1,70 @@
+LMT (Lustre Monitoring Tool)
+
+LMT is a Lustre Monitoring Tool, a Python-based distributed system that
+provides a "top"-like display of the activity levels of the server-side (MDS,
+OSSes, and portals routers) nodes of one or more Lustre-based filesystems,
+within a single gui interface, using wxPython.
+
+This project has been in development and usage at LLNL for about two years, and
+is ready to be shared with the Lustre user community in hopes that it will be
+useful at other Lustre sites, and that others will be able to add improvements
+to this version, or rewrite it to be faster and contain more features.
+
+Briefly, the distributed system contains three components.  There are two
+daemons: lmtd, lmtcollect, and the gui: xwatch-lustre.  On each node to be
+monitored (MDS, OSS, or portals-router), a single lmtd is running.    The lmtd
+responds to a polling request with information it gathered from /proc which had
+previously been placed there by the Lustre filesystem component running on the
+node.  The lmtcollect daemon usually runs on a "cluster management node", and
+polls the lmtd's at a regular interval such as 10 seconds, and collects all of
+the lmtd's responses into a larger status.  The lmtcollect daemons can be
+"stacked" if needed, so that one lmtcollect is polling a lower-level
+lmtcollect.  The xwatch-lustre gui polls the highest-level lmtcollect daemon
+for each defined filesystem, and uses the wxPython gui library to present the
+information in a "top"-like updating display.  Items such as the current Read
+or Write MB/s, %cpu, and %full for each Lustre OST, as well as the aggregate
+MB/s for the filesystems are displayed.  Tabs are presented for each Lustre
+filesystem being monitored, and within one tab, there are panes for presenting
+the MDS, OST, and portals-routers' information.    There is also a tab that
+presents a multi-level outline view of all of the sub-components of each
+component, of each filesystem.
+
+The LMT works well for LLNL's purposes (monitoring several Lustre filesystems
+from one window), but is considered only a good prototype at this point.  It
+has some dependencies or gotchas that should be described:
+
+a. wxPython library version required
+Currently when using the gui interface for xwatch-lustre, wxPython >= 2.6.1.0
+must be used.  LLNL is currently using this version of wxPython.  We did
+attempt to use version 2.6.3.2, but at least on x86_64 nodes we observed a bug
+where the library would consume all memory on the node.  LLNL recommends that
+2.6.1.0 is used for the time being until a fix in the wxPython library is
+made available.
+
+b. XML description of Lustre filesystem components required Lmt was written
+before Lustre 1.4.6.x came out.  These versions of Lustre were dependent on
+having an xml configuration file.  So as not to have to duplicate configuration
+files lmt tried to leverage as much as it could from these files.  Thus, in its
+current state (even if lnet is being used) xwatch-lustre/lmt still uses these
+xml files.  Current versions of Lustre >= 1.4.6.x still have tools to generate
+the xml files, but do not create entries in the xml files for portals routers.
+The current Lustre tools should work fine to create xml files that
+xwatch-lustre can use as long as the filesystem to be viewed is not using
+portals routers.  If the filesystem is using portals routers then it may be
+necessary to edit the xml by hand or use older Lustre tools to create the
+configuration file.  This dependency on the xml files is slowly going away in
+current and future Lustre versions.  These files should not be strictly
+necessary for xwatch-lustre, and should be removed in a future version.
+
+c. slowness - the polling responses vary under load, which can produce uneven
+and sometimes missed update cycles.  Also the underlying wxPython libraries
+tend to consume massive amounts of resources for filesystems that are
+configured with many servers.  This is expecially noticable when moving from
+the tree view to a filesystem view when there are many filesystems in the
+xwatch-lustre configuration file.  Try to specify on the filesystems that you
+want to view in your own personal configuration file and call
+    xwatch-lustre -c <your_configuration_file>
+
+d. no Lustre client monitoring is supported -- this is server-side only.   We
+avoid putting any more load on client nodes being used by user applications.
+
