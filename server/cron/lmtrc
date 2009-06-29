@@ -1,0 +1,26 @@
+# LMT Configuration File - Cron Version
+#
+# This version of the file is for use with the data aggregation scripts launched by cron
+# (or by hand). As those scripts require write access, make sure that dbuser below is
+# a read/write user in mysql. Note that locally the read/write user is only allowed 
+# access from localhost, so make sure to use 127.0.0.1 for the dbhost below.
+#
+# The cron script will by default process the first filesystem listed in this file, although
+# that behavior can be changed by editing the lmt.cron file.
+
+filesys.1.name=<insert_fsname_here>
+filesys.1.mountname=<insert_/path/to/mountpoint_here>
+filesys.1.dbhost=<insert_db_host_ip_here>
+filesys.1.dbport=<insert_db_port_here>
+filesys.1.dbuser=<insert_db_client_username_here>
+filesys.1.dbauth=
+filesys.1.dbname=<insert_db_name_here>
+
+#filesys.2.name=<insert_fsname_here>
+#filesys.2.mountname=<insert_/path/to/mountpoint_here>
+#filesys.2.dbhost=<insert_db_host_ip_here>
+#filesys.2.dbport=<insert_db_port_here>
+#filesys.2.dbuser=<insert_db_client_username_here>
+#filesys.2.dbauth=
+#filesys.2.dbname=<insert_db_name_here>
+

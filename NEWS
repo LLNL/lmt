@@ -1,0 +1,26 @@
+=========================================================================
+Release Notes for lmt version 1.21
+=========================================================================
+
+* Fixed bug in MDS stats collection where the collector time
+  was being used as opposed to the lmtd time from the mds.
+
+=========================================================================
+Release Notes for lmt version 1.20
+=========================================================================
+
+* General packing/repo cleanup.
+
+* Updated lmtd and lmtcollect --help messages [Jerome Marchand]
+
+=========================================================================
+Release Notes for lmt version 1.18 - 1.19 (internal LLNL releases)
+=========================================================================
+
+* Work around bug in wxpython on x86_64.
+
+=========================================================================
+Release Notes for lmt version 1.17
+=========================================================================
+
+* First SourceForge release.
