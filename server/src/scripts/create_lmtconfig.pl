@@ -679,6 +679,18 @@ sub CreateFromLdevFile
     }
     close CONF;
 
+    # oss
+    foreach (keys %label2local) {
+        my ($fsname, $type, $hexindex) = parse_label($_);
+
+        next if ($fsname ne $options{createdatabase});
+        next if ($type ne "ost");
+
+        push @oss, $label2local{$_};
+    }
+    map { sql_oss ($_) } uniq (sortn (@oss));
+
+    # ost/mds
     foreach (sort keys %label2local) {
         my ($fsname, $type, $hexindex) = parse_label($_);
 
@@ -689,13 +701,11 @@ sub CreateFromLdevFile
         my $label = $_;
 
         if ($type eq "ost") {
-            push @oss, $label2local{$_};
             sql_ost($local, $label, $dev);
         } elsif ($type eq "mdt") {
             sql_mds($local, $label, $dev);
         }
     }
-    map { sql_oss ($_) } uniq (sortn (@oss));
 }
 
 # hostlist_expand()
@@ -811,9 +821,10 @@ if($options{createdatabase})
 {
     print("create database filesystem_$options{createdatabase};\n");
     print("connect filesystem_$options{createdatabase};\n");
-    sql_filesystem();
 
     cat($path_schema);
+
+    sql_filesystem();
 
     if($options{configfile})
     {
