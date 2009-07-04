@@ -26,11 +26,11 @@ Create the MySQL database for FS using either /etc/ldev.conf (default)
 or a config file specified with \fI-f config-file\fR.
 .TP
 .I "-f config-file"
-Retrieve the database configuration for FS from config-file.
-See CONFIGURATION FILE below for the file syntax.
+Retrieve the database configuration for FS from config-file instead of
+/etc/ldev.conf.  See CONFIGURATION FILE below for the file syntax.
 .TP
 .I "-F ldev-file"
-Retrieve the database configuration for FS from ldev-file.
+Specify an alternate path to /etc/ldev.conf.
 See LDEV.CONF FILE below for the file syntax.
 .SH LDEV.CONF FILE
 The /etc/ldev.conf file format is one OST/MDT per line, with the following
@@ -168,7 +168,7 @@ echo 'drop database filesystem_lc1;' | mysql --user lwatchadmin
 To recreate the above database:
 .IP
 .nf
-create_lmtconfig -f lc1.conf | mysql --user lwatchadmin
+create_lmtconfig -d lc1 -f lc1.conf | mysql --user lwatchadmin
 .fi
 .SH SEE ALSO
 lustre(7)

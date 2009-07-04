@@ -108,6 +108,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/lmt_update_router_agg
 /usr/sbin/lmt_agg.sh
 /usr/share/lmt/cron/lmt_agg.cron
+/usr/share/lmt/etc/create_schema-1.1.sql
 %attr(0640,root,root) %config(noreplace) /usr/share/lmt/cron/lmtrc
 %attr(0644,root,root) /usr/share/lmt/lib/perl/LMT.pm
 %{_mandir}/man8/create_lmtconfig.8.gz
