@@ -129,10 +129,10 @@ getjava
 $JAVA -version 2>&1 | grep gij > /dev/null
 if [ $? -eq 0 ]
 then
-   echo "***  Error: Your default java ($JAVA) is Gnu Java (gij),"
-   echo "***  which does not implement the Swing classes required by GUIs."
-   echo "***  Try setting JAVA_HOME to point to a JDK from Sun, IBM, or BEA."
-   exit
+   echo "***  Warning: Your default java ($JAVA) is Gnu Java (gij),"
+   echo "***  which does not fully implement the Swing classes required by GUIs."
+   echo "***  You may have better results setting JAVA_HOME to point to a JDK"
+   echo "***  from Sun, IBM, or BEA."
 fi
 
 $JAVA -Xmx64m  $JAVA_ARGS -cp $CLASSPATH gov.llnl.lustre.lwatch.LWatch $PROG_ARGS

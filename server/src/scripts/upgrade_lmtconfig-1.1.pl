@@ -26,6 +26,8 @@
 #  Place, Suite 330, Boston, MA 02111-1307 USA
 # =============================================================================
 
+# upgrade_lmtconfig-1.1 - update from LMT schema 1.0 to 1.1
+
 $| = 1;
 
 use strict;

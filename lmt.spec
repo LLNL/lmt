@@ -41,7 +41,7 @@ Lustre Monitoring Tools (LMT) Server Agent
 %package client
 Summary: Lustre Monitoring Tools Client
 Group: Applications/System
-Requires: jre-ibm >= 1.4.2, ncurses
+Requires: jre >= 1.4.2, ncurses
 %description client
 Lustre Monitoring Tools (LMT) Client
 
@@ -53,8 +53,8 @@ make
 
 %install
 rm -rf   $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/usr/bin
-mkdir -p $RPM_BUILD_ROOT/usr/sbin
+mkdir -p $RPM_BUILD_ROOT%{_bindir}
+mkdir -p $RPM_BUILD_ROOT%{_sbindir}
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
 mkdir -p $RPM_BUILD_ROOT/usr/share/lmt/etc
 mkdir -p $RPM_BUILD_ROOT/usr/share/lmt/lib/perl
@@ -67,23 +67,26 @@ rm -rf $RPM_BUILD_ROOT%{_libdir}/cerebro/cerebro_metric_lmt*.a
 rm -rf $RPM_BUILD_ROOT%{_libdir}/cerebro/cerebro_metric_lmt*.la
 rm -rf $RPM_BUILD_ROOT%{_libdir}/cerebro/cerebro_monitor_lmt*.a
 rm -rf $RPM_BUILD_ROOT%{_libdir}/cerebro/cerebro_monitor_lmt*.la
-cp server/src/scripts/create_lmtconfig.pl $RPM_BUILD_ROOT/usr/sbin/create_lmtconfig
-cp server/src/scripts/update_lmtconfig.pl $RPM_BUILD_ROOT/usr/sbin/update_lmtconfig
-cp server/cron/lmt_update_fs_agg          $RPM_BUILD_ROOT/usr/sbin/lmt_update_fs_agg
-cp server/cron/lmt_update_mds_agg         $RPM_BUILD_ROOT/usr/sbin/lmt_update_mds_agg
-cp server/cron/lmt_update_ost_agg         $RPM_BUILD_ROOT/usr/sbin/lmt_update_ost_agg
-cp server/cron/lmt_update_other_agg       $RPM_BUILD_ROOT/usr/sbin/lmt_update_other_agg
-cp server/cron/lmt_update_router_agg      $RPM_BUILD_ROOT/usr/sbin/lmt_update_router_agg
-cp server/cron/lmt_agg.sh                 $RPM_BUILD_ROOT/usr/sbin/lmt_agg.sh
-cp server/lib/perl/LMT.pm                 $RPM_BUILD_ROOT/usr/share/lmt/lib/perl/LMT.pm
-cp server/cron/lmtrc                      $RPM_BUILD_ROOT/usr/share/lmt/cron/lmtrc
-cp server/cron/lmt_agg.cron               $RPM_BUILD_ROOT/usr/share/lmt/cron/lmt_agg.cron
-cp doc/create_lmtconfig.8                 $RPM_BUILD_ROOT%{_mandir}/man8/create_lmtconfig.8
+
+cp server/src/scripts/create_lmtconfig.pl $RPM_BUILD_ROOT%{_sbindir}/create_lmtconfig
+cp server/src/scripts/create_schema-1.1.sql $RPM_BUILD_ROOT/usr/share/lmt/etc
+cp server/src/scripts/upgrade_lmtconfig-1.1.pl $RPM_BUILD_ROOT/usr/sbin/upgrade_lmtconfig-1.1
+
+cp server/cron/lmt_update_fs_agg          $RPM_BUILD_ROOT%{_sbindir}
+cp server/cron/lmt_update_mds_agg         $RPM_BUILD_ROOT%{_sbindir}
+cp server/cron/lmt_update_ost_agg         $RPM_BUILD_ROOT%{_sbindir}
+cp server/cron/lmt_update_other_agg       $RPM_BUILD_ROOT%{_sbindir}
+cp server/cron/lmt_update_router_agg      $RPM_BUILD_ROOT%{_sbindir}
+cp server/cron/lmt_agg.sh                 $RPM_BUILD_ROOT%{_sbindir}
+cp server/lib/perl/LMT.pm                 $RPM_BUILD_ROOT/usr/share/lmt/lib/perl/
+cp server/cron/lmtrc                      $RPM_BUILD_ROOT/usr/share/lmt/cron/
+cp server/cron/lmt_agg.cron               $RPM_BUILD_ROOT/usr/share/lmt/cron/
+cp doc/create_lmtconfig.8                 $RPM_BUILD_ROOT%{_mandir}/man8
 
 # Client Files
-cp client/scripts/lwatch              $RPM_BUILD_ROOT/usr/bin/lwatch
-cp client/scripts/lstat               $RPM_BUILD_ROOT/usr/bin/lstat
-cp client/scripts/ltop                $RPM_BUILD_ROOT/usr/bin/ltop
+cp client/scripts/lwatch              $RPM_BUILD_ROOT%{_bindir}
+cp client/scripts/lstat               $RPM_BUILD_ROOT%{_bindir}
+cp client/scripts/ltop                $RPM_BUILD_ROOT%{_bindir}
 cp client/lmt-complete.jar            $RPM_BUILD_ROOT/usr/share/lmt/lib/lmt-complete.jar
 cp client/charva/c/lib/libTerminal.so $RPM_BUILD_ROOT/usr/share/lmt/lib/libTerminal.so
 cp client/etc/lmtrc                   $RPM_BUILD_ROOT/usr/share/lmt/etc/lmtrc
@@ -97,7 +100,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc ChangeLog NEWS DISCLAIMER COPYING
 %{_libdir}/cerebro/cerebro_monitor_lmt*
 /usr/sbin/create_lmtconfig
-/usr/sbin/update_lmtconfig
+/usr/sbin/upgrade_lmtconfig-1.1
 /usr/sbin/lmt_update_fs_agg
 /usr/sbin/lmt_update_mds_agg
 /usr/sbin/lmt_update_ost_agg

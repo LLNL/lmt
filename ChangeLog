@@ -1,3 +1,36 @@
+2009-07-03 Jim Garlick <garlick@llnl.gov>
+
+	* server/src/scripts/create_lmtconfig.pl :
+	- Add 'startidx' statement which can be used to continue an ost
+	sequence in a new ost stanza [Herb Wartens].
+	- Use Getopt() for argument parsing.
+	- Incorporate Hostlist::expand() directly into script to avoid
+	unexpressed dependency on Hostlist.pm.
+	- Drop unused portions of config parser.
+	- Cat /usr/share/lmt/etc/create_schema-1.1.sql instead of
+	embedding the table creation SQL code in perl strings.
+	- Eliminate -t option.
+	- Add argument to -d option, which specifies the name of the file
+	system to create the database (including tables) for.
+	- Add support for ldev.conf.  Make it the default if config file
+	is not specified.  Add -F ldev-file to override path.
+
+	* create_schema-1.1.sql : New.
+
+	* doc/create_lmtconfig.8 :  Document the above changes.
+
+	* client/scripts/lwatch : Make an attempt to use of gij non-fatal
+	as we now seem to have Swing classes in RHEL 5.3, although it has
+	issues, see: http://code.google.com/p/lmt/issues/detail?id=2
+	for what is probably the tip of the iceberg.
+
+	* lmt.spec : Change lmt-client Requires: from jre-ibm to jre,
+	which should accomodate Sun, IBM, or GNU Java, selected by
+	/etc/alternatives/java.  Continue to use IBM java in BuildRequires:.
+
+	* server/src/scripts/upgrade_lmtconfig-1.1.pl :
+	Rename from update_lmtconfig.
+
 2008-11-09 Herb Wartens <wartens2@llnl.gov>
 
 	* : Tagging lmt-2.6.2
