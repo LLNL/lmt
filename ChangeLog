@@ -15,7 +15,7 @@
 	- Add support for ldev.conf.  Make it the default if config file
 	is not specified.  Add -F ldev-file to override path.
 
-	* create_schema-1.1.sql : New.
+	* server/src/scripts/create_schema-1.1.sql : New.
 
 	* doc/create_lmtconfig.8 :  Document the above changes.
 
@@ -30,6 +30,9 @@
 
 	* server/src/scripts/upgrade_lmtconfig-1.1.pl :
 	Rename from update_lmtconfig.
+
+	* doc/schema.txt : Removed,
+	server/src/scripts/create_schema-1.1.sql is now the definitive schema.
 
 2008-11-09 Herb Wartens <wartens2@llnl.gov>
 

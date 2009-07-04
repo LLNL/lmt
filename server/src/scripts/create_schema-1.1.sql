@@ -1,5 +1,5 @@
 #
-# LMT2 SCHEMA 1.1
+# LMT2 SCHEMA 1.1 - begin
 #
 create table FILESYSTEM_INFO (
     FILESYSTEM_ID   integer         not null auto_increment,
@@ -686,5 +686,5 @@ insert into ROUTER_VARIABLE_INFO (VARIABLE_NAME,VARIABLE_LABEL,THRESH_TYPE) valu
 insert into ROUTER_VARIABLE_INFO (VARIABLE_NAME,VARIABLE_LABEL,THRESH_TYPE) values ('RATE', 'Rate', 0);
 insert into ROUTER_VARIABLE_INFO (VARIABLE_NAME,VARIABLE_LABEL,THRESH_TYPE, THRESH_VAL1, THRESH_VAL2) values ('PCT_CPU', '%CPU', 3, 90., 101.);
 #
-# vi:tabstop=4 shiftwidth=4 expandtab
+# LMT2 SCHEMA 1.1 - end
 #
