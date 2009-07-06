@@ -58,11 +58,14 @@ The fields that are allowed in this section are:
 Specify the set of mds nodes with <hostrange>.
 .TP
 \fIuuid <uuidrange>\fR (required)
-Specify the uuid for the MDT device.  
-For recent versions of Lustre, use the disk label e.g. lc1-MDT0000.
+Specify the uuid for the MDT device.
+This must match the name of the first directory found in /proc/fs/lustre/mds
+on the MDS node.  For recent versions of Lustre, this will be the same as
+the disk label, e.g. lc1-MDT0000.
 The number of uuids here must match exactly with the number of hosts
 specified with <hostrange> above.  The first uuid will be paired with
-the first hostname, and so on.  
+the first hostname, and so on.  (And currently all the uuids will be
+identical since there can be only one MDT target per file system).
 .TP
 \fIdevice <devicename>\fR (not used by LMT)
 Specify the device that will exist on each mds node.
@@ -76,7 +79,9 @@ Specify the set of oss nodes with <hostrange>.
 .TP
 \fIuuid <uuidrange>\fR (required)
 Specify the set of ost uuids as <uuidrange>.
-For recent versions of Lustre, use the disk label, e.g. lc1-OST{HEXINDEX}.
+This must match the directory names found in /proc/fs/lustre/obdfilter.
+For recent versions of Lustre, this will be the same as the disk
+label, e.g. lc1-OST{HEXINDEX}.
 Note that the number of uuids here must match exactly with the total
 number of osts spcified for this system (number of oss nodes * number
 of devices per node).  The first uuid will be paired with the first
@@ -104,10 +109,13 @@ If multiple \fIost\fR sections are used, you must specify the decimal
 starting index to be used in {INDEX}, {HEXINDEX}, and {_INDEX} expansion
 in that section.  The default is zero.
 .TP
-\fIdevice <deviceset>\fR (required)
+\fInumdevs <count>\fR (required)
+Specify the number of devices (OST's) per OSS.
+.TP
+\fIdevice <deviceset>\fR (not used by LMT)
 Specify the devices that will exist on each oss node.
-The device name is not used by LMT but the list should have one element
-for each OST per OSS.
+Backwards compatability note: if \fIdevice\fR is present and \fInumbdevs\fR is
+not, the number of OST's per OSS will be calculated from <deviceset>.
 The special parameter "{NODENAME}" used here expands to the name of the
 particular oss node.
 .TP
@@ -144,14 +152,14 @@ ost {
     name tycho[1-40]
     uuid lc1-OST{HEXINDEX}
     skip 8
-    device 1,2,3
+    numdevs 3
 }
 # 2-node scalable unit, each node has 12 luns
 ost {
     name tycho[41-42]
     uuid lc1-OST{HEXINDEX}
     skip 2
-    device 1,2,3,4,5,6,7,8,9,10,11,12
+    numdevs 12
     startidx 120
 }
 router {
@@ -159,16 +167,12 @@ router {
 }
 .fi
 .SH EXAMPLE USAGE
-To drop an existing database for the \fIlc1\fR file system:
+To backup and recreate the database for the \fIlc1\fR file system:
 .IP
 .nf
+mysqldump --user lwatchadmin filesystem_lc1 >backup.sql
 echo 'drop database filesystem_lc1;' | mysql --user lwatchadmin
-.fi
-.LP
-To recreate the above database:
-.IP
-.nf
-create_lmtconfig -d lc1 -f lc1.conf | mysql --user lwatchadmin
+create_lmtconfig -d lc1 -f lc1.conf  | mysql --user lwatchadmin
 .fi
 .SH SEE ALSO
 lustre(7)

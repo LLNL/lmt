@@ -332,23 +332,24 @@ sub sql_filesystem
 
 sub sql_mds
 {
-    my ($host, $uuid, $device) = @_;
-    # FIXME: for now just hardcode FILESYSTEM_ID to 1
-    print( "insert into MDS_INFO (FILESYSTEM_ID, MDS_NAME, HOSTNAME, DEVICE_NAME) values (\'1\', \'$uuid\', \'$host\', \'$device\');\n" );
+    my ($host, $uuid) = @_;
+    # hardcode FILESYSTEM_ID to '1' (there can be only one per db)
+    # hardcode DEVICE_NAME to '' (unused)
+    print( "insert into MDS_INFO (FILESYSTEM_ID, MDS_NAME, HOSTNAME, DEVICE_NAME) values (\'1\', \'$uuid\', \'$host\', \'\');\n" );
 }
 
 sub sql_oss
 {
     my ($hostname) = @_;
-    # FIXME: for now just hardcode FILESYSTEM_ID to 1
+    # hardcode FILESYSTEM_ID to 1 (there can be only one per db)
     print( "insert into OSS_INFO (FILESYSTEM_ID, HOSTNAME) values (\'1\', \'$hostname\');\n" );
 }
 
 sub sql_ost
 {
-    my ($hostname, $oststr, $device) = @_;
-
-    print( "insert into OST_INFO (OSS_ID, OST_NAME, HOSTNAME, DEVICE_NAME, OFFLINE) values ((select OSS_ID from OSS_INFO where HOSTNAME=\'$hostname\'), \'$oststr\', \'$hostname\', \'$device\', \'0\');\n" );
+    my ($hostname, $oststr) = @_;
+    # hardcode DEVICE_NAME to '' (unused)
+    print( "insert into OST_INFO (OSS_ID, OST_NAME, HOSTNAME, DEVICE_NAME, OFFLINE) values ((select OSS_ID from OSS_INFO where HOSTNAME=\'$hostname\'), \'$oststr\', \'$hostname\', \'\', \'0\');\n" );
 }
 
 sub sql_router
@@ -363,7 +364,6 @@ sub CreateMDS
     my $FILE = $_[0];
     my @hosts;
     my @uuid;
-    my $device;
     
     while( my $line = <$FILE> )
     {
@@ -390,11 +390,6 @@ sub CreateMDS
             @uuid = hostlist_expand( $1 );
         }
         
-        elsif( $line =~ m/^device\s+(.*)/ )
-        {
-            $device = $1; chomp( $device );
-        }
-        
         elsif( $line =~ m/^}/ )
         {
             last;
@@ -411,7 +406,7 @@ sub CreateMDS
     {
         my $host = $hosts[$i];
         my $uuid = $uuid[$i];
-        sql_mds($host, $uuid, $device);
+        sql_mds($host, $uuid);
     }
 }
 
@@ -423,6 +418,7 @@ sub CreateOST
     my @device;
     my $skip = 0;
     my $startidx = 0;
+    my $numdevs = 0; # devices per OSS
     
     while( my $line = <$FILE> )
     {
@@ -458,18 +454,28 @@ sub CreateOST
         {
             $skip = $1;
         }
-        
+       
+        # maintain device list for reverse compat (numdevs is new replacement)
         elsif( $line =~ m/^device\s+(.*)/ )
         {
             @device = hostlist_expand( $1 );
         }
-        
+       
+        elsif( $line =~ m/^numdevs\s+(.*)/ )
+        {
+            $numdevs = $1;
+        }
+
         elsif( $line =~ m/^}/ )
         {
             last;
         }
     }
-    
+
+    if (@device && $numdevs == 0) {
+        $numdevs = scalar(@device); 
+    }
+
     foreach (@hosts)
     {
         sql_oss($_);
@@ -487,25 +493,13 @@ sub CreateOST
             @tmpuuid = @uuid[$idx..($idx + $skip - 1)];
         }
         
-        for( my $i = 0; $i < scalar(@device); $i++ )	
+        for( my $i = 0; $i < $numdevs; $i++ )	
         {
-            if( ! $device[$i] )
-            {
-                next;
-            }
-            
             for( my $j = 0; $j < scalar(@tmphosts); $j++ )
             {
                 if( ! $tmphosts[$j] )
                 {
                     next;
-                }
-
-                # Fix up device name
-                my $tmpdevice = $device[$i];
-                if( $tmpdevice =~ m#\{NODENAME\}# )
-                {
-                    $tmpdevice =~ s#\{NODENAME\}#$tmphosts[$j]#;
                 }
 
                 # Try to make uuid specification pretty flexible
@@ -552,7 +546,7 @@ sub CreateOST
                         $oststr =~ s#\{NODENAME\}#$tmphosts[$j]#;
                     }
                 }
-                elsif ( scalar(@uuid) == (scalar(@hosts) * scalar(@device)) )
+                elsif ( scalar(@uuid) == (scalar(@hosts) * $numdevs) )
                 {
                     if( ! $tmpuuid[$j] )
                     {
@@ -567,7 +561,7 @@ sub CreateOST
                     exit(-1);
                 }
                
-                sql_ost($tmphosts[$j], $oststr, $tmpdevice); 
+                sql_ost($tmphosts[$j], $oststr); 
             }
         }
 
@@ -697,13 +691,12 @@ sub CreateFromLdevFile
         next if ($fsname ne $options{createdatabase});
 
         my $local = $label2local{$_};
-        my $dev = $label2dev{$_};
         my $label = $_;
 
         if ($type eq "ost") {
-            sql_ost($local, $label, $dev);
+            sql_ost($local, $label);
         } elsif ($type eq "mdt") {
-            sql_mds($local, $label, $dev);
+            sql_mds($local, $label);
         }
     }
 }
