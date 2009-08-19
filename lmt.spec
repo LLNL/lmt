@@ -10,7 +10,7 @@ Packager: Christopher J. Morrone <morrone2@llnl.gov>
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: autoconf, automake, libtool
-BuildRequires: ant, ant-nodeps, ant-scripts
+BuildRequires: ant, ant-nodeps
 BuildRequires: mysql, mysql-devel
 BuildRequires: cerebro >= 1.3-5
 BuildRequires: jre-ibm >= 1.4.2, java-devel-ibm >= 1.4.2

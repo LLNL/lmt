@@ -1,12 +1,16 @@
 2009-08-19 Jim Garlick <garlick@llnl.gov>
 
-	* Makefile : Change URL to google code, drop checkout of build script.
+	* Makefile : Change URL to google code, clean up unused stuff.
 
 	* scripts/build : Check in missing Build Buddha script.
 
 	* server/src : Check in configure scripts, Makefile.in's, etc..
 
 	* scripts/build-lmt-server.sh : Do not call autogen.
+
+	* scripts/distro.sh : Removed, not used.
+
+	* lmt.spec : Drop BuildRequires: ant-scripts as this seems not needed.
 
 2009-07-03 Jim Garlick <garlick@llnl.gov>
 
