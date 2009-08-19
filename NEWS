@@ -3,10 +3,10 @@ Release Notes for lmt version 2.6.3                            2009-08-19
 =========================================================================
 
 * Clean up build system.  Include autotools output.  Include missing
-  build script.  Now 'make rpms' should work.  See bug:
+  build script.  Now 'make rpms' should work outside of LLNL.  See bug:
   http://code.google.com/p/lmt/issues/detail?id=4
 
-* All LMT to build/run with Sun, IBM, or GNU java (the latter has a few
+* Allow LMT to build/run with Sun, IBM, or GNU java (the latter has a few
   glitches in the GUI area but the text tools work fine).  See bug:
   http://code.google.com/p/lmt/issues/detail?id=2
 
