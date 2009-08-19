@@ -1,3 +1,13 @@
+2009-08-19 Jim Garlick <garlick@llnl.gov>
+
+	* Makefile : Change URL to google code, drop checkout of build script.
+
+	* scripts/build : Check in missing Build Buddha script.
+
+	* server/src : Check in configure scripts, Makefile.in's, etc..
+
+	* scripts/build-lmt-server.sh : Do not call autogen.
+
 2009-07-03 Jim Garlick <garlick@llnl.gov>
 
 	* server/src/scripts/create_lmtconfig.pl :

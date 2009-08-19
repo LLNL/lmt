@@ -28,7 +28,6 @@
 
 pushd .
 cd server/src
-sh autogen.sh                               && \
 ./configure ${LMT_SERVER_CONFIGURE_OPTIONS} && \
 make
 popd

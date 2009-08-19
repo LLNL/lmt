@@ -1,9 +1,4 @@
-#
-# LLNL specific Makefile for lmt.
-#
-
-SVNURL                          := https://eris.llnl.gov/svn/lustre-utils/lmt
-BUILDURL                        := https://eris.llnl.gov/svn/buildfarm/trunk/build
+SVNURL                          := http://lmt.googlecode.com/svn
 VERSION                         := $(shell awk '/[Vv]ersion:/ {print $$2}' META)
 RELEASE                         := $(shell awk '/[Rr]elease:/ {print $$2}' META)
 BRANCHURL                       := $(SVNURL)/branches/lmt-$(VERSION)
@@ -36,14 +31,10 @@ check-vars:
 	@echo "Current release:  lmt-$(VERSION)-$(RELEASE)"
 	@echo "RPMARGS           $(RPMARGS)"
 
-build:
-	svn cat $(BUILDURL) > scripts/$@
-	chmod +x scripts/$@
-
-rpms-working: check-vars build
+rpms-working: check-vars
 	scripts/build $(BUILDFLAGS) --snapshot . --destination=RPMS/$(ARCH)
 
-rpms rpms-release: check-vars build
+rpms rpms-release: check-vars
 	scripts/build $(BUILDFLAGS) --project-release=$(RELEASE) --destination=RPMS/$(ARCH) $(TAGURL)
 
 config: check-vars
