@@ -9,11 +9,10 @@ URL: http://sourceforge.net/projects/lmt/
 Packager: Christopher J. Morrone <morrone2@llnl.gov>
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-BuildRequires: autoconf, automake, libtool
 BuildRequires: ant, ant-nodeps
 BuildRequires: mysql, mysql-devel
 BuildRequires: cerebro >= 1.3-5
-BuildRequires: jre-ibm >= 1.4.2, java-devel-ibm >= 1.4.2
+BuildRequires: jre >= 1.4.2, java-devel >= 1.4.2
 BuildRequires: ncurses-devel
 %if 0%{?ch4}
 BuildRequires: glibc >= 2.5-18
