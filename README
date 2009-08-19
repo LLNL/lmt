@@ -1,51 +1,28 @@
-LMT (Lustre Monitoring Tool)
+LMT - Lustre Monitoring Tool
 
-LMT is a Lustre Monitoring Tool, a distributed system that provides a
-"top"-like display of the activity levels of the server-side (MDS, OSSes, and
-portals routers) nodes of one or more Lustre-based filesystems, within a single
-gui interface, using Java.
+LMT is a distributed system that provides a "top"-like display of the
+activity levels of the server-side (MDS, OSSes, and LNET routers)
+nodes of one or more Lustre-based filesystems.  It is possible to watch
+server metrics in real time, and to graph past behavior.  The clients
+provide this capability, but it is also possible to directly mine the
+MySQL database, e.g. with SQL scripts and GNU plot.
 
-This project has been in development and usage at LLNL for about two years, and
-is ready to be shared with the Lustre user community in hopes that it will be
-useful at other Lustre sites, and that others will be able to add improvements
-to this version, or rewrite it to be faster and contain more features.
+Real time and historical data is kept in the MySQL datbase.  LMT clients,
+lwatch (GUI - java/swing), ltop (curses - java/charva), and lstat
+(java -command line) speak only to MySQL.  The clients are part of the
+lmt-client RPM.
 
-Briefly, the distributed system contains several components.  There are four
-plugins written for the cerebro daemon: lmt_mds, lmt_oss, lmt_ost, and
-lmt_router.  There are serveral clients that can be used to view the data
-collected.  There is a gui client (lwatch), a top-like curses client (ltop),
-and a simple command-line client (lstat).  Each node to be monitored (MDS, OSS,
-or portals-router), a single cerebro daemon is running.    The cerebro daemon
-has LMT metric plugins that gather information from /proc which had previously
-been placed there by the Lustre filesystem component running on the node.  The
-cerebro daemon also has an LMT monitor module that usually runs on a "cluster
-management node", and places the data collected by the LMT metric modules into
-a MySQL database.  The lwatch gui connects to the database(s) where the data
-gathered for each filesystem is stored, and uses the Java swing library to
-present the information in a "top"-like updating display.  Items such as the
-current Read or Write MB/s, %cpu, and %full for each Lustre OST, as well as the
-aggregate MB/s for the filesystems are displayed.  Tabs are presented for each
-Lustre filesystem being monitored, and within one tab, there are panes for
-presenting the MDS, OST, and portals-router information.    There is also a
-tab that presents a multi-level outline view of all of the sub-components of
-each component, of each filesystem.
+There are four Cerebro "metric modules", lmt_mds, lmt_oss, lmt_ost, and
+lmt_router, which collect data from /proc on servers and inject messages
+into the cerebro monitoring network.  The collection plugins are part of the
+lmt-server-agent RPM.
 
-The LMT works well for LLNL's purposes (monitoring several Lustre filesystems
-from one window), but is considered only a good prototype at this point.  It
-has some dependencies or gotchas that should be described:
+Cerebro data is extracted and inserted into the database by a single cerebro
+"monitor module".  The monitor module and various scripts for initializing,
+migrating, and munging the database data are part of the lmt-server RPM.
 
-a. Cerebro
-LMT now uses the Cerebro library (a cluster monitoring tools suite).
-
-b. MySQL
-LMT uses MySQL to store the data that was collected my the LMT metric
-plugins.  This is also a good way to decouple the data collection from
-the client applications.
-
-c. Java
-The current LMT clients have all been written in Java.  Since we have all
-of the data stored in a database it should be straightforward to write a
-client in any preferred language.
-
-d. no Lustre client monitoring is supported -- this is server-side only.   We
-avoid putting any more load on client nodes being used by user applications.
+Because the clients and data collection are separate and communicate only
+via the database, we were able to develop LMT 2.0 in phases.  In Phase 1,
+the original LMT 1.0 data collection sofware was modified to inject data
+into MySQL and the new clients were written.  In Phase 2, data collection
+was moved to Cerebro.

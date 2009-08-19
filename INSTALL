@@ -1,236 +1,63 @@
-= LMT2 Set Up =
+If you can download the pre-built RPM's and use them, that is the easiest!
+Otherwise you can build your own either by rebuilding the .src.rpm with
+rpmbuild or as follows:
 
-== Steps for setting up LMT2 on a new system: ==
+make
+	Build client and server in place.
 
-* Install MySQL4 or greater on machines that you wish to aggregate data on.
-  Here at LLNL we have decided to have a mysql server on each cluster so that
-  we would have a more distributed setup.
+make rpms
+	Build RPM packages directly from subversion (ignoring the
+	local source tree except for the contents of the META file,
+	Makefile, etc., which is used to calculate the subversion URL.
 
-* Please make sure that the mysql server has been started
-  /etc/init.d/mysqld start
-* If mysql is not set up yet just run:
-  su - mysql
-  mysql_install_db
+make rpms-trunk
+	Build RPM packages from the subversion trunk.
+	The resulting packages will have a special snapshot release number,
+	e.g. lmt-client-2.6.2-0907031743
 
-* Install the lmt-server and lmt-server-agent rpm on your server machines.
-
-* Install the lmt-server-agent on your Lustre servers.
-
-* Install the lmt-client rpm on your client machines.
-
-* Once you have mysql installed you must setup the database.  Here at LLNL we
-  use a simple configuration file to configure LMT.  Here is an example of one
-  of our configuration files:
-
-  filesystem
-  {
-      name crater
-      mountpoint /p/crater
-  }
-  
-  mds
-  {
-      name igs-mds1
-      uuid mds_p_crater
-      nid igs-mds1-lnet0@tcp0
-      device /dev/sda
-  }
-  
-  ost
-  {
-      name igs[1-23]
-      uuid OST_{NODENAME}{_INDEX}
-      foname igs[5-8,1-4,13-16,9-12,21-23],NONE,igs[17-19]
-      nid {NODENAME}-lnet0@tcp0
-      skip 8
-      device /dev/lustre/normal/OST_{NODENAME},/dev/lustre/normal/OST_{NODENAME}_2,/dev/lustre/normal/OST_{NODENAME}_3
-      fodevice /dev/lustre/failover/OST_{FONODENAME},/dev/lustre/failover/OST_{FONODENAME}_2,/dev/lustre/failover/OST_{FONODENAME}_3
-  }
-  
-  router
-  {
-      name alc[4-19],atlas[64-71,504-511,640-647,1080-1087]
-  }
-  
-* We have a tool to help you setup your LMT2 database.  This tool is called:
-  create_lmtconfig
-  usage:
-         -r: Create the mysql root user account (generates a random password for the root user).
-         -a: Create the mysql users lwatchadmin(read/write account), lwatchclient(read account)
-         -d: Create the database for your filesystem (each filesystem has its own database and
-             you can have multiple filesystems configured for a particular mysql installation).
-         -t: Create the necessary tables for the database (should be used along with -d).
-         -f: Specify the configuration file to use for your filesystem.
-
-* Make sure that mysql is not using the default root password (only do this if
-  the root password is not set).
- create_lmtconfig -r > mysql.igsj.root mysql mysql < mysql.igsj.root
-
- # Make sure that you know the root password for
- # all the below steps, as you will be prompted
- # for it each time you try to modify your database.
-
- # Create lwatchadmin and lwatchclient accounts
- # Use the new password that was generated in
- # step 1.  Not that if you do this step you
- # will have to manually alter the mysql.db
- # table to give the lwatchadmin and lwatchclient
- # appropriate permissions.
- create_lmtconfig -a > mysql.igsj.lwatchaccounts
- mysql -p mysql < mysql.igsj.lwatchaccounts
-
- # Instead you can create the accounts,
- # filesystem database, tables, and
- # populate the tables in one step.
- # This step depends on you having a LLNL
- # style lustre configuration file already set
- # up.
- create_lmtconfig -a -d -t -f crater.cfg > mysql.igsj.crater.database
- mysql -p mysql < mysql.igsj.crater.database
-
- # To add in host based authorization we have added in hosts to
- # the mysql database like this
-  mysql -u root -p mysql
-  insert into db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Grant_priv, References_priv, Index_priv, Alter_priv, Create_tmp_table_priv, Lock_tables_priv ) values ('localhost', 'filesystem%', 'lwatchadmin', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'N', 'Y', 'Y', 'Y', 'Y', 'Y');
-  insert into db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Grant_priv, References_priv, Index_priv, Alter_priv, Create_tmp_table_priv, Lock_tables_priv ) values ('%', 'filesystem%', 'lwatchclient', 'Y', 'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N');
-  grant select on filesystem_crater.* to 'lwatchclient'@xxx.xxx.xxx.xxx identified by 'PASSWORD';
-  update db set Db='filesystem%' where Db='filesystem_crater';
-  flush privileges;
-
-* The default LMT installation assumes that only trusted users can log onto the
-  system where the MySQL database is installed.  The default admin account
-  (lwatchadmin) is given read/write access to the database and has a passwordless
-  login on the localhost.  If untrusted users have access to this node, then you
-  should set a password for the mysql user lwatchadmin.
-
-* Once the installation is complete please make sure that Cerebro is installed
-  and configured.  Please visit http://sourceforge.net/projects/cerebro
-  for detailed instructions on installing/configuring Cerebro.
-
-* For LMT there is no Cerebro configuration necessary for a basic setup.
-  Most installations should not have any cerebro.conf files necessary.
-
-  However, a Lustre setup that needs to forward data between different
-  clusters should have cerebro.conf files that are similar to the ones below:
-
-  On the clusters using the LMT metric modules:
-  -----------------------------------------------------
-  # Config file for management nodes on compute clusters
-  # Forward these to node running LMT monitor module (levij)
-  cerebrod_forward_message_config levij 8849 0 0.0.0.0 alc[20-35]
-  cerebrod_forward_message_config levij 8849 0 0.0.0.0 atlas[64-71,504-511,640-647,1080-1087]
-  cerebrod_forward_message_config levij 8849 0 0.0.0.0 thunder[6-21]
-  cerebrod_forward_message_config levij 8849 0 0.0.0.0 zeus[0-7]
+make rpms-working
+	Build RPM packages from the current working directory.
+	The resulting packages will have a special snapshot release number.
 
 
-  # Forward these to node running LMT monitor module (pigsj)
-  cerebrod_forward_message_config pigsj 8849 0 0.0.0.0 alc[20-35]
-  cerebrod_forward_message_config pigsj 8849 0 0.0.0.0 atlas[64-71,504-511,640-647,1080-1087]
-  cerebrod_forward_message_config pigsj 8849 0 0.0.0.0 thunder[6-21]
-  cerebrod_forward_message_config pigsj 8849 0 0.0.0.0 zeus[0-7]
-  -----------------------------------------------------
+When building RPM's, the spec file BuildRequires will ensure that the
+correct dependent packages are installed.  When building with 'make',
+you will to ensure this manually.  See the spec file for the definitive
+rules.  At the time of this writing I am building LMT on CHAOS 4.2 which
+is based on RHEL 5.3, with the following package versions:
 
+ant-1.6.5-2jpp.2
+ant-nodeps-1.6.5-2jpp.2
+mysql-5.0.45-7.el5
+mysql-devel-5.0.45-7.el5
+cerebro-1.9-1.ch4.2
+ncurses-5.5-24.20060715
+ncurses-devel-5.5-24.20060715
+java-1.5.0-ibm-1.5.0.10-1jpp.4.el5 (provides "jre")
+java-1.5.0-ibm-devel-1.5.0.10-1jpp.4.el5 (provides "java-devel")
 
-  On the clusters using the LMT monitor module:
-  -----------------------------------------------------
-  # Config for LMT monitor nodes this is an example for pigsj
-  # Listen on the default and a forwarded one
-  cerebrod_listen_message_config 0.0.0.0 0 0.0.0.0
-  cerebrod_listen_message_config pigsj 8849 0.0.0.0
-  cerebrod_forward_host_accept alc[20-35]
-  cerebrod_forward_host_accept atlas[64-71,504-511,640-647,1080-1087]
-  cerebrod_forward_host_accept thunder[6-21]
-  cerebrod_forward_host_accept zeus[0-7]
-  -----------------------------------------------------
+My lustre servers have:
+cerebro-1.9-1.ch4.2
+mysql-5.0.45-7.el5
+lustre-1.6.6-110chaos_2.6.18_73chaos.ch4.2
+lmt-server-agent-2.6.2-1.ch4.2
 
-* Finally make sure that /usr/share/lmt/cron/lmtrc is set up properly for
-  admin (read/write) access to the database.  Make sure that appropriate
-  controls are setup for this file so that only trusted users can view
-  this file.  Below is an example of this file:
+My management node has:
+cerebro-1.9-1.ch4.2
+mysql-5.0.45-7.el5
+mysql-server-5.0.45-7.el5
+lmt-server-2.6.2-0907031743.ch4.1
 
-  -----------------------------------------------------
-  filesys.1.name=ti1
-  filesys.1.mountname=/p/ti1
-  filesys.1.dbhost=127.0.0.1
-  filesys.1.dbport=3306
-  filesys.1.dbuser=lwatchadmin
-  filesys.1.dbauth=
-  filesys.1.dbname=filesystem_ti1
+And my desktop has:
+lmt-client-2.6.2-0907031743.ch4.1
+java-1.5.0-ibm-1.5.0.10-1jpp.4.el5
+ncurses-5.5-24.20060715
 
-  filesys.2.name=ti2
-  filesys.2.mountname=/p/ti2
-  filesys.2.dbhost=127.0.0.1
-  filesys.2.dbport=3306
-  filesys.2.dbuser=lwatchadmin
-  filesys.2.dbauth=
-  filesys.2.dbname=filesystem_ti2
-  -----------------------------------------------------
+See the LMT wiki for information on setting up the database, etc.:
+http://code.google.com/p/lmt/w
 
-* Once the installation is complete please make sure that cerebrod is running
-  on all servers that are to me monitored.
-  /etc/init.d/cerebrod restart
+Please direct communication to the LMT mailing list:
+ttp://groups.google.com/group/lmt-discuss?pli=1
 
-* Make sure that the management node on each cluster also has the cerebrod
-  process running.
-  /etc/init.d/cerebrod restart
-
-== Generating aggregate data via cron ==
-
-Once the LMT collector is running and successfully storing data in MySQL, the
-next step is to generate aggregate data for plotting purposes. A series of perl
-scripts process the raw data in the database and populate aggregate tables. The
-data are aggregated by hour, week, day, month, and year. The jwatch utility
-lets you easily view this historical data.
-
-To generate aggregate data, do the following steps on the host running MySQL:
-
-* Install the lmt-server rpm, which will put utils into /usr/sbin and other
-  necessary files into /usr/share/lmt/cron.
-
-* Customize the lmtrc file (note that this lmtrc file is used only by the cron
-  scripts, and should be configured to use the '''read/write''' mysql account):
-   vi /usr/share/lmt/cron/lmtrc
-
-* Customize the top-level cron script:
-   vi /usr/share/lmt/cron/lmt_agg.cron
-
-:: These are the lines to modify:
- #-------------------------------
- # Beginning of customizations...
- #-------------------------------
- # Filesystem(s) to process; space-delimited. 
- # Set to empty string to use the first filesystem listed in the given lmtrc file.
- filesys=
- 
- # Keep error-free log files? (Will always keep if errors occur.)
- # Set to 1 if you want to keep log files regardless of error status.
- keep=0
- 
- # Location of lmtrc (needs to specify dbuser with write access!)
- lmtrc="/usr/share/lmt/etc/cron/lmtrc"
- 
- # Location of aggregate utils (useful for testing development versions).
- bindir="/usr/sbin"
- 
- # Location to store log files. Names are of the form 'agg-<fsname>-<timestamp>'.
- logdir="/var/tmp"
- #----------------------------
- # ...end of customizations.
- #----------------------------
-
-
-* Add a cron entry to run the top-level cron script:
-   crontab -u <user> -e
-  
-   Adding a line like:
-   5  * * * *  /usr/share/lmt/cron/lmt_agg.cron
-
-
-== Steps for setting up a new filesystem on an existing LMT2 system: ==
-Now that you have a working LMT2 setup all that needs to be done
-to set up a new filesystem is to:
-
-* Setup the new database for your filesystem.  Here at LLNL we use a simple
-  configuration file to configure Lustre.  We use this same file to configure
-  the LMT database.  Please refer to the section above on the format.
-  create_lmtconfig -d -t -f abyss.cfg > mysql.igsj.abyss.database mysql -p mysql < mysql.igsj.abyss.database
+Jim Garlick for version 2.6.3
+Wed Aug 19 14:05:22 PDT 2009

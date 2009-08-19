@@ -1,5 +1,7 @@
 2009-08-19 Jim Garlick <garlick@llnl.gov>
 
+	* : Tagging lmt-2.6.3
+
 	* Makefile : Change URL to google code, clean up unused stuff.
 
 	* scripts/build : Check in missing Build Buddha script.
@@ -11,6 +13,12 @@
 	* scripts/distro.sh : Removed, not used.
 
 	* lmt.spec : Drop BuildRequires: ant-scripts as this seems not needed.
+	Drop BuildRequires for autotools since we checked in products.
+	Make BuildRequires for jre and java-devel instead of ibm-specific.
+
+	* NEWS : Summarize LMT 2.x releases so far.
+
+	* README : Update the somewhat dated description.
 
 2009-07-03 Jim Garlick <garlick@llnl.gov>
 
