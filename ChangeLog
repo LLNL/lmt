@@ -1,5 +1,12 @@
 2009-08-19 Jim Garlick <garlick@llnl.gov>
 
+	* : Tagging lmt-2.6.3-2
+
+	* server/src/autogen.sh, server/src/config/* : Fix an inadvertant
+	build-time dependency on libtool.
+
+2009-08-19 Jim Garlick <garlick@llnl.gov>
+
 	* : Tagging lmt-2.6.3
 
 	* Makefile : Change URL to google code, clean up unused stuff.
