@@ -1,11 +1,11 @@
 SVNURL                          := http://lmt.googlecode.com/svn
 TRUNKURL			:= $(SVNURL)/trunk
-TAGURL                          := $(SVNURL)/tags/lmt-$(VERSION)
 
 VERSION                         := $(shell awk '/[Vv]ersion:/ {print $$2}' META)
 RELEASE                         := $(shell awk '/[Rr]elease:/ {print $$2}' META)
 ARCH                            := $(shell uname -i)
 BUILDFLAGS			:= --destination=RPMS/$(ARCH)
+TAGURL                          := $(SVNURL)/tags/lmt-$(VERSION)
 
 all: lmt
 

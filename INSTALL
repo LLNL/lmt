@@ -22,7 +22,7 @@ make rpms-working
 
 When building RPM's, the spec file BuildRequires will ensure that the
 correct dependent packages are installed.  When building with 'make',
-you will to ensure this manually.  See the spec file for the definitive
+you will need to do this manually.  See the spec file for the definitive
 rules.  At the time of this writing I am building LMT on CHAOS 4.2 which
 is based on RHEL 5.3, with the following package versions:
 
