@@ -6,7 +6,7 @@ if [[ ! -z ${SYSTEM} && ${SYSTEM} != "AIX" ]]; then
 	echo "******************************"
 	echo "Running libtoolize"
 	echo "******************************"
-	libtoolize --force
+	libtoolize --force --copy
 fi
 
 echo "******************************" && \
