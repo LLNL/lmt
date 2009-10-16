@@ -1,3 +1,9 @@
+2009-10-16 Jim Garlick <garlick@llnl.gov>
+
+	* : Tagging lmt-2.6.3-3
+
+	* lmt.spec : BuildRequires IBM java if building on ch4 [chaos bz 831]
+
 2009-08-19 Jim Garlick <garlick@llnl.gov>
 
 	* : Tagging lmt-2.6.3-2

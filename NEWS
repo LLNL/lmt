@@ -153,7 +153,7 @@ Release Notes for lmt version 2.0.6                            2007-10-02
 
 * Cursor is now changed to "WAIT_CURSOR" when data is being (re)loaded.
 
-* Default granualrity, plot interval and refresh rate for history plot was
+* Default granularity, plot interval and refresh rate for history plot was
   changed to "RAW", 2 hours, and 15 seconds. Future plans are for this to
   be driven by preferences or last setting.
 

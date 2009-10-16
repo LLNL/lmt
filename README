@@ -23,6 +23,6 @@ migrating, and munging the database data are part of the lmt-server RPM.
 
 Because the clients and data collection are separate and communicate only
 via the database, we were able to develop LMT 2.0 in phases.  In Phase 1,
-the original LMT 1.0 data collection sofware was modified to inject data
+the original LMT 1.0 data collection software was modified to inject data
 into MySQL and the new clients were written.  In Phase 2, data collection
 was moved to Cerebro.
