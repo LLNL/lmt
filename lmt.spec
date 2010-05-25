@@ -71,7 +71,6 @@ rm -rf $RPM_BUILD_ROOT%{_libdir}/cerebro/cerebro_monitor_lmt*.la
 
 cp server/src/scripts/create_lmtconfig.pl $RPM_BUILD_ROOT%{_sbindir}/create_lmtconfig
 cp server/src/scripts/create_schema-1.1.sql $RPM_BUILD_ROOT/usr/share/lmt/etc
-cp server/src/scripts/upgrade_lmtconfig-1.1.pl $RPM_BUILD_ROOT/usr/sbin/upgrade_lmtconfig-1.1
 
 cp server/cron/lmt_update_fs_agg          $RPM_BUILD_ROOT%{_sbindir}
 cp server/cron/lmt_update_mds_agg         $RPM_BUILD_ROOT%{_sbindir}
@@ -101,7 +100,6 @@ rm -rf $RPM_BUILD_ROOT
 %doc ChangeLog NEWS DISCLAIMER COPYING
 %{_libdir}/cerebro/cerebro_monitor_lmt*
 /usr/sbin/create_lmtconfig
-/usr/sbin/upgrade_lmtconfig-1.1
 /usr/sbin/lmt_update_fs_agg
 /usr/sbin/lmt_update_mds_agg
 /usr/sbin/lmt_update_ost_agg
