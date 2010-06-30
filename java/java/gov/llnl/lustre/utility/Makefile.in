@@ -1,0 +1,23 @@
+
+CLASSPATH=@CLASSPATH@
+
+CLASSES= Debug.class  \
+         Grouper.class \
+         TimeIt.class
+
+SOURCES=*.java
+
+.SUFFIXES: .java .class
+
+this:	$(CLASSES)
+
+all: 
+	@echo Compiling *.java
+	@@JAVAC@ @JFLAGS@ -classpath $(CLASSPATH) *.java
+
+clean:
+	rm -f *.class
+
+.java.class:
+	@echo Compiling $<
+	@@JAVAC@ @JFLAGS@ -classpath $(CLASSPATH) $<

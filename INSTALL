@@ -1,0 +1,63 @@
+If you can download the pre-built RPM's and use them, that is the easiest!
+Otherwise you can build your own either by rebuilding the .src.rpm with
+rpmbuild or as follows:
+
+make
+	Build client and server in place.
+
+make rpms
+	Build RPM packages directly from subversion (ignoring the
+	local source tree except for the contents of the META file,
+	Makefile, etc., which is used to calculate the subversion URL.
+
+make rpms-trunk
+	Build RPM packages from the subversion trunk.
+	The resulting packages will have a special snapshot release number,
+	e.g. lmt-client-2.6.2-0907031743
+
+make rpms-working
+	Build RPM packages from the current working directory.
+	The resulting packages will have a special snapshot release number.
+
+
+When building RPM's, the spec file BuildRequires will ensure that the
+correct dependent packages are installed.  When building with 'make',
+you will need to do this manually.  See the spec file for the definitive
+rules.  At the time of this writing I am building LMT on CHAOS 4.2 which
+is based on RHEL 5.3, with the following package versions:
+
+ant-1.6.5-2jpp.2
+ant-nodeps-1.6.5-2jpp.2
+mysql-5.0.45-7.el5
+mysql-devel-5.0.45-7.el5
+cerebro-1.9-1.ch4.2
+ncurses-5.5-24.20060715
+ncurses-devel-5.5-24.20060715
+java-1.5.0-ibm-1.5.0.10-1jpp.4.el5 (provides "jre")
+java-1.5.0-ibm-devel-1.5.0.10-1jpp.4.el5 (provides "java-devel")
+
+My lustre servers have:
+cerebro-1.9-1.ch4.2
+mysql-5.0.45-7.el5
+lustre-1.6.6-110chaos_2.6.18_73chaos.ch4.2
+lmt-server-agent-2.6.2-1.ch4.2
+
+My management node has:
+cerebro-1.9-1.ch4.2
+mysql-5.0.45-7.el5
+mysql-server-5.0.45-7.el5
+lmt-server-2.6.2-0907031743.ch4.1
+
+And my desktop has:
+lmt-client-2.6.2-0907031743.ch4.1
+java-1.5.0-ibm-1.5.0.10-1jpp.4.el5
+ncurses-5.5-24.20060715
+
+See the LMT wiki for information on setting up the database, etc.:
+http://code.google.com/p/lmt/w
+
+Please direct communication to the LMT mailing list:
+ttp://groups.google.com/group/lmt-discuss?pli=1
+
+Jim Garlick for version 2.6.3
+Wed Aug 19 14:05:22 PDT 2009

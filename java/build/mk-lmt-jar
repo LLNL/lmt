@@ -1,0 +1,105 @@
+#!/usr/bin/env perl
+#===============================================================================
+#  Copyright (C) 2007, Lawrence Livermore National Security, LLC.
+#  Copyright (c) 2007, The Regents of the University of California.
+#  Produced at the Lawrence Livermore National Laboratory.
+#  Written by C. Morrone, H. Wartens, P. Spencer, N. O'Neill, J. Long
+#  UCRL-CODE-232438.
+#  All rights reserved.
+#  
+#  This file is part of Lustre Monitoring Tools, version 2. 
+#  For details, see http:#sourceforge.net/projects/lmt/.
+#  
+#  Please also read Our Notice and GNU General Public License, available in the
+#  COPYING file in the source distribution.
+#  
+#  This program is free software; you can redistribute it and/or modify it under
+#  the terms of the GNU General Public License (as published by the Free Software
+#  Foundation) version 2, dated June 1991.
+#  
+#  This program is distributed in the hope that it will be useful, but WITHOUT ANY
+#  WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY or FITNESS FOR A
+#  PARTICULAR PURPOSE.  See the terms and conditions of the GNU General Public
+#  License for more details.
+#  
+#  You should have received a copy of the GNU General Public License along with
+#  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+#  Place, Suite 330, Boston, MA 02111-1307 USA
+#===============================================================================
+
+#===============================================================================
+#                                 mk-lmt-jar
+#-------------------------------------------------------------------------------
+#  Purpose:     Build the comprehensive LMT2 jar file containing LMT application
+#		plus all of the 3rd party java classes
+#  Usage:
+#               mk-lmt-jar 
+#  Notes:
+#===============================================================================
+
+use strict;
+use Cwd 'abs_path';
+use File::Basename;
+
+my $lmtAppJar = shift || die ("Usage: mk-lmt-jar app-jar output-jar\n");
+my $outputJar = shift || die ("Usage: mk-lmt-jar app-jar output-jar\n");
+
+my $jarExec = "jar";
+if (defined $ENV{JAVA_HOME} and -x $ENV{JAVA_HOME} and -x "$ENV{JAVA_HOME}/bin/jar") {
+    $jarExec = "$ENV{JAVA_HOME}/bin/jar";
+} elsif (-x "/usr/bin/jar") {
+    $jarExec = "/usr/bin/jar";
+}
+
+my $myPath  = abs_path($0);			# Abs path of this script
+my $buildDir= File::Basename::dirname($myPath); # Abs path of build dir
+my $javaDir = abs_path("$buildDir/../java");
+my $charvaDir = abs_path("$buildDir/../charva");
+
+my $tmpdir="/tmp/mk-lmt-jar_$$";
+
+if (not -e $lmtAppJar) {
+    die("Missing LMT application jar file. Try doing a 'make jar' first.\n");
+}
+
+my @jars=getJars("$javaDir/jars");
+push @jars, $lmtAppJar;
+
+push @jars, "$charvaDir/java/dist/lib/charva.jar";
+
+mkdir $tmpdir || die ("Could not create tmpdir $tmpdir: $!\n");
+chdir $tmpdir;
+
+foreach my $jar (@jars) {
+    print "Extracting jar file: $jar ...\n";
+    system("$jarExec xf $jar");
+}
+
+# Create manifest file
+my $manifest = "lmt-manifest";
+unlink $manifest if (-e $manifest);
+open (MAN, ">$manifest") or die("Could not create manifest file");
+print MAN "Main-Class: gov.llnl.lustre.lstat.Lstat\n\n";
+close MAN;
+
+system("$jarExec cfm $outputJar $manifest *");
+print "Created full jar file: $outputJar\n";
+
+chdir "/";
+system("/bin/rm -rf $tmpdir");
+
+exit 0;
+
+sub getJars {
+    my $dir = shift;
+
+    opendir(DIR, $dir) or die ("Cannot open dir $dir: $!\n");
+    my @jars = grep { /\.jar$/ && -f "$dir/$_" } readdir(DIR);
+    closedir DIR;
+
+    foreach (@jars) {
+	$_ = "$dir/$_";
+    }
+
+    return @jars;
+}

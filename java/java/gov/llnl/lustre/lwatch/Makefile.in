@@ -1,0 +1,32 @@
+
+CLASSPATH=@CLASSPATH@
+
+CLASSES= CellListener.class  \
+         ColumnComparator.class \
+         FileSystemPanel.class \
+         LWatch.class \
+         MDSPanel.class \
+         OSTPanel.class \
+         PlotFrame2.class \
+         RTRPanel.class \
+         OSSPanel.class \
+	 TextFormatter.class \
+         LwatchAlert.class \
+         RawLiveParams.class
+
+SOURCES=*.java
+
+.SUFFIXES: .java .class
+
+this:	$(CLASSES)
+
+all: 
+	@echo Compiling *.java
+	@@JAVAC@ @JFLAGS@ -classpath $(CLASSPATH) *.java
+
+clean:
+	rm -f *.class
+
+.java.class:
+	@echo Compiling $<
+	@@JAVAC@ @JFLAGS@ -classpath $(CLASSPATH) $<
