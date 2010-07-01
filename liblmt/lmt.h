@@ -28,7 +28,9 @@
 /* mysql.c */
 typedef struct lmt_db_struct *lmt_db_t;
 
-int lmt_db_dbnames (char **dbnames, const char **sqlerrp);
+int lmt_db_create_dblist (char ***dbnamesp, const char **sqlerrp);
+void lmt_db_destroy_dblist (char **dbnames);
+
 int lmt_db_create (lmt_db_t *dbp, const char *dbname, const char **sqlerrp);
 void lmt_db_destroy (lmt_db_t db);
 int lmt_db_insert_mds_data (lmt_db_t db, char *name, float pct_cpu,

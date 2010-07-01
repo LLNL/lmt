@@ -27,16 +27,17 @@
  * In lmt 2.0: lmt was configured via two config files:
  *  . for java clients (read-only): /usr/share/lmt/etc/lmtrc or ~/.lmtrc
  *  . for cerebro monitor and aggregation scripts: /usr/share/lmt/cron/lmtrc
- * This allowed cerebrod to run remotely from mysqld, and control this on
- * a per-file system basis.  This was complicated and as far as I know was
- * not fulfilling any particular need.
+ * This allowed cerebrod to run remotely from mysqld, and be configured
+ * differently on a per-file system basis.  This was complicated and as
+ * far as I know was not fulfilling any particular need.
  * 
  * In lmt 3.0, /usr/share/lmt/cron/lmtrc goes away and cerebro monitor,
  * aggregation scripts, and new utilities are hardwired to use UNIX auth
  * on localhost:3306.  Thus when upgrading it is necessary to grant
  * root@localhost read-write access to the database, and then ensure that
  * cerebrod and aggregation scripts run as root (or pick another account,
- * as long as everybody uses the same one).
+ * as long as everybody uses the same one).  Any old "lwatchadmin" account
+ * or similar read-write account can be removed.
  *
  * The clients still authenticate as before, with mysql usernames/passwords
  * stored in /usr/share/lmt/etc/lmtrc or ~/.lmtrc.
@@ -573,19 +574,29 @@ done:
     return retval;
 }
 
+void
+lmt_db_destroy_dblist (char **dbnames)
+{
+    while (*dbnames)
+        free (*dbnames++);
+    free (dbnames);
+}
+
 /* FIXME: perhaps verify SCHEMA_VERSION in FILESYSTEM_INFO is 1.1 before
  * returning the database name?
  */
 
 int
-lmt_db_dbnames (char **dbnames, const char **sqlerrp)
+lmt_db_create_dblist (char ***dbnamesp, const char **sqlerrp)
 {
-    MYSQL *conn;
-    MYSQL_RES *res;
-    int retval = -1;
+    MYSQL *conn = NULL;
+    MYSQL_RES *res = NULL;
+    char **dbnames = NULL;
+    MYSQL_ROW row;
+    int i, retval = -1;
 
     if (!(conn = mysql_init (NULL))) {
-        errno = ENOMEM;
+        errno = ENOMEM;    
         goto done;
     }
     if (!mysql_real_connect (conn, NULL, NULL, NULL, NULL, 0, NULL, 0))
@@ -593,10 +604,26 @@ lmt_db_dbnames (char **dbnames, const char **sqlerrp)
     /* FIXME: need to escape underbar so it isn't interpreted as wildcard */
     if (!(res = mysql_list_dbs (conn, "filesystem_%")))
         goto done;
-    /* FIXME: translate result set into string vector */
+    dbnames = malloc ((mysql_num_rows (res) + 1) * sizeof (char *)); 
+    for (i = 0; i < mysql_num_rows (res); i++) {
+        row = mysql_fetch_row (res);
+        if (!(dbnames[i] = strdup (row[0])))
+            goto done;
+    }
+    dbnames[i] = NULL;
+    *dbnamesp = dbnames;
+    retval = 0;
 done:
-    /* FIXME: clean up res */
-    /* FIXME clean up conn */
+    if (retval < 0) {
+        if (dbnames)
+            lmt_db_destroy_dblist (dbnames);
+        if (conn)
+            *sqlerrp = mysql_error (conn);
+    }
+    if (res)
+        mysql_free_result (res);
+    if (conn)
+        mysql_close (conn);
     return retval;
 }
 
