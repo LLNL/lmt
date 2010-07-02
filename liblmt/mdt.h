@@ -23,12 +23,13 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-int lmt_mdt_decode_v1 (char *s, char **name, float *pct_cpu, List *mdtinfo);
-int lmt_mdt_decode_v1_mdtinfo (char *s, char **name,
-                        uint64_t *kbytes_free, uint64_t *kbytes_used,
-                        uint64_t *inodes_free, uint64_t *inodes_used,
+int lmt_mdt_decode_v1 (char *s, char **mdsname, float *pct_cpu, float *pct_mem,
+                        List *mdtinfo);
+int lmt_mdt_decode_v1_mdtinfo (char *s, char **mdtname,
+                        uint64_t *inodes_free, uint64_t *inodes_total,
+                        uint64_t *kbytes_free, uint64_t *kbytes_total,
                         List *mdops);
-int lmt_mdt_decode_v1_mdops (char *s, char **name,
+int lmt_mdt_decode_v1_mdops (char *s, char **opname,
                         uint64_t *samples, uint64_t *sum, uint64_t *sumsquares);
 
 /*

@@ -47,6 +47,7 @@
 
 #include "lmt.h"
 #include "mdt.h"
+#include "util.h"
 
 typedef struct {
     int num;
@@ -54,9 +55,10 @@ typedef struct {
 } optab_t;
 
 /* This is the hardwired order of ops in both mdt_v1 and mds_v2.
- * FIXME: needs audit.
+ * FIXME: needs audit for validity of all fields in current lustre code,
+ * and relevance to monitoring goals.
  */
-static char *optab[] = {
+static const char *optab[] = {
     "open", "close", "mknod", "link", "unlink", "mkdir", "rmdir", "rename",
     "getxattr", "setxattr", "iocontrol", "get_info", "set_info_async",
     "attach", "detach", "setup", "precleanup", "cleanup", "process_config",
@@ -74,6 +76,7 @@ static char *optab[] = {
     "register_page_removal_cb", "unregister_page_removal_cb",
     "register_lock_cancel_cb", "unregister_lock_cancel_cb",
 };
+const int optablen = sizeof (optab) / sizeof(optab[0]);
 
 typedef struct {
     uint64_t    usage[2];
@@ -116,7 +119,7 @@ _get_mem_usage (pctx_t ctx, double *fp)
 }
 
 static int
-_get_mdtop (hash_t stats, char *key, char *s, int len)
+_get_mdtop (hash_t stats, const char *key, char *s, int len)
 {
     uint64_t count = 0, sum = 0, sumsq = 0;
     int retval = -1;
@@ -149,12 +152,7 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
     if (proc_lustre_hashstats (ctx, name, &stats) < 0)
         goto done;
     n = snprintf (s, len, "%s;%lu;%lu;%lu;%lu;",
-                  uuid,
-                  filesfree,
-                  filestotal,
-                  kbytesfree,
-                  kbytestotal
-                  );
+                  uuid, filesfree, filestotal, kbytesfree, kbytestotal);
     if (n >= len) {
         errno = E2BIG;
         goto done;
@@ -163,7 +161,7 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
      * as required by schema 1.1.  Substitute zeroes if not found.
      * N.B. lustre-1.8.2: sum and sumsquare appear to be missing from proc.
      */
-    for (i = 0; i < sizeof (optab) / sizeof (optab[0]); i++) {
+    for (i = 0; i < optablen; i++) {
         used = strlen (s);
         if (_get_mdtop (stats, optab[i], s + used, len - used) < 0)
             goto done;
@@ -199,10 +197,7 @@ lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
         goto done;
     if (_get_mem_usage (ctx, &mempct) < 0)
         goto done;
-    n = snprintf (s, len, "1;%s;%f;%f;",
-                  uts.nodename,
-                  cpupct,
-                  mempct);
+    n = snprintf (s, len, "1;%s;%f;%f;", uts.nodename, cpupct, mempct);
     if (n >= len) {
         errno = E2BIG;
         goto done;
@@ -225,27 +220,146 @@ done:
     return retval;
 }
 
-
 int
-lmt_mdt_decode_v1 (char *s, char **name, float *pct_cpu, List *mdtinfo)
+lmt_mdt_decode_v1 (char *s, char **mdsnamep, float *pct_cpup, float *pct_memp,
+                   List *mdtinfop)
 {
-    return -1;
+    const int mdtfields = 5 + 3 * optablen;
+    int retval = -1;
+    char *mdsname, *cpy = NULL;
+    float pct_mem, pct_cpu;
+    List mdtinfo = NULL;
+
+    if (!(mdsname = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf (s, "%*s;%s;%f;%f;", mdsname, &pct_cpu, &pct_mem) != 3) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(s = strskip (s, 4, ';'))) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(mdtinfo = list_create ((ListDelF)free)))
+        goto done;
+    while ((cpy = strskipcpy (&s, mdtfields, ';'))) {
+        if (!list_append (mdtinfo, cpy)) {
+            free (cpy);
+            goto done;
+        }
+    }
+    if (strlen (s) > 0) {
+        errno = EIO;
+        goto done;
+    }
+    *mdsnamep = mdsname;
+    *pct_cpup = pct_cpu;
+    *pct_memp = pct_mem;
+    *mdtinfop = mdtinfo;
+    retval = 0;
+done:
+    if (retval < 0) {
+        if (mdsname)
+            free (mdsname);
+        if (mdtinfo)
+            list_destroy (mdtinfo);
+    }
+    return retval;
 }
 
 int
-lmt_mdt_decode_v1_mdtinfo (char *s, char **name,
-                           uint64_t *kbytes_free, uint64_t *kbytes_used,
-                           uint64_t *inodes_free, uint64_t *inodes_used,
-                           List *mdops)
+lmt_mdt_decode_v1_mdtinfo (char *s, char **mdtnamep,
+                           uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                           uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                           List *mdopsp)
 {
-    return -1;
+    int retval = -1;
+    char *mdtname, *cpy;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+    List mdops = NULL;
+    int i = 0;
+
+    if (!(mdtname = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf (s, "%s;%lu;%lu;%lu;%lu;", mdtname, &inodes_free, &inodes_total,
+                &kbytes_free, &kbytes_total) != 5) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(s = strskip (s, 5, ';'))) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(mdops = list_create ((ListDelF)free)))
+        goto done;
+    while ((cpy = strskipcpy (&s, 3, ';'))) {
+        if (i >= optablen) {
+            errno = EIO;
+            free (cpy);
+            goto done;
+        }
+        if (!strappendfield (&cpy, optab[i++], ';')) {
+            free (cpy);
+            goto done;
+        }
+        if (!list_append (mdops, cpy)) {
+            free (cpy);
+            goto done;
+        }
+    }
+    if (strlen (s) > 0) {
+        errno = EIO;
+        goto done;
+    }
+    *mdtnamep = mdtname;
+    *inodes_freep = inodes_free;
+    *inodes_totalp = inodes_total;
+    *kbytes_freep = kbytes_free;
+    *kbytes_totalp = kbytes_total;
+    *mdopsp = mdops;
+    retval = 0;
+done:
+    if (retval < 0) {
+        if (mdtname)
+            free (mdtname);
+        if (mdops)
+            list_destroy (mdops);
+    }
+    return retval;
 }
 
 int
-lmt_mdt_decode_v1_mdops (char *s, char **name, uint64_t *samples,
-                         uint64_t *sum, uint64_t *sumsquares)
+lmt_mdt_decode_v1_mdops (char *s, char **opnamep, uint64_t *samplesp,
+                         uint64_t *sump, uint64_t *sumsquaresp)
 {
-    return -1;
+    int retval = -1;
+    char *opname;
+    uint64_t samples, sum, sumsquares;
+
+    if (!(opname = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf(s, "%lu;%lu;%lu;%s", &samples, &sum, &sumsquares, opname) != 4) {
+        errno = EIO;
+        goto done;
+    }
+    *opnamep = opname;
+    *samplesp = samples;
+    *sump = sum;
+    *sumsquaresp = sumsquares;
+    retval = 0;
+done:
+    if (retval < 0) {
+        if (opname)
+            free (opname);
+    }
+    return retval;
 }
 
 /*

@@ -23,8 +23,10 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-char *strskip (char *s, int n);
-char *strskipcpy (char **sp, int n);
+char *strskip (char *s, int n, char sep);
+char *strskipcpy (char **sp, int n, char sep);
+char *strappendfield (char **s1p, const char *s2, char sep);
+
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

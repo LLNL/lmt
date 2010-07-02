@@ -51,7 +51,8 @@ CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 liblmt_la_LIBADD =
-am_liblmt_la_OBJECTS = ost.lo mdt.lo router.lo mysql.lo lmtdb.lo
+am_liblmt_la_OBJECTS = ost.lo mdt.lo router.lo mysql.lo lmtdb.lo \
+	util.lo
 liblmt_la_OBJECTS = $(am_liblmt_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
@@ -213,7 +214,8 @@ liblmt_la_SOURCES = \
 	mdt.c \
 	router.c \
 	mysql.c \
-	lmtdb.c
+	lmtdb.c \
+	util.c
 
 all: all-am
 
@@ -271,6 +273,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mysql.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ost.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/router.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

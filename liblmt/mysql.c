@@ -123,6 +123,8 @@ const char *sql_ins_router_data =
     "values (?, ?, ?, ?)";
 
 const char *sql_sel_mds_info =
+    "select HOSTNAME, MDS_ID from MDS_INFO";
+const char *sql_sel_mdt_info =
     "select MDS_NAME, MDS_ID from MDS_INFO";
 const char *sql_sel_oss_info =
     "select HOSTNAME, OSS_ID from OSS_INFO";
@@ -221,8 +223,11 @@ _populate_idhash (lmt_db_t db)
 {
     int retval = -1;
 
-    /* MDS_INFO:    MDS_NAME -> MDS_ID */
+    /* MDS_INFO:    HOSTNAME -> MDS_ID */
     if (_populate_idhash_qry (db, sql_sel_mds_info, "mds") < 0)
+        goto done;
+    /* MDS_INFO:    MDS_NAME -> MDS_ID */
+    if (_populate_idhash_qry (db, sql_sel_mds_info, "mdt") < 0)
         goto done;
     /* OSS_INFO:    HOSTNAME -> OSS_ID */
     if (_populate_idhash_qry (db, sql_sel_oss_info, "oss") < 0)
@@ -320,7 +325,7 @@ done:
 }
 
 int
-lmt_db_insert_mds_data (lmt_db_t db, char *name, float pct_cpu,
+lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                         uint64_t kbytes_free, uint64_t kbytes_used,
                         uint64_t inodes_free, uint64_t inodes_used,
                         const char **sqlerrp)
@@ -332,7 +337,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *name, float pct_cpu,
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
 
-    if (_lookup_idhash(db, "mds", name, &mds_id) < 0)
+    if (_lookup_idhash(db, "mdt", mdtname, &mds_id) < 0)
         goto done;
     if (_update_timestamp (db) < 0)
         goto done;
@@ -362,7 +367,7 @@ done:
 }
 
 int
-lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdsname, char *opname,
+lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
                         uint64_t samples, uint64_t sum, uint64_t sumsquares,
                         const char **sqlerrp)
 {
@@ -373,7 +378,7 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdsname, char *opname,
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
 
-    if (_lookup_idhash (db, "mds", mdsname, &mds_id) < 0)
+    if (_lookup_idhash (db, "mdt", mdtname, &mds_id) < 0)
         goto done;
     if (_lookup_idhash (db, "op", opname, &op_id) < 0)
         goto done;

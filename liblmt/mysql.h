@@ -31,11 +31,11 @@ void lmt_db_destroy (lmt_db_t db);
 
 int lmt_db_lookup (lmt_db_t db, char *svctype, char *name);
 
-int lmt_db_insert_mds_data (lmt_db_t db, char *name, float pct_cpu,
+int lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                         uint64_t kbytes_free, uint64_t kbytes_used,
                         uint64_t inodes_free, uint64_t inodes_used,
                         const char **sqlerrp);
-int lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdsname, char *opname,
+int lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
                         uint64_t samples, uint64_t sum, uint64_t sumsquares,
                         const char **sqlerrp);
 int lmt_db_insert_oss_data (lmt_db_t db, char *name,

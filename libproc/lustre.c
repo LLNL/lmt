@@ -343,7 +343,7 @@ done:
  * minimum is:      <key>   <count> samples [<unit>] 
  */
 int
-proc_lustre_parsestat (hash_t stats, char *key, uint64_t *countp,
+proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
                        uint64_t *minp, uint64_t *maxp,
                        uint64_t *sump, uint64_t *sumsqp)
 {

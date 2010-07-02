@@ -127,29 +127,30 @@ done:
 }
 
 int
-lmt_router_decode_v1 (char *s, char **namep,
-                      uint64_t *bytesp, float *pct_cpup)
+lmt_router_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp,
+                      uint64_t *bytesp)
 {
     int retval = -1;
-    char *nm;
-    float mempct, cpupct;
+    char *name;
+    float pct_mem, pct_cpu;
     uint64_t bytes;
 
-    if (!(nm = malloc (strlen(s) + 1))) {
+    if (!(name = malloc (strlen(s) + 1))) {
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%f;%f;%lu", nm, &cpupct, &mempct, &bytes) != 4) {
+    if (sscanf (s, "%*s;%s;%f;%f;%lu", name, &pct_cpu, &pct_mem, &bytes) != 4) {
         errno = EIO;
         goto done;
     }
-    *namep = nm;
+    *namep = name;
     *bytesp = bytes;
-    *pct_cpup = cpupct;
+    *pct_cpup = pct_cpu;
+    *pct_memp = pct_mem;
     retval = 0;
 done:
-    if (retval < 0 && nm)
-        free (nm);
+    if (retval < 0 && name)
+        free (name);
     return retval;
 }
 

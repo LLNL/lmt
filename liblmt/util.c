@@ -23,17 +23,26 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-/* Return a pointer just past n semicolon-delimited fields.
- * The last field's trailing semicolon (if any) is not included.
+#if HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
+
+#define _GNU_SOURCE
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+/* Return a pointer just past n sep-delimited fields.
  * If there are fewer than that, return NULL.
+ * (Push past trailing delimiter, if any)
  */
 char *
-strskip (char *s, int n)
+strskip (char *s, int n, char sep)
 {
     char *p;
 
     while (n > 0 && *s) {
-        if ((p = strchr (s, ';')))
+        if ((p = strchr (s, sep)))
             s = p + 1;
         else
             s += strlen (s);
@@ -42,21 +51,37 @@ strskip (char *s, int n)
     return n > 0 ? NULL : s;
 }
 
-/* Copy a group of n semicolon delimited fields
+/* Copy a group of n sep-delimited fields
+ * Don't return trailing delimiter, if any, in copy.
  */
 char *
-strskipcpy (char **sp, int n)
+strskipcpy (char **sp, int n, char sep)
 {
     char *res = NULL;
     char *s = *sp;
-    char *p = strskip (s, n);
+    char *p = strskip (s, n, sep);
     int len = p ? (p - s) : 0;
 
     if (len > 0)
-        res = strndup (s, s[len - 1] == ';' ? len - 1 : len);
+        res = strndup (s, s[len - 1] == sep ? len - 1 : len);
     if (res)
         *sp += len;
     return res;
+}
+
+char *
+strappendfield (char **s1p, const char *s2, char sep)
+{
+    char *s1 = *s1p;
+    int len = strlen(s1) + strlen(s2) + 2;
+    char *s = malloc (len);
+
+    if (s) {
+        snprintf (s, len, "%s%c%s", s1, sep, s2);
+        free (s1);
+        *s1p = s;
+    }
+    return s;
 }
 
 /*

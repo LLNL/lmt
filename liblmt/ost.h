@@ -27,8 +27,8 @@ int lmt_ost_decode_v2 (char *s, char **name,
                         float *pct_cpu, float *pct_mem, List *ostinfo);
 int lmt_ost_decode_v2_ostinfo (char *s, char **name,
                         uint64_t *read_bytes, uint64_t *write_bytes,
-                        uint64_t *kbytes_free, uint64_t *kbytes_used,
-                        uint64_t *inodes_free, uint64_t *inodes_used);
+                        uint64_t *kbytes_free, uint64_t *kbytes_total,
+                        uint64_t *inodes_free, uint64_t *inodes_total);
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
