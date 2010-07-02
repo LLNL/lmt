@@ -52,6 +52,7 @@ AC_CHECK_FUNCS( \
 )
 X_AC_CHECK_PTHREADS
 X_AC_CURSES
+X_AC_PATH_MYSQL
 ##
 # For list.c, hostlist.c, hash.c
 ##

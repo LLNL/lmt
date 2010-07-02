@@ -42,7 +42,9 @@ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_check_pthreads.m4 \
 	$(top_srcdir)/config/x_ac_curses.m4 \
 	$(top_srcdir)/config/x_ac_expand_install_dirs.m4 \
-	$(top_srcdir)/config/x_ac_meta.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/config/x_ac_meta.m4 \
+	$(top_srcdir)/config/x_ac_path_mysql.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -121,6 +123,8 @@ META_LT_REVISION = @META_LT_REVISION@
 META_NAME = @META_NAME@
 META_RELEASE = @META_RELEASE@
 META_VERSION = @META_VERSION@
+MYSQL_CFLAGS = @MYSQL_CFLAGS@
+MYSQL_LIBS = @MYSQL_LIBS@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@

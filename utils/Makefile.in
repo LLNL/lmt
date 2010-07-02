@@ -38,14 +38,16 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 sbin_PROGRAMS = tproc$(EXEEXT) tlustre$(EXEEXT) otop$(EXEEXT) \
-	lmtmetric$(EXEEXT)
+	lmtmetric$(EXEEXT) lmtdiagnose$(EXEEXT)
 subdir = utils
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_check_pthreads.m4 \
 	$(top_srcdir)/config/x_ac_curses.m4 \
 	$(top_srcdir)/config/x_ac_expand_install_dirs.m4 \
-	$(top_srcdir)/config/x_ac_meta.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/config/x_ac_meta.m4 \
+	$(top_srcdir)/config/x_ac_path_mysql.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -54,15 +56,18 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
-am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
-lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
+am_lmtdiagnose_OBJECTS = lmtdiagnose.$(OBJEXT)
+lmtdiagnose_OBJECTS = $(am_lmtdiagnose_OBJECTS)
 am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
+am__DEPENDENCIES_2 =
+lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
+am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
+lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
 lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_otop_OBJECTS = otop.$(OBJEXT)
 otop_OBJECTS = $(am_otop_OBJECTS)
-am__DEPENDENCIES_2 =
 otop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am_tlustre_OBJECTS = tlustre.$(OBJEXT)
 tlustre_OBJECTS = $(am_tlustre_OBJECTS)
@@ -81,10 +86,10 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(lmtmetric_SOURCES) $(otop_SOURCES) $(tlustre_SOURCES) \
-	$(tproc_SOURCES)
-DIST_SOURCES = $(lmtmetric_SOURCES) $(otop_SOURCES) $(tlustre_SOURCES) \
-	$(tproc_SOURCES)
+SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) $(otop_SOURCES) \
+	$(tlustre_SOURCES) $(tproc_SOURCES)
+DIST_SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) \
+	$(otop_SOURCES) $(tlustre_SOURCES) $(tproc_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -149,6 +154,8 @@ META_LT_REVISION = @META_LT_REVISION@
 META_NAME = @META_NAME@
 META_RELEASE = @META_RELEASE@
 META_VERSION = @META_VERSION@
+MYSQL_CFLAGS = @MYSQL_CFLAGS@
+MYSQL_LIBS = @MYSQL_LIBS@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
@@ -239,6 +246,8 @@ otop_SOURCES = otop.c
 otop_LDADD = $(common_ldadd) $(LIBCURSES)
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
+lmtdiagnose_SOURCES = lmtdiagnose.c
+lmtdiagnose_LDADD = $(common_ldadd) $(MYSQL_LIBS)
 all: all-am
 
 .SUFFIXES:
@@ -300,6 +309,9 @@ clean-sbinPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
+lmtdiagnose$(EXEEXT): $(lmtdiagnose_OBJECTS) $(lmtdiagnose_DEPENDENCIES) 
+	@rm -f lmtdiagnose$(EXEEXT)
+	$(LINK) $(lmtdiagnose_LDFLAGS) $(lmtdiagnose_OBJECTS) $(lmtdiagnose_LDADD) $(LIBS)
 lmtmetric$(EXEEXT): $(lmtmetric_OBJECTS) $(lmtmetric_DEPENDENCIES) 
 	@rm -f lmtmetric$(EXEEXT)
 	$(LINK) $(lmtmetric_LDFLAGS) $(lmtmetric_OBJECTS) $(lmtmetric_LDADD) $(LIBS)
@@ -319,6 +331,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdiagnose.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmetric.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/otop.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tlustre.Po@am__quote@

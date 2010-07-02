@@ -48,7 +48,7 @@
 #include "ost.h"
 #include "mdt.h"
 #include "router.h"
-#include "mysql.h"
+#include "lmtsql.h"
 
 /**
  ** Manage a list of db handles.

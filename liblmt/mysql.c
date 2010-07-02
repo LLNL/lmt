@@ -58,13 +58,14 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-#include <mysql/mysql.h>
-#include <mysql/errmsg.h>
+#ifdef HAVE_MYSQL_H
+#include <mysql.h>
+#endif
 
 #include "list.h"
 #include "hash.h"
 #include "proc.h"
-#include "mysql.h"
+#include "lmtsql.h"
 #include "lmt.h"
 
 #define IDHASH_SIZE     256
