@@ -54,7 +54,7 @@ CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 liblmt_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_liblmt_la_OBJECTS = ost.lo mdt.lo router.lo mysql.lo lmtdb.lo \
+am_liblmt_la_OBJECTS = ost.lo mdt.lo router.lo lmtsql.lo lmtdb.lo \
 	util.lo
 liblmt_la_OBJECTS = $(am_liblmt_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
@@ -218,7 +218,7 @@ liblmt_la_SOURCES = \
 	ost.c \
 	mdt.c \
 	router.c \
-	mysql.c \
+	lmtsql.c \
 	lmtdb.c \
 	util.c
 
@@ -275,8 +275,8 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdb.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtsql.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mdt.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mysql.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ost.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/router.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util.Plo@am__quote@

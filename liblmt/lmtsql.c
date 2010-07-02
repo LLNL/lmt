@@ -22,27 +22,6 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-/* A note on mysql authentication:
- *
- * In lmt 2.0: lmt was configured via two config files:
- *  . for java clients (read-only): /usr/share/lmt/etc/lmtrc or ~/.lmtrc
- *  . for cerebro monitor and aggregation scripts: /usr/share/lmt/cron/lmtrc
- * This allowed cerebrod to run remotely from mysqld, and be configured
- * differently on a per-file system basis.  This was complicated and as
- * far as I know was not fulfilling any particular need.
- * 
- * In lmt 3.0, /usr/share/lmt/cron/lmtrc goes away and cerebro monitor,
- * aggregation scripts, and new utilities are hardwired to use UNIX auth
- * on localhost:3306.  Thus when upgrading it is necessary to grant
- * root@localhost read-write access to the database, and then ensure that
- * cerebrod and aggregation scripts run as root (or pick another account,
- * as long as everybody uses the same one).  Any old "lwatchadmin" account
- * or similar read-write account can be removed.
- *
- * The clients still authenticate as before, with mysql usernames/passwords
- * stored in /usr/share/lmt/etc/lmtrc or ~/.lmtrc.
- */
- 
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
@@ -562,7 +541,9 @@ lmt_db_destroy (lmt_db_t db)
 }
 
 int
-lmt_db_create (lmt_db_t *dbp, const char *dbname, const char **sqlerrp)
+lmt_db_create (const char *host, unsigned int port,
+               const char *user, const char *passwd,
+               const char *dbname, lmt_db_t *dbp, const char **sqlerrp)
 {
     lmt_db_t db;
     int retval = -1;
@@ -576,7 +557,8 @@ lmt_db_create (lmt_db_t *dbp, const char *dbname, const char **sqlerrp)
         errno = ENOMEM;
         goto done;
     }
-    if (!mysql_real_connect (db->conn, NULL, NULL, NULL, dbname, 0, NULL, 0))
+    if (!mysql_real_connect (db->conn, host, user, passwd, dbname, port,
+                             NULL, 0))
         goto done;
     if (_prepare_stmt (db, &db->ins_timestamp_info, sql_ins_timestamp_info) < 0)
         goto done;
@@ -609,11 +591,10 @@ done:
     return retval;
 }
 
-/* FIXME: perhaps verify SCHEMA_VERSION in FILESYSTEM_INFO is 1.1 before
- * returning the database name?
- */
 int
-lmt_db_create_all (List *dblp, const char **sqlerrp)
+lmt_db_create_all (const char *host, unsigned int port,
+                   const char *user, const char *passwd,
+                   List *dblp, const char **sqlerrp)
 {
     MYSQL *conn = NULL;
     MYSQL_RES *res = NULL;
@@ -626,18 +607,17 @@ lmt_db_create_all (List *dblp, const char **sqlerrp)
         errno = ENOMEM;    
         goto done;
     }
-    if (!mysql_real_connect (conn, NULL, NULL, NULL, NULL, 0, NULL, 0)) {
+    if (!mysql_real_connect (conn, host, user, passwd, NULL, port, NULL, 0)) {
         *sqlerrp = mysql_error (conn);
         goto done;
     }
-    /* FIXME: need to escape underbar so it isn't interpreted as wildcard */
     if (!(res = mysql_list_dbs (conn, "filesystem_%")))
         goto done;
     if (!(dbl = list_create ((ListDelF)lmt_db_destroy)))
         goto done;
     for (i = 0; i < mysql_num_rows (res); i++) {
         row = mysql_fetch_row (res);
-        if (lmt_db_create (&db, row[0], sqlerrp) < 0)
+        if (lmt_db_create (host, port, user, passwd, row[0], &db, sqlerrp) < 0)
             goto done;
         if (!list_append (dbl, db)) {
             lmt_db_destroy (db);

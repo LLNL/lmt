@@ -57,6 +57,12 @@
 static List dbs = NULL;
 static struct timeval last_connect = { .tv_usec = 0, .tv_sec = 0 };
 
+/* default to localhost:3306 root:"" */
+static const char *db_host = NULL;
+static const unsigned int db_port = 0;
+static const char *db_user = NULL;
+static const char *db_passwd = NULL;
+
 #define MIN_RECONNECT_SECS  15
 
 static int
@@ -73,7 +79,8 @@ _init_db_ifneeded (const char **errp, int *retp)
             goto done;
         }
         last_connect = now;
-        if (lmt_db_create_all (&dbs, errp) < 0)
+        if (lmt_db_create_all (db_host, db_port, db_user, db_passwd,
+                               &dbs, errp) < 0)
             goto done;
     }
     retval = 0;

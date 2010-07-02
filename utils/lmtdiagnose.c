@@ -60,6 +60,12 @@ static const struct option longopts[] = {
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
 
+/* default to localhost:3306 root:"" */
+static const char *db_host = NULL;
+static const unsigned int db_port = 0;
+static const char *db_user = NULL;
+static const char *db_passwd = NULL;
+
 static void
 usage()
 {
@@ -78,6 +84,7 @@ main (int argc, char *argv[])
     List dbs = NULL;
     const char *errstr = NULL;
 
+
     optind = 0;
     opterr = 0;
     while ((c = GETOPT (argc, argv, OPTIONS, longopts)) != -1) {
@@ -92,7 +99,8 @@ main (int argc, char *argv[])
     if (optind < argc)
         usage();
 
-    if (lmt_db_create_all (&dbs, &errstr) < 0) {
+    if (lmt_db_create_all (db_host, db_port, db_user, db_passwd,
+                                                    &dbs, &errstr) < 0) {
         fprintf (stderr, "%s\n", errstr ? errstr : strerror (errno));
         exit (1);
     }
