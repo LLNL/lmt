@@ -58,12 +58,13 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-/* N.B. <mysql/my_list.h> conflicts with liblsd/list.h */
 #include <mysql/mysql.h>
 #include <mysql/errmsg.h>
 
+#include "list.h"
 #include "hash.h"
 #include "proc.h"
+#include "mysql.h"
 #include "lmt.h"
 
 #define IDHASH_SIZE     256
@@ -90,7 +91,7 @@ struct lmt_db_struct {
     uint64_t timestamp;
     uint64_t timestamp_id;
 
-    /* hash to map services to database id's */
+    /* hash to map names to database id's */
     hash_t idhash;
 };
 
@@ -129,6 +130,8 @@ const char *sql_sel_ost_info =
     "select OST_NAME, OST_ID from OST_INFO";
 const char *sql_sel_router_info =
     "select HOSTNAME, ROUTER_ID from ROUTER_INFO";
+const char *sql_sel_operation_info =
+    "select OPERATION_NAME, OPERATION_ID from OPERATION_INFO";
 
 /**
  ** Idhash functions (internal)
@@ -230,6 +233,9 @@ _populate_idhash (lmt_db_t db)
     /* ROUTER_INFO: HOSTNAME -> ROUTER_ID */
     if (_populate_idhash_qry (db, sql_sel_router_info, "router") < 0)
         goto done;
+    /* OPERATION_INFO: OPERATION_NAME -> OPERATION_ID */
+    if (_populate_idhash_qry (db, sql_sel_operation_info, "op") < 0)
+        goto done;
     retval = 0;
 done: 
     return retval;
@@ -238,7 +244,7 @@ done:
 static int
 _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
 {
-    char key[64];
+    char key[128];
     int n, retval = -1;
     svcid_t *s;
 
@@ -251,9 +257,16 @@ _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
         goto done;
     }
     retval = 0;
-    *idp = s->id;
+    if (idp)
+        *idp = s->id;
 done:
     return retval;
+}
+
+int
+lmt_db_lookup (lmt_db_t db, char *svctype, char *name)
+{
+    return _lookup_idhash (db, svctype, name, NULL);
 }
 
 /**
@@ -308,7 +321,8 @@ done:
 int
 lmt_db_insert_mds_data (lmt_db_t db, char *name, float pct_cpu,
                         uint64_t kbytes_free, uint64_t kbytes_used,
-                        uint64_t inodes_free, uint64_t inodes_used)
+                        uint64_t inodes_free, uint64_t inodes_used,
+                        const char **sqlerrp)
 {
     MYSQL_BIND param[7];
     uint64_t mds_id;
@@ -341,24 +355,29 @@ lmt_db_insert_mds_data (lmt_db_t db, char *name, float pct_cpu,
     //    goto done;
     retval = 0;
 done:
+    if (retval < 0)
+        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
 int
-lmt_db_insert_mds_ops_data (lmt_db_t db, char *name, uint64_t op_id,
-                        uint64_t samples, uint64_t sum, uint64_t sumsquares)
+lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdsname, char *opname,
+                        uint64_t samples, uint64_t sum, uint64_t sumsquares,
+                        const char **sqlerrp)
 {
     MYSQL_BIND param[6];
-    uint64_t mds_id;
+    uint64_t mds_id, op_id;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
 
-    if (_lookup_idhash (db, "mds", name, &mds_id) < 0)
+    if (_lookup_idhash (db, "mds", mdsname, &mds_id) < 0)
         goto done;
-    if (_update_timestamp (db) < 0)
+    if (_lookup_idhash (db, "op", opname, &op_id) < 0)
         goto done;
+    //if (_update_timestamp (db) < 0)
+    //    goto done;
 
     memset (param, 0, sizeof (param));
     _param_init_int (&param[0], MYSQL_TYPE_LONG, &mds_id);
@@ -374,12 +393,14 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *name, uint64_t op_id,
         goto done;
     retval = 0;
 done:
+    if (retval < 0)
+        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
 int
-lmt_db_insert_oss_data (lmt_db_t db, char *name,
-                        float pct_cpu, float pct_memory)
+lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
+                        float pct_memory, const char **sqlerrp)
 {
     MYSQL_BIND param[4];
     uint64_t oss_id;
@@ -405,6 +426,8 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name,
         goto done;
     retval = 0;
 done:
+    if (retval < 0)
+        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
@@ -412,7 +435,8 @@ int
 lmt_db_insert_ost_data (lmt_db_t db, char *name,
                         uint64_t read_bytes, uint64_t write_bytes,
                         uint64_t kbytes_free, uint64_t kbytes_used,
-                        uint64_t inodes_free, uint64_t inodes_used)
+                        uint64_t inodes_free, uint64_t inodes_used,
+                        const char **sqlerrp)
 {
     MYSQL_BIND param[8];
     uint64_t ost_id;
@@ -442,12 +466,14 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
         goto done;
     retval = 0;
 done:
+    if (retval < 0)
+        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
 int
-lmt_db_insert_router_data (lmt_db_t db, char *name,
-                           uint64_t bytes, float pct_cpu)
+lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
+                           float pct_cpu, const char **sqlerrp)
 {
     MYSQL_BIND param[4];
     uint64_t router_id;
@@ -473,6 +499,8 @@ lmt_db_insert_router_data (lmt_db_t db, char *name,
         goto done;
     retval = 0;
 done:
+    if (retval < 0)
+        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
@@ -574,56 +602,52 @@ done:
     return retval;
 }
 
-void
-lmt_db_destroy_dblist (char **dbnames)
-{
-    while (*dbnames)
-        free (*dbnames++);
-    free (dbnames);
-}
-
 /* FIXME: perhaps verify SCHEMA_VERSION in FILESYSTEM_INFO is 1.1 before
  * returning the database name?
  */
-
 int
-lmt_db_create_dblist (char ***dbnamesp, const char **sqlerrp)
+lmt_db_create_all (List *dblp, const char **sqlerrp)
 {
     MYSQL *conn = NULL;
     MYSQL_RES *res = NULL;
-    char **dbnames = NULL;
     MYSQL_ROW row;
+    List dbl = NULL;
+    lmt_db_t db;
     int i, retval = -1;
 
     if (!(conn = mysql_init (NULL))) {
         errno = ENOMEM;    
         goto done;
     }
-    if (!mysql_real_connect (conn, NULL, NULL, NULL, NULL, 0, NULL, 0))
+    if (!mysql_real_connect (conn, NULL, NULL, NULL, NULL, 0, NULL, 0)) {
+        *sqlerrp = mysql_error (conn);
         goto done;
+    }
     /* FIXME: need to escape underbar so it isn't interpreted as wildcard */
     if (!(res = mysql_list_dbs (conn, "filesystem_%")))
         goto done;
-    dbnames = malloc ((mysql_num_rows (res) + 1) * sizeof (char *)); 
+    if (!(dbl = list_create ((ListDelF)lmt_db_destroy)))
+        goto done;
     for (i = 0; i < mysql_num_rows (res); i++) {
         row = mysql_fetch_row (res);
-        if (!(dbnames[i] = strdup (row[0])))
+        if (lmt_db_create (&db, row[0], sqlerrp) < 0)
             goto done;
+        if (!list_append (dbl, db)) {
+            lmt_db_destroy (db);
+            goto done;
+        }
     }
-    dbnames[i] = NULL;
-    *dbnamesp = dbnames;
+    *dblp = dbl;
     retval = 0;
 done:
-    if (retval < 0) {
-        if (dbnames)
-            lmt_db_destroy_dblist (dbnames);
-        if (conn)
-            *sqlerrp = mysql_error (conn);
-    }
     if (res)
         mysql_free_result (res);
     if (conn)
         mysql_close (conn);
+    if (retval < 0) {
+        if (dbl)
+            list_destroy (dbl);
+    }
     return retval;
 }
 

@@ -23,21 +23,12 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#define LMT_UPDATE_INTERVAL     5   /* in seconds */
-
-/* lmtdb.c */
-int lmt_db_insert_ost_v2 (char *s, const char **errp);
-int lmt_db_insert_mdt_v1 (char *s, const char **errp);
-int lmt_db_insert_router_v1 (char *s, const char **errrp);
-
-/* ost.c */
-int lmt_ost_string_v2 (pctx_t ctx, char *s, int len);
-
-/* mdt.c */
-int lmt_mdt_string_v1 (pctx_t ctx, char *s, int len);
-
-/* router.c */
-int lmt_router_string_v1 (pctx_t ctx, char *s, int len);
+int lmt_ost_decode_v2 (char *s, char **name,
+                        float *pct_cpu, float *pct_mem, List *ostinfo);
+int lmt_ost_decode_v2_ostinfo (char *s, char **name,
+                        uint64_t *read_bytes, uint64_t *write_bytes,
+                        uint64_t *kbytes_free, uint64_t *kbytes_used,
+                        uint64_t *inodes_free, uint64_t *inodes_used);
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

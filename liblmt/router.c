@@ -1,6 +1,6 @@
 /*****************************************************************************
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
- *  This module (re)written by Jim Garlick <garlick@llnl.gov>.
+ *  This module written by Jim Garlick <garlick@llnl.gov>.
  *  UCRL-CODE-232438
  *  All Rights Reserved.
  *
@@ -46,8 +46,7 @@
 #include "lustre.h"
 
 #include "lmt.h"
-
-#define LMT_ROUTER_PROTOCOL_VERSION    "3"
+#include "router.h"
 
 typedef struct {
     uint64_t    usage[2];
@@ -90,7 +89,7 @@ _get_mem_usage (pctx_t ctx, double *fp)
 }
 
 int
-lmt_router_string_v3 (pctx_t ctx, char *s, int len)
+lmt_router_string_v1 (pctx_t ctx, char *s, int len)
 {
     int retval = -1;
     struct utsname uts;
@@ -112,8 +111,7 @@ lmt_router_string_v3 (pctx_t ctx, char *s, int len)
         goto done;
     if (proc_lustre_lnet_newbytes (ctx, &newbytes) < 0)
         goto done;
-    n = snprintf (s, len, "%s;%s;%f;%f;%lu",
-                  LMT_ROUTER_PROTOCOL_VERSION,
+    n = snprintf (s, len, "1;%s;%f;%f;%lu",
                   uts.nodename,
                   cpupct,
                   mempct,
@@ -129,10 +127,32 @@ done:
 }
 
 int
-lmt_router_updatedb_v3 (lmt_db_t hp, char *s)
+lmt_router_decode_v1 (char *s, char **namep,
+                      uint64_t *bytesp, float *pct_cpup)
 {
-    return 0;
+    int retval = -1;
+    char *nm;
+    float mempct, cpupct;
+    uint64_t bytes;
+
+    if (!(nm = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf (s, "%*s;%s;%f;%f;%lu", nm, &cpupct, &mempct, &bytes) != 4) {
+        errno = EIO;
+        goto done;
+    }
+    *namep = nm;
+    *bytesp = bytes;
+    *pct_cpup = cpupct;
+    retval = 0;
+done:
+    if (retval < 0 && nm)
+        free (nm);
+    return retval;
 }
+
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

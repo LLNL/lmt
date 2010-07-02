@@ -236,7 +236,10 @@
 /* Define lsd_fatal_error */
 #undef WITH_LSD_FATAL_ERROR_FUNC
 
-/* Define lsd_fatal_error */
+/* Disable lsd list features that conflict with mysql internals */
+#undef WITH_LSD_LIST_MYSQL_COMPAT
+
+/* Define lsd_nomem_error */
 #undef WITH_LSD_NOMEM_ERROR_FUNC
 
 /* Define to 1 if your processor stores words with the most significant byte

@@ -177,6 +177,7 @@ void list_sort (List l, ListCmpF f);
  *  Stack Access Functions  *
  ****************************/
 
+#ifndef WITH_LSD_LIST_MYSQL_COMPAT
 void * list_push (List l, void *x);
 /*
  *  Pushes data [x] onto the top of stack [l].
@@ -188,6 +189,7 @@ void * list_pop (List l);
  *  Pops the data item at the top of the stack [l].
  *  Returns the data's ptr, or NULL if the stack is empty.
  */
+#endif
 
 void * list_peek (List l);
 /*
@@ -268,6 +270,7 @@ void * list_remove (ListIterator i);
  *  Note: The client is responsible for freeing the returned data.
  */
 
+#ifndef WITH_LSD_LIST_MYSQL_COMPAT
 int list_delete (ListIterator i);
 /*
  *  Removes from the list the last item returned via list iterator [i];
@@ -276,6 +279,7 @@ int list_delete (ListIterator i);
  *  Returns a count of the number of items removed from the list
  *    (ie, '1' if the item was removed, and '0' otherwise).
  */
+#endif
 
 
 #endif /* !LSD_LIST_H */

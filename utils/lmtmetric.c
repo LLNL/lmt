@@ -116,11 +116,11 @@ main (int argc, char *argv[])
 
     while (1) {
         if (!strcmp (metric, "ost"))
-            n = lmt_ost_string_v3 (ctx, buf, sizeof (buf));
+            n = lmt_ost_string_v2 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "mdt"))
-            n = lmt_mdt_string_v3 (ctx, buf, sizeof (buf));
+            n = lmt_mdt_string_v1 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "router"))
-            n = lmt_router_string_v3 (ctx, buf, sizeof (buf));
+            n = lmt_router_string_v1 (ctx, buf, sizeof (buf));
         if (n < 0)
             printf ("%s: %s\n", metric, strerror(errno));
         else

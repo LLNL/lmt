@@ -22916,6 +22916,11 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 
+cat >>confdefs.h <<\_ACEOF
+#define WITH_LSD_LIST_MYSQL_COMPAT 1
+_ACEOF
+
+
 ##
 # Epilogue
 ##

@@ -1,6 +1,6 @@
 /*****************************************************************************
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
- *  This module (re)written by Jim Garlick <garlick@llnl.gov>.
+ *  This module written by Jim Garlick <garlick@llnl.gov>.
  *  UCRL-CODE-232438
  *  All Rights Reserved.
  *
@@ -46,98 +46,33 @@
 #include "lustre.h"
 
 #include "lmt.h"
-
-#define LMT_MDT_PROTOCOL_VERSION    "3"
+#include "mdt.h"
 
 typedef struct {
     int num;
     char *name;
 } optab_t;
 
-/* AUDIT:  this is the original list of ops produced for lmt 2.0 in lustre-1.6
- * era.  How many are invalid now?  On a real system, we see many zeroes.
+/* This is the hardwired order of ops in both mdt_v1 and mds_v2.
+ * FIXME: needs audit.
  */
-static optab_t mds_ops[] = {
-    {52,  "open"},                          \
-    {53,  "close"},                         \
-    {54,  "mknod"},                         \
-    {55,  "link"},                          \
-    {56,  "unlink"},                        \
-    {57,  "mkdir"},                         \
-    {58,  "rmdir"},                         \
-    {59,  "rename"},                        \
-    {60,  "getxattr"},                      \
-    {61,  "setxattr"},                      \
-    {62,  "iocontrol"},                     \
-    {63,  "get_info"},                      \
-    {64,  "set_info_async"},                \
-    {65,  "attach"},                        \
-    {66,  "detach"},                        \
-    {67,  "setup"},                         \
-    {68,  "precleanup"},                    \
-    {69,  "cleanup"},                       \
-    {70,  "process_config"},                \
-    {71,  "postrecov"},                     \
-    {72,  "add_conn"},                      \
-    {73,  "del_conn"},                      \
-    {74,  "connect"},                       \
-    {75,  "reconnect"},                     \
-    {76,  "disconnect"},                    \
-    {77,  "statfs"},                        \
-    {78,  "statfs_async"},                  \
-    {79,  "packmd"},                        \
-    {80,  "unpackmd"},                      \
-    {81,  "checkmd"},                       \
-    {82,  "preallocate"},                   \
-    {83,  "precreate"},                     \
-    {84,  "create"},                        \
-    {85,  "destroy"},                       \
-    {86,  "setattr"},                       \
-    {87,  "setattr_async"},                 \
-    {88,  "getattr"},                       \
-    {89,  "getattr_async"},                 \
-    {90,  "brw"},                           \
-    {91,  "brw_async"},                     \
-    {92,  "prep_async_page"},               \
-    {93,  "reget_short_lock"},              \
-    {94,  "release_short_lock"},            \
-    {95,  "queue_async_io"},                \
-    {96,  "queue_group_io"},                \
-    {97,  "trigger_group_io"},              \
-    {98,  "set_async_flags"},               \
-    {99,  "teardown_async_page"},           \
-    {100, "merge_lvb"},                     \
-    {101,  "adjust_kms"},                   \
-    {102,  "punch"},                        \
-    {103,  "sync"},                         \
-    {104,  "migrate"},                      \
-    {105,  "copy"},                         \
-    {106,  "iterate"},                      \
-    {107,  "preprw"},                       \
-    {108,  "commitrw"},                     \
-    {110,  "match"},                        \
-    {111,  "change_cbdata"},                \
-    {112,  "cancel"},                       \
-    {113,  "cancel_unused"},                \
-    {114,  "join_lru"},                     \
-    {115,  "init_export"},                  \
-    {116,  "destroy_export"},               \
-    {117,  "extent_calc"},                  \
-    {118,  "llog_init"},                    \
-    {119,  "llog_finish"},                  \
-    {120,  "pin"},                          \
-    {121,  "unpin"},                        \
-    {122,  "import_event"},                 \
-    {123,  "notify"},                       \
-    {124,  "health_check"},                 \
-    {125,  "quotacheck"},                   \
-    {126,  "quotactl"},                     \
-    {127,  "quota_adjust_quint"},           \
-    {128,  "ping"},                         \
-    {129,  "register_page_removal_cb"},     \
-    {130,  "unregister_page_removal_cb"},   \
-    {131,  "register_lock_cancel_cb"},      \
-    {132,  "unregister_lock_cancel_cb"},    \
+static char *optab[] = {
+    "open", "close", "mknod", "link", "unlink", "mkdir", "rmdir", "rename",
+    "getxattr", "setxattr", "iocontrol", "get_info", "set_info_async",
+    "attach", "detach", "setup", "precleanup", "cleanup", "process_config",
+    "postrecov", "add_conn", "del_conn", "connect", "reconnect", "disconnect",
+    "statfs", "statfs_async", "packmd", "unpackmd", "checkmd", "preallocate",
+    "precreate", "create", "destroy", "setattr", "setattr_async", "getattr",
+    "getattr_async", "brw", "brw_async", "prep_async_page", "reget_short_lock",
+    "release_short_lock", "queue_async_io", "queue_group_io",
+    "trigger_group_io", "set_async_flags", "teardown_async_page", "merge_lvb",
+    "adjust_kms", "punch", "sync", "migrate", "copy", "iterate", "preprw",
+    "commitrw", "match", "change_cbdata", "cancel", "cancel_unused",
+    "join_lru", "init_export", "destroy_export", "extent_calc", "llog_init",
+    "llog_finish", "pin", "unpin", "import_event", "notify", "health_check",
+    "quotacheck", "quotactl", "quota_adjust_quint", "ping",
+    "register_page_removal_cb", "unregister_page_removal_cb",
+    "register_lock_cancel_cb", "unregister_lock_cancel_cb",
 };
 
 typedef struct {
@@ -228,9 +163,9 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
      * as required by schema 1.1.  Substitute zeroes if not found.
      * N.B. lustre-1.8.2: sum and sumsquare appear to be missing from proc.
      */
-    for (i = 0; i < sizeof (mds_ops) / sizeof (mds_ops[0]); i++) {
+    for (i = 0; i < sizeof (optab) / sizeof (optab[0]); i++) {
         used = strlen (s);
-        if (_get_mdtop (stats, mds_ops[i].name, s + used, len - used) < 0)
+        if (_get_mdtop (stats, optab[i], s + used, len - used) < 0)
             goto done;
     }
     retval = 0;
@@ -243,7 +178,7 @@ done:
 }
 
 int
-lmt_mdt_string_v3 (pctx_t ctx, char *s, int len)
+lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
 {
     struct utsname uts;
     int n, used, retval = -1;
@@ -264,8 +199,7 @@ lmt_mdt_string_v3 (pctx_t ctx, char *s, int len)
         goto done;
     if (_get_mem_usage (ctx, &mempct) < 0)
         goto done;
-    n = snprintf (s, len, "%s;%s;%f;%f;",
-                  LMT_MDT_PROTOCOL_VERSION,
+    n = snprintf (s, len, "1;%s;%f;%f;",
                   uts.nodename,
                   cpupct,
                   mempct);
@@ -291,10 +225,27 @@ done:
     return retval;
 }
 
+
 int
-lmt_mdt_updatedb_v3 (lmt_db_t hp, char *s)
+lmt_mdt_decode_v1 (char *s, char **name, float *pct_cpu, List *mdtinfo)
 {
-    return 0;
+    return -1;
+}
+
+int
+lmt_mdt_decode_v1_mdtinfo (char *s, char **name,
+                           uint64_t *kbytes_free, uint64_t *kbytes_used,
+                           uint64_t *inodes_free, uint64_t *inodes_used,
+                           List *mdops)
+{
+    return -1;
+}
+
+int
+lmt_mdt_decode_v1_mdops (char *s, char **name, uint64_t *samples,
+                         uint64_t *sum, uint64_t *sumsquares)
+{
+    return -1;
 }
 
 /*

@@ -54,31 +54,30 @@ _get_metric_value (unsigned int *metric_value_type,
                    void **metric_value)
 {
     pctx_t ctx;
-    int retval = CEREBRO_ERR_SUCCESS;
-    char *buf;
+    int retval = -1;
+    char *buf = NULL;
 
     if (!(ctx = proc_create ("/proc"))) {
         cerebro_err_output ("out of memory in proc_create");
-        retval = CEREBRO_ERR_OUTMEM;
         goto done;
     }
     if (!(buf = malloc (CEREBRO_MAX_DATA_STRING_LEN))) {
         cerebro_err_output ("get_metric_value: out of memory");
-        retval = CEREBRO_ERR_OUTMEM;
         goto done;
     } 
     if (lmt_mds_string_v3 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0) {
         cerebro_err_debug ("get_metric_value: %s", strerror (errno));
-        retval = CEREBRO_ERR_INTERNAL;
-        free (buf);
         goto done; 
     }
     *metric_value_type = CEREBRO_DATA_VALUE_TYPE_STRING;
     *metric_value_len = strlen (buf) + 1;
     *metric_value = buf;
+    retval = 0;
 done:
     if (ctx)
         proc_destroy (ctx);
+    if (retval < 0 && buf)
+        free (buf);
     return retval;
 }
 

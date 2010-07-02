@@ -439,6 +439,7 @@ list_sort (List l, ListCmpF f)
 }
 
 
+#ifndef WITH_LSD_LIST_MYSQL_COMPAT
 void *
 list_push (List l, void *x)
 {
@@ -466,6 +467,7 @@ list_pop (List l)
     list_mutex_unlock(&l->mutex);
     return(v);
 }
+#endif
 
 
 void *
@@ -632,6 +634,7 @@ list_remove (ListIterator i)
 }
 
 
+#ifndef WITH_MYSQL_MY_LIST_H
 int
 list_delete (ListIterator i)
 {
@@ -646,6 +649,7 @@ list_delete (ListIterator i)
     }
     return(0);
 }
+#endif
 
 
 static void *

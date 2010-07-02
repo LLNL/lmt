@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #endif /* STDC_HEADERS */
 #include <errno.h>
+#include <stdint.h>
 
 #include <cerebro.h>
 #include <cerebro/cerebro_config.h>
@@ -46,34 +47,24 @@
 
 #define MONITOR_NAME            "lmt_mysql"
 #define METRIC_NAMES            "lmt_mdt,lmt_ost,lmt_router"
-#define LEGACY_METRIC_NAMES     "lmt_oss"
-
-static lmt_dbhandle_t db;
+#define LEGACY_METRIC_NAMES     "lmt_oss,lmt_mds"
 
 static int
 _setup (void)
 {
-    const char *sqlerr = NULL; 
-
-    if (lmt_initdb (&db, &sqlerr) < 0) {
-        cerebro_err_output ("lmt_initdb: %s",
-                            sqlerr ? sqlerr : strerror(errno));
-        return CEREBRO_ERR_INTERNAL;
-    }
-    return CEREBRO_ERR_SUCCESS;
+    return 0;
 }
 
 static int
 _cleanup (void)
 {
-    lmt_finidb (db);
-    return CEREBRO_ERR_SUCCESS;
+    return 0;
 }
 
 static char *
 _metric_names (void)
 {
-    return METRIC_NAMES "," LEGACY_METRIC_NAMES;
+    return METRIC_NAMES","LEGACY_METRIC_NAMES;
 }
 
 static int
@@ -89,55 +80,49 @@ _metric_update (const char *nodename,
               unsigned int metric_value_len,
               void *metric_value)
 {
-    const char *sqlerr = NULL; 
-    int retval = CEREBRO_ERR_SUCCESS;
-    char *s = metric_value;
-    char vers[8];
+    const char *errstr = NULL; 
+    char *s;
+    float vers;
+    int result = 0;
 
-    if (metric_value_len == 0) {
-        cerebro_err_output ("metric update called with zero length metric");
-        retval = CEREBRO_ERR_INTERNAL;
+    if (!(s = malloc (metric_value_len + 1))) {
+        cerebro_err_output ("out of memory");
         goto done;
     }
-        
-    s[metric_value_len - 1] = '\0';
-    if (sscanf (s, "%8s;", vers) != 1) {
-        cerebro_err_output ("error parsing version from metric string");
-        retval = CEREBRO_ERR_INTERNAL;
+    memcpy (s, metric_value, metric_value_len);
+    s[metric_value_len] = '\0';
+
+    if (sscanf (s, "%f;", &vers) != 1) {
+        cerebro_err_output ("error parsing metric version");
         goto done;
     }
-
-    if (!strcmp (metric_name, "lmt_ost") && !strcmp (vers, "3")) {
-        if (lmt_ost_updatedb_v3 (db, s, &sqlerr) < 0) {
-            cerebro_err_debug ("lmt_ost_updatedb_v3: %s",
-                               sqlerr ? sqlerr : strerror (errno));
-            retval = CEREBRO_ERR_INTERNAL;
-        }
-        goto done;
-    }
-
-    if (!strcmp (metric_name, "lmt_mdt") && !strcmp (vers, "3")) {
-        if (lmt_mdt_updatedb_v3 (db, s, &sqlerr) < 0) {
-            cerebro_err_debug ("lmt_mdt_updatedb_v3: %s",
-                               sqlerr ? sqlerr : strerror (errno));
-            retval = CEREBRO_ERR_INTERNAL;
-        }
-        goto done;
-    }
-
-    if (!strcmp (metric_name, "lmt_router") && !strcmp (vers, "3")) {
-        if (lmt_router_updatedb_v3 (db, s, &sqlerr) < 0) {
-            cerebro_err_debug ("lmt_router_updatedb_v3: %s",
-                               sqlerr ? sqlerr : strerror (errno));
-            retval = CEREBRO_ERR_INTERNAL;
-        }
-        goto done;
-    }
-
-    cerebro_err_output ("unknown metric: %s_v%s", metric_name, vers);
-    retval = CEREBRO_ERR_INTERNAL;
+    /* current metrics */
+    if (!strcmp (metric_name, "lmt_ost") && vers == 2) {
+        result = lmt_db_insert_ost_v2 (s, &errstr);
+    } else if (!strcmp (metric_name, "lmt_mdt") && vers == 1) {
+        result = lmt_db_insert_mdt_v1 (s, &errstr);
+    } else if (!strcmp (metric_name, "lmt_router") && vers == 1) {
+        result = lmt_db_insert_router_v1 (s, &errstr);
+#if 0
+    /* legacy metrics */
+    } else if (!strcmp (metric_name, "lmt_mds") && vers == 2) {
+        result = lmt_db_insert_mds_v2 (s, &errstr);
+    } else if (!strcmp (metric_name, "lmt_oss") && vers == 1) {
+        result = lmt_db_insert_oss_v1 (s, &errstr);
+    } else if (!strcmp (metric_name, "lmt_ost") && vers == 1) {
+        result = lmt_db_insert_ost_v1 (s, &errstr);
+#endif
+    } else
+        cerebro_err_output ("%s_v%d: from %s: unknown metric",
+                            metric_name, (int)vers, nodename);
+    if (result < 0)
+        cerebro_err_debug ("%s_v%d: from %s: %s",
+                           metric_name, (int)vers, nodename,
+                           errstr ? errstr : strerror (errno));
 done:
-    return retval; 
+    if (s)
+        free (s);
+    return 0; 
 }
 
 struct cerebro_monitor_module_info monitor_module_info = {

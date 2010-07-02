@@ -23,21 +23,30 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#define LMT_UPDATE_INTERVAL     5   /* in seconds */
+typedef struct lmt_db_struct *lmt_db_t;
 
-/* lmtdb.c */
-int lmt_db_insert_ost_v2 (char *s, const char **errp);
-int lmt_db_insert_mdt_v1 (char *s, const char **errp);
-int lmt_db_insert_router_v1 (char *s, const char **errrp);
+int lmt_db_create (lmt_db_t *dbp, const char *dbname, const char **sqlerrp);
+int lmt_db_create_all (List *dblp, const char **sqlerrp);
+void lmt_db_destroy (lmt_db_t db);
 
-/* ost.c */
-int lmt_ost_string_v2 (pctx_t ctx, char *s, int len);
+int lmt_db_lookup (lmt_db_t db, char *svctype, char *name);
 
-/* mdt.c */
-int lmt_mdt_string_v1 (pctx_t ctx, char *s, int len);
-
-/* router.c */
-int lmt_router_string_v1 (pctx_t ctx, char *s, int len);
+int lmt_db_insert_mds_data (lmt_db_t db, char *name, float pct_cpu,
+                        uint64_t kbytes_free, uint64_t kbytes_used,
+                        uint64_t inodes_free, uint64_t inodes_used,
+                        const char **sqlerrp);
+int lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdsname, char *opname,
+                        uint64_t samples, uint64_t sum, uint64_t sumsquares,
+                        const char **sqlerrp);
+int lmt_db_insert_oss_data (lmt_db_t db, char *name,
+                        float pctcpu, float pctmem, const char **sqlerrp);
+int lmt_db_insert_ost_data (lmt_db_t db, char *name,
+                        uint64_t read_bytes, uint64_t write_bytes,
+                        uint64_t kbytes_free, uint64_t kbytes_used,
+                        uint64_t inodes_free, uint64_t inodes_used,
+                        const char **sqlerrp);
+int lmt_db_insert_router_data (lmt_db_t db, char *name,
+                        uint64_t bytes, float pct_cpu, const char **sqlerrp);
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

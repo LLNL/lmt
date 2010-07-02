@@ -56,7 +56,9 @@ X_AC_CURSES
 # For list.c, hostlist.c, hash.c
 ##
 AC_DEFINE(WITH_LSD_FATAL_ERROR_FUNC, 1, [Define lsd_fatal_error])
-AC_DEFINE(WITH_LSD_NOMEM_ERROR_FUNC, 1, [Define lsd_fatal_error])
+AC_DEFINE(WITH_LSD_NOMEM_ERROR_FUNC, 1, [Define lsd_nomem_error])
+AC_DEFINE(WITH_LSD_LIST_MYSQL_COMPAT, 1,
+   [Disable lsd list features that conflict with mysql internals])
 
 ##
 # Epilogue

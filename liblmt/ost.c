@@ -1,6 +1,6 @@
 /*****************************************************************************
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
- *  This module (re)written by Jim Garlick <garlick@llnl.gov>.
+ *  This module written by Jim Garlick <garlick@llnl.gov>.
  *  UCRL-CODE-232438
  *  All Rights Reserved.
  *
@@ -46,8 +46,7 @@
 #include "lustre.h"
 
 #include "lmt.h"
-
-#define LMT_OST_PROTOCOL_VERSION    "3"
+#include "ost.h"
 
 typedef struct {
     uint64_t    usage[2];
@@ -126,7 +125,7 @@ done:
 }
 
 int
-lmt_ost_string_v3 (pctx_t ctx, char *s, int len)
+lmt_ost_string_v2 (pctx_t ctx, char *s, int len)
 {
     ListIterator itr = NULL;
     List ostlist = NULL;
@@ -147,8 +146,7 @@ lmt_ost_string_v3 (pctx_t ctx, char *s, int len)
         goto done;
     if (_get_mem_usage (ctx, &mempct) < 0)
         goto done;
-    n = snprintf (s, len, "%s;%s;%f;%f",
-                  LMT_OST_PROTOCOL_VERSION,
+    n = snprintf (s, len, "2;%s;%f;%f",
                   uts.nodename,
                   cpupct,
                   mempct);
@@ -173,11 +171,20 @@ done:
 }
 
 int
-lmt_ost_updatedb_v3 (lmt_db_t hp, char *s)
+lmt_ost_decode_v2 (char *s, char **name, float *pct_cpu, float *pct_mem,
+                   List *ostinfo)
 {
-    return 0;
+    return -1;
 }
 
+int
+lmt_ost_decode_v2_ostinfo (char *s, char **name,
+                           uint64_t *read_bytes, uint64_t *write_bytes,
+                           uint64_t *kbytes_free, uint64_t *kbytes_used,
+                           uint64_t *inodes_free, uint64_t *inodes_used)
+{
+    return -1;
+}
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
