@@ -248,7 +248,8 @@ _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
     int n, retval = -1;
     svcid_t *s;
 
-    n = snprintf (key, sizeof(key), "%s_%s", svctype, name); if (n >= sizeof (key)) {
+    n = snprintf (key, sizeof(key), "%s_%s", svctype, name);
+    if (n >= sizeof (key)) {
         errno = E2BIG;
         goto done;
     }
