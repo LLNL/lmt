@@ -47,6 +47,7 @@
 
 #include "lmt.h"
 #include "ost.h"
+#include "util.h"
 
 typedef struct {
     uint64_t    usage[2];
@@ -171,10 +172,51 @@ done:
 }
 
 int
-lmt_ost_decode_v2 (char *s, char **name, float *pct_cpu, float *pct_mem,
-                   List *ostinfo)
+lmt_ost_decode_v2 (char *s, char **namep, float *pct_cpup, float *pct_memp,
+                   List *ostinfop)
 {
-    return -1;
+    int retval = -1;
+    char *name, *cpy = NULL;
+    float pct_mem, pct_cpu;
+    List ostinfo = NULL;
+
+    if (!(name = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf (s, "%*s;%s;%f;%f;", name, &pct_cpu, &pct_mem) != 3) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(s = strskip (s, 4))) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(ostinfo = list_create ((ListDelF)free)))
+        goto done;
+    while ((cpy = strskipcpy (&s, 7))) {
+        if (!list_append (ostinfo, cpy)) {
+            free (cpy);
+            goto done;
+        }
+    }
+    if (strlen (s) > 0) {
+        errno = EIO;
+        goto done;
+    }
+    *namep = name;
+    *pct_cpup = pct_cpu;
+    *pct_memp = pct_mem;
+    *ostinfop = ostinfo;
+    retval = 0;
+done:
+    if (retval < 0) {
+        if (name)
+            free (name);
+        if (ostinfo)
+            list_destroy (ostinfo);
+    }
+    return retval;
 }
 
 int

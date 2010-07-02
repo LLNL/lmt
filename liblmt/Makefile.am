@@ -9,4 +9,5 @@ liblmt_la_SOURCES = \
 	mdt.c \
 	router.c \
 	mysql.c \
-	lmtdb.c
+	lmtdb.c \
+	util.c
