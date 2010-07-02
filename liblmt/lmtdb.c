@@ -94,6 +94,10 @@ _trigger_db_reconnect (void)
  ** Handlers for incoming strings.
  **/
 
+/* FIXME: [schema] no OSS to OST mapping in OST table, so during
+ * failover, OST's bandwidth will be attributed to wrong OSS.
+ */
+
 /* Helper for lmt_db_insert_ost_v2 () */
 static int
 _insert_ostinfo (char *s, const char **errp)
