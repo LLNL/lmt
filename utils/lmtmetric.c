@@ -37,8 +37,8 @@
 #if HAVE_GETOPT_H
 #include <getopt.h>
 #endif
-#if HAVE_CEREBRO_CEREBRO_CONSTANTS_H
-#include <cerebro/cerebro_constants.h>
+#if HAVE_CEREBRO_H
+#include <cerebro.h>
 #endif
 #ifndef CEREBRO_MAX_DATA_STRING_LEN
 #define CEREBRO_MAX_DATA_STRING_LEN (63*1024)

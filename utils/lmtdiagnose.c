@@ -37,6 +37,7 @@
 #if HAVE_GETOPT_H
 #include <getopt.h>
 #endif
+#include <libgen.h>
 
 #include "list.h"
 #include "hash.h"
@@ -60,10 +61,12 @@ static const struct option longopts[] = {
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
 
+static char *prog;
+
 /* default to localhost:3306 root:"" */
-static const char *db_host = NULL;
+static const char *db_host = "localhost";
 static const unsigned int db_port = 0;
-static const char *db_user = NULL;
+static const char *db_user = "lwatchclient";
 static const char *db_passwd = NULL;
 
 static void
@@ -83,8 +86,10 @@ main (int argc, char *argv[])
     int c;
     List dbs = NULL;
     const char *errstr = NULL;
+    ListIterator itr;
+    lmt_db_t db;
 
-
+    prog = basename (argv[0]);
     optind = 0;
     opterr = 0;
     while ((c = GETOPT (argc, argv, OPTIONS, longopts)) != -1) {
@@ -101,9 +106,21 @@ main (int argc, char *argv[])
 
     if (lmt_db_create_all (db_host, db_port, db_user, db_passwd,
                                                     &dbs, &errstr) < 0) {
-        fprintf (stderr, "%s\n", errstr ? errstr : strerror (errno));
+        fprintf (stderr, "%s: %s\n", prog, errstr ? errstr : strerror (errno));
         exit (1);
     }
+    if (list_is_empty (dbs)) {
+        fprintf (stderr, "%s: mysql contains no lmt databases\n", prog);
+        exit (1);
+    }
+    if (!(itr = list_iterator_create (dbs))) {
+        fprintf (stderr, "%s: out of memory\n", prog);
+        exit (1);
+    }
+    while ((db = list_next (itr))) {
+        fprintf (stderr, "%s: found %s in mysql\n", prog, lmt_db_name (db));
+    }
+    list_iterator_destroy (itr);
 
     /* FIXME: do stuff
      */

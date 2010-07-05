@@ -44,8 +44,8 @@ my %options = (
         updaterootpw => 0,
         configfile => "",
         ldevfile => "/etc/ldev.conf",
+        schema => "/usr/share/lmt/etc/create_schema-1.1.sql",
     );
-my $path_schema = "/usr/share/lmt/etc/create_schema-1.1.sql";
 my $prog = basename($0);
 my $usage = <<EOF;
 Usage: $prog [OPTIONS]...
@@ -798,6 +798,7 @@ my $rc = GetOptions (
     "create-database|d=s"     => \$options{createdatabase},
     "config-file|f=s"         => \$options{configfile},
     "ldev-file|F=s"           => \$options{ldevfile},
+    "schema|s=s"              => \$options{schema},
 );
 usage() if !$rc || @ARGV;
 
@@ -815,7 +816,7 @@ if($options{createdatabase})
     print("create database filesystem_$options{createdatabase};\n");
     print("connect filesystem_$options{createdatabase};\n");
 
-    cat($path_schema);
+    cat($options{schema});
 
     sql_filesystem();
 

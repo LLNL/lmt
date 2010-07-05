@@ -54,6 +54,8 @@ int lmt_db_insert_ost_data (lmt_db_t db, char *name,
 int lmt_db_insert_router_data (lmt_db_t db, char *name,
                         uint64_t bytes, float pct_cpu, const char **sqlerrp);
 
+char *lmt_db_name (lmt_db_t db);
+
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */

@@ -2,10 +2,7 @@ AM_CFLAGS = @GCCWARN@
 
 AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt
 
-sbin_PROGRAMS = tproc tlustre otop lmtmetric
-if MYSQL
-sbin_PROGRAMS += lmtdiagnose
-endif
+sbin_PROGRAMS = tproc tlustre otop lmtmetric lmtdiagnose
 
 common_ldadd = \
 	$(top_builddir)/liblmt/liblmt.la \

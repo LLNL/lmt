@@ -634,7 +634,7 @@ list_remove (ListIterator i)
 }
 
 
-#ifndef WITH_MYSQL_MY_LIST_H
+#ifndef WITH_LSD_LIST_MYSQL_COMPAT
 int
 list_delete (ListIterator i)
 {

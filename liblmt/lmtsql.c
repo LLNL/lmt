@@ -56,6 +56,7 @@ typedef struct {
 struct lmt_db_struct {
     int magic;
     MYSQL *conn;
+    char *name;
 
     /* cached prepared statements for high-frequency inserts */
     MYSQL_STMT *ins_timestamp_info;
@@ -179,7 +180,7 @@ _populate_idhash_qry (lmt_db_t db, const char *sql, const char *pfx)
     if (!(res = mysql_store_result (db->conn)))
         goto done;
     while ((row = mysql_fetch_row (res))) {
-        if (_verify_type (res, 0, MYSQL_TYPE_VARCHAR) < 0)
+        if (_verify_type (res, 0, MYSQL_TYPE_VAR_STRING) < 0)
             goto done;
         if (_verify_type (res, 1, MYSQL_TYPE_LONG) < 0)
             goto done;
@@ -274,8 +275,11 @@ _update_timestamp (lmt_db_t db)
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
+    if (!db->ins_timestamp_info) {
+        errno = EPERM;
+        goto done;
+    }
     assert (mysql_stmt_param_count (db->ins_timestamp_info) == 1);
-
     /* N.B. Round timestamp down to nearest multiple of LMT_UPDATE_INTERVAL,
      * seconds and don't insert a new entry if <= the last timestamp inserted.
      * This keeps the number of rows in TIMESTAMP_INFO in check.
@@ -313,8 +317,12 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
-    assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
 
+    if (!db->ins_mds_data) {
+        errno = EPERM;
+        goto done;
+    }
+    assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
     if (_lookup_idhash(db, "mdt", mdtname, &mds_id) < 0)
         goto done;
     if (_update_timestamp (db) < 0)
@@ -354,8 +362,11 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
+    if (!db->ins_mds_ops_data) {
+        errno = EPERM;
+        goto done;
+    }
     assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
-
     if (_lookup_idhash (db, "mdt", mdtname, &mds_id) < 0)
         goto done;
     if (_lookup_idhash (db, "op", opname, &op_id) < 0)
@@ -391,8 +402,11 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
+    if (!db->ins_oss_data) {
+        errno = EPERM;
+        goto done;
+    }
     assert (mysql_stmt_param_count (db->ins_oss_data) == 4);
-
     if (_lookup_idhash (db, "oss", name, &oss_id) < 0)
         goto done;
     if (_update_timestamp (db) < 0)
@@ -427,8 +441,11 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
+    if (!db->ins_ost_data) {
+        errno = EPERM;
+        goto done;
+    }
     assert (mysql_stmt_param_count (db->ins_ost_data) == 8);
-
     if (_lookup_idhash (db, "ost", name, &ost_id) < 0)
         goto done;
     if (_update_timestamp (db) < 0)
@@ -464,8 +481,11 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
+    if (!db->ins_router_data) {
+        errno = EPERM;
+        goto done;
+    }
     assert (mysql_stmt_param_count (db->ins_router_data) == 4);
-
     if (_lookup_idhash (db, "router", name, &router_id) < 0)
         goto done;
     if (_update_timestamp (db) < 0)
@@ -505,12 +525,14 @@ _prepare_stmt (lmt_db_t db, MYSQL_STMT **sp, const char *sql)
     errno = 0;
     if (mysql_stmt_prepare (s, sql, strlen (sql))) {
         mysql_stmt_close (s);
+        retval = 0; /* prepare of insert fails if GRANT does not permit it */
         goto done;
     }
     *sp = s;
     retval = 0;
 done:
     return retval;
+
 }
 
 void
@@ -518,6 +540,8 @@ lmt_db_destroy (lmt_db_t db)
 {
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
+    if (db->name)
+        free (db->name);
     if (db->ins_timestamp_info)
         mysql_stmt_close (db->ins_timestamp_info);
     if (db->ins_mds_data)
@@ -550,7 +574,12 @@ lmt_db_create (const char *host, unsigned int port,
         errno = ENOMEM;
         goto done;
     }
+    memset (db, 0, sizeof (*db));
     db->magic = LMT_DBHANDLE_MAGIC;
+    if (!(db->name = strdup (dbname))) {
+        errno = ENOMEM;
+        goto done;
+    }
     if (!(db->conn = mysql_init (NULL))) {
         errno = ENOMEM;
         goto done;
@@ -575,14 +604,14 @@ lmt_db_create (const char *host, unsigned int port,
     if (!(db->idhash = hash_create (IDHASH_SIZE, (hash_key_f)hash_key_string,
                                     (hash_cmp_f)strcmp,
                                     (hash_del_f)_destroy_svcid)))
-        goto done;
+        goto done; 
     if (_populate_idhash (db) < 0)
         goto done;
     retval = 0;
     *dbp = db;
 done:
     if (retval < 0 && db) {
-        if (db->conn)
+        if (db->conn && strlen (mysql_error (db->conn)) > 0)
             *sqlerrp = mysql_error (db->conn);
         lmt_db_destroy (db);
     }
@@ -599,7 +628,7 @@ lmt_db_create_all (const char *host, unsigned int port,
     MYSQL_ROW row;
     List dbl = NULL;
     lmt_db_t db;
-    int i, retval = -1;
+    int retval = -1;
 
     if (!(conn = mysql_init (NULL))) {
         errno = ENOMEM;    
@@ -613,8 +642,7 @@ lmt_db_create_all (const char *host, unsigned int port,
         goto done;
     if (!(dbl = list_create ((ListDelF)lmt_db_destroy)))
         goto done;
-    for (i = 0; i < mysql_num_rows (res); i++) {
-        row = mysql_fetch_row (res);
+    while ((row = mysql_fetch_row (res))) {
         if (lmt_db_create (host, port, user, passwd, row[0], &db, sqlerrp) < 0)
             goto done;
         if (!list_append (dbl, db)) {
@@ -634,6 +662,12 @@ done:
             list_destroy (dbl);
     }
     return retval;
+}
+
+char *
+lmt_db_name (lmt_db_t db)
+{
+    return db->name;
 }
 
 /*

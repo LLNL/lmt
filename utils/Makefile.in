@@ -36,8 +36,7 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 sbin_PROGRAMS = tproc$(EXEEXT) tlustre$(EXEEXT) otop$(EXEEXT) \
-	lmtmetric$(EXEEXT) $(am__EXEEXT_1)
-@MYSQL_TRUE@am__append_1 = lmtdiagnose
+	lmtmetric$(EXEEXT) lmtdiagnose$(EXEEXT)
 subdir = utils
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -53,7 +52,6 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-@MYSQL_TRUE@am__EXEEXT_1 = lmtdiagnose$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(sbindir)"
 PROGRAMS = $(sbin_PROGRAMS)
 am_lmtdiagnose_OBJECTS = lmtdiagnose.$(OBJEXT)

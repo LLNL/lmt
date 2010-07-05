@@ -6,10 +6,14 @@
 #    X_AC_MYSQL
 #
 #  DESCRIPTION:
-#    If mysql support is enabled, call mysql_config to get settings for
-#    MYSQL_CFLAGS and MYSQL_LIBS.  It is a fatal configure error if mysql
-#    is enabled, but mysql_config is not found.
+#    If mysql support is not disabled, verify the presence of the mysql_config
+#    executable, then:
+#    . set MYSQL_CFLAGS and MYSQL_LIBS
+#    . set HAVE_MYSQL in config.h
+#    . set MYSQL automake conditional (test in Makefile.am's)
+#    It is a fatal configure error if mysql is enabled but not installed.
 ##*****************************************************************************
+#
 AC_DEFUN([X_AC_MYSQL], [
   MYSQL_CFLAGS=""
   MYSQL_LIBS=""

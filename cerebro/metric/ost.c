@@ -37,10 +37,7 @@
 #include <stdint.h>
 
 #include <cerebro.h>
-#include <cerebro/cerebro_config.h>
 #include <cerebro/cerebro_metric_module.h>
-#include <cerebro/cerebro_constants.h>
-#include <cerebro/cerebro_error.h>
 
 #include "proc.h"
 #include "lmt.h"
