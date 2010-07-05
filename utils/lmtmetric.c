@@ -37,8 +37,9 @@
 #if HAVE_GETOPT_H
 #include <getopt.h>
 #endif
-/* FIXME: autoconf this */
+#if HAVE_CEREBRO_CEREBRO_CONSTANTS_H
 #include <cerebro/cerebro_constants.h>
+#endif
 #ifndef CEREBRO_MAX_DATA_STRING_LEN
 #define CEREBRO_MAX_DATA_STRING_LEN (63*1024)
 #endif

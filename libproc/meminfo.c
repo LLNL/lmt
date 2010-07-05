@@ -24,7 +24,7 @@
  *****************************************************************************/
 
 #include <errno.h>
-#include <stdint.h>
+#include <inttypes.h>
 
 #include "proc.h"
 #include "meminfo.h"
@@ -40,7 +40,8 @@ proc_meminfo (pctx_t ctx, uint64_t *ktotp, uint64_t *kfreep)
     uint64_t ktot, kfree;
     int n;
 
-    n = proc_scanf (ctx, PROC_MEMINFO, " MemTotal: %lu kB MemFree: %lu kB",
+    n = proc_scanf (ctx, PROC_MEMINFO,
+                    " MemTotal: %"PRIu64" kB MemFree: %"PRIu64" kB",
                     &ktot, &kfree);
     if (n < 0)
         goto error;

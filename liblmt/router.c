@@ -34,7 +34,7 @@
 #endif /* STDC_HEADERS */
 #include <errno.h>
 #include <sys/utsname.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <math.h>
 
 #include "list.h"
@@ -111,11 +111,8 @@ lmt_router_string_v1 (pctx_t ctx, char *s, int len)
         goto done;
     if (proc_lustre_lnet_newbytes (ctx, &newbytes) < 0)
         goto done;
-    n = snprintf (s, len, "1;%s;%f;%f;%lu",
-                  uts.nodename,
-                  cpupct,
-                  mempct,
-                  newbytes);
+    n = snprintf (s, len, "1;%s;%f;%f;%"PRIu64,
+                  uts.nodename, cpupct, mempct, newbytes);
     if (n >= len) {
         errno = E2BIG;
         goto done;
@@ -139,7 +136,8 @@ lmt_router_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%f;%f;%lu", name, &pct_cpu, &pct_mem, &bytes) != 4) {
+    if (sscanf (s, "%*s;%s;%f;%f;%"PRIu64,
+                name, &pct_cpu, &pct_mem, &bytes) != 4) {
         errno = EIO;
         goto done;
     }

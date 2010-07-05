@@ -1,4 +1,5 @@
-/***************************************************************************** *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
+/******************************************************************************
+ *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
  *  This module written by Jim Garlick <garlick@llnl.gov>.
  *  UCRL-CODE-232438
  *  All Rights Reserved.
@@ -36,10 +37,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <sys/time.h>
-
-#ifdef HAVE_MYSQL_H
 #include <mysql.h>
-#endif
 
 #include "list.h"
 #include "hash.h"

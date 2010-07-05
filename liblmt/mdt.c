@@ -34,7 +34,7 @@
 #endif /* STDC_HEADERS */
 #include <errno.h>
 #include <sys/utsname.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <math.h>
 
 #include "list.h"
@@ -125,7 +125,8 @@ _get_mdtop (hash_t stats, const char *key, char *s, int len)
     int retval = -1;
 
     (void)proc_lustre_parsestat (stats, key, &count, NULL, NULL, &sum, &sumsq);
-    if (snprintf (s, len, "%lu;%lu;%lu;", count, sum, sumsq) >= len) {
+    if (snprintf (s, len, "%"PRIu64";%"PRIu64";%"PRIu64";",
+                  count, sum, sumsq) >= len) {
         errno = E2BIG;
         goto done;
     }
@@ -151,7 +152,7 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
         goto done;
     if (proc_lustre_hashstats (ctx, name, &stats) < 0)
         goto done;
-    n = snprintf (s, len, "%s;%lu;%lu;%lu;%lu;",
+    n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
                   uuid, filesfree, filestotal, kbytesfree, kbytestotal);
     if (n >= len) {
         errno = E2BIG;
@@ -286,7 +287,8 @@ lmt_mdt_decode_v1_mdtinfo (char *s, char **mdtnamep,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%s;%lu;%lu;%lu;%lu;", mdtname, &inodes_free, &inodes_total,
+    if (sscanf (s, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
+                mdtname, &inodes_free, &inodes_total,
                 &kbytes_free, &kbytes_total) != 5) {
         errno = EIO;
         goto done;
@@ -345,7 +347,8 @@ lmt_mdt_decode_v1_mdops (char *s, char **opnamep, uint64_t *samplesp,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf(s, "%lu;%lu;%lu;%s", &samples, &sum, &sumsquares, opname) != 4) {
+    if (sscanf(s, "%"PRIu64";%"PRIu64";%"PRIu64";%s",
+               &samples, &sum, &sumsquares, opname) != 4) {
         errno = EIO;
         goto done;
     }

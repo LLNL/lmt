@@ -23,10 +23,13 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+#if HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
@@ -64,13 +67,13 @@ print_stats (pctx_t ctx, List srvlist)
             perror (srv);
             exit (1);
         }
-        printf ("%s: files free %lu total %lu\n", srv, f, t);
+        printf ("%s: files free %"PRIu64" total %"PRIu64"\n", srv, f, t);
 
         if (proc_lustre_kbytes (ctx, srv, &f, &t) < 0) {
             perror (srv);
             exit (1);
         }
-        printf ("%s: kbytes free %lu total %lu\n", srv, f, t);
+        printf ("%s: kbytes free %"PRIu64" total %"PRIu64"\n", srv, f, t);
 
         if (proc_lustre_uuid (ctx, srv, &uuid) < 0) {
             perror (srv);
@@ -98,7 +101,7 @@ print_lnet (pctx_t ctx)
         perror ("proc_lustre_lnet_newbytes");
         exit (1);
     }
-    printf ("lnet: newbytes = %lu\n", newbytes);
+    printf ("lnet: newbytes = %"PRIu64"\n", newbytes);
 }
 
 int

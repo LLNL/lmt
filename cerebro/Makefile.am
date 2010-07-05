@@ -1,1 +1,4 @@
-SUBDIRS = metric monitor
+SUBDIRS = metric
+if MYSQL
+SUBDIRS += monitor
+endif

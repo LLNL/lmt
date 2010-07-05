@@ -34,7 +34,7 @@
 #endif /* STDC_HEADERS */
 #include <errno.h>
 #include <sys/utsname.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <math.h>
 
 #include "list.h"
@@ -106,14 +106,9 @@ _get_oststring (pctx_t ctx, char *name, char *s, int len)
         goto done;
     if (proc_lustre_rwbytes (ctx, name, &read_bytes, &write_bytes) < 0)
         goto done;
-    n = snprintf (s, len, "%s;%lu;%lu;%lu;%lu;%lu;%lu",
-                  uuid,
-                  filesfree,
-                  filestotal,
-                  kbytesfree,
-                  kbytestotal,
-                  read_bytes,
-                  write_bytes);
+    n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
+                  ";%"PRIu64";%"PRIu64, uuid, filesfree, filestotal,
+                  kbytesfree, kbytestotal, read_bytes, write_bytes);
     if (n >= len) {
         errno = E2BIG;
         return -1;
@@ -235,9 +230,10 @@ lmt_ost_decode_v2_ostinfo (char *s, char **namep,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%s;%lu;%lu;%lu;%lu;%lu;%lu", name, &inodes_free,
-                  &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
-                  &write_bytes) != 7) {
+    if (sscanf (s, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
+                ";%"PRIu64, name, &inodes_free,
+                &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
+                &write_bytes) != 7) {
         errno = EIO;
         goto done;
     }

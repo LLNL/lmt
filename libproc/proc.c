@@ -32,9 +32,11 @@
 #include <stdarg.h>
 #include <limits.h> /* PATH_MAX */
 #include <string.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <assert.h>
+#ifndef __USE_ISOC99
 #define __USE_ISOC99 /* enable vfscanf prototype */
+#endif
 #include <stdio.h>
 
 #include "proc.h"

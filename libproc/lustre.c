@@ -24,7 +24,7 @@
  *****************************************************************************/
 
 #include <errno.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,7 +75,7 @@ _readint1 (pctx_t ctx, char *tmpl, char *a1, uint64_t *valp)
     error = proc_openf (ctx, tmpl, a1);
     if (error < 0)
         goto done;
-    if (proc_scanf (ctx, NULL, "%lu", valp) != 1)
+    if (proc_scanf (ctx, NULL, "%"PRIu64, valp) != 1)
         error = -1;
     proc_close (ctx);
 done:
@@ -357,7 +357,8 @@ proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
 
     if (!(s = hash_find (stats, key)))
         goto done;
-    if (sscanf (s->val, "%lu samples %*s %lu %lu %lu %lu",
+    if (sscanf (s->val,
+                "%"PRIu64" samples %*s %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64,
                 &count, &min, &max, &sum, &sumsq) < 1) {
         errno = EIO;
         goto done;
@@ -401,7 +402,7 @@ int
 proc_lustre_lnet_newbytes (pctx_t ctx, uint64_t *valp)
 {
     if (proc_scanf (ctx, PROC_SYS_LNET_STATS, "%*u %*u %*u %*u %*u "
-                    "%*u %*u %*u %*u %lu %*u", valp) != 1) {
+                    "%*u %*u %*u %*u %"PRIu64" %*u", valp) != 1) {
         errno = EIO;
         return -1;
     }

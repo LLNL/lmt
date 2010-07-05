@@ -41,6 +41,7 @@ AC_CHECK_HEADERS( \
 ## 
 AC_C_BIGENDIAN
 AC_C_CONST
+AC_TYPE_UINT64_T
 
 ##
 # Checks for library functions
@@ -52,7 +53,13 @@ AC_CHECK_FUNCS( \
 )
 X_AC_CHECK_PTHREADS
 X_AC_CURSES
-X_AC_PATH_MYSQL
+
+##
+# Checks for package feature enablement and requisite libs
+##
+X_AC_MYSQL
+X_AC_CEREBRO
+
 ##
 # For list.c, hostlist.c, hash.c
 ##

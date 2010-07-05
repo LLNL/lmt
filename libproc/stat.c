@@ -24,7 +24,7 @@
  *****************************************************************************/
 
 #include <errno.h>
-#include <stdint.h>
+#include <inttypes.h>
 
 #include "proc.h"
 #include "stat.h"
@@ -43,7 +43,8 @@ proc_stat (pctx_t ctx, uint64_t *usrp, uint64_t *nicep, uint64_t *sysp,
     uint64_t usr, nice, sys, idle, iowait, irq, softirq;
     int n;
 
-    n = proc_scanf (ctx, PROC_STAT, " cpu%*[ ] %lu %lu %lu %lu %lu %lu %lu",
+    n = proc_scanf (ctx, PROC_STAT, " cpu%*[ ] %"PRIu64" %"PRIu64" %"PRIu64
+                    " %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64"",
                     &usr, &nice, &sys, &idle, &iowait, &irq, &softirq);
     if (n < 0)
         goto error;

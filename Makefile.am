@@ -1,1 +1,4 @@
-SUBDIRS = liblsd libproc liblmt utils cerebro
+SUBDIRS = liblsd libproc liblmt utils
+if CEREBRO
+SUBDIRS += cerebro
+endif
