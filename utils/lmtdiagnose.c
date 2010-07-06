@@ -38,6 +38,7 @@
 #include <getopt.h>
 #endif
 #include <libgen.h>
+#include <cerebro.h>
 
 #include "list.h"
 #include "hash.h"
@@ -88,6 +89,10 @@ main (int argc, char *argv[])
     const char *errstr = NULL;
     ListIterator itr;
     lmt_db_t db;
+    cerebro_t ch;
+    cerebro_namelist_t m;
+    cerebro_namelist_iterator_t mitr;
+    char *str;
 
     prog = basename (argv[0]);
     optind = 0;
@@ -103,6 +108,39 @@ main (int argc, char *argv[])
     }
     if (optind < argc)
         usage();
+    if (!(ch = cerebro_handle_create())) {
+        fprintf (stderr, "%s: cerebro_hadnel_create: %s\n", prog,
+                 strerror (errno));
+        exit (1);
+    }
+    if (!(m = cerebro_get_metric_names (ch))) {
+        fprintf (stderr, "%s: cerebro_get_metric_names: %s\n", prog,
+                 cerebro_strerror (cerebro_errnum (ch)));
+        exit (1);
+    }
+    if (!(mitr = cerebro_namelist_iterator_create (m))) {
+        fprintf (stderr, "%s: cerebro_namelist_iterator_create: %s\n", prog,
+                 cerebro_strerror (cerebro_errnum (ch)));
+        exit (1);
+    }
+    while (!cerebro_namelist_iterator_at_end (mitr)) {
+        if (cerebro_namelist_iterator_name (mitr, &str) < 0) {
+            int errnum = cerebro_namelist_iterator_errnum (mitr);
+
+            fprintf (stderr, "%s: cerebro_namelist_iterator_name: %s\n", prog,
+                     cerebro_strerror (errnum));
+            exit (1);
+        }
+        fprintf (stderr, "%s metric: %s\n", prog, str);
+        //free (str);
+        if (cerebro_namelist_iterator_next(mitr) < 0) {
+            int errnum = cerebro_namelist_iterator_errnum (mitr);
+
+            fprintf (stderr, "%s: cerebro_namelist_iterator_next %s\n", prog,
+                     cerebro_strerror (errnum));
+            exit (1);
+        }
+    }
 
     if (lmt_db_create_all (db_host, db_port, db_user, db_passwd,
                                                     &dbs, &errstr) < 0) {
@@ -126,6 +164,8 @@ main (int argc, char *argv[])
      */
 
     list_destroy (dbs);
+
+    cerebro_handle_destroy (ch); 
 
     exit (0);
 }

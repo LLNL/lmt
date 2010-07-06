@@ -100,6 +100,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+CEREBRO_LIBS = @CEREBRO_LIBS@
 CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -268,7 +269,7 @@ otop_LDADD = $(common_ldadd) $(LIBCURSES)
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
 lmtdiagnose_SOURCES = lmtdiagnose.c
-lmtdiagnose_LDADD = $(common_ldadd)
+lmtdiagnose_LDADD = $(common_ldadd) @CEREBRO_LIBS@
 all: all-am
 
 .SUFFIXES:

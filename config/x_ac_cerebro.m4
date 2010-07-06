@@ -23,5 +23,7 @@ AC_DEFUN([X_AC_CEREBRO], [
     if test x$ac_cv_header_cerebro_h != xyes; then
       AC_MSG_ERROR([Please install cerebro or configure --disable-cerebro])
     fi
+    CEREBRO_LIBS=-lcerebro
+    AC_SUBST([CEREBRO_LIBS])
   fi
 ])dnl
