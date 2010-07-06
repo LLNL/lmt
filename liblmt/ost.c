@@ -253,6 +253,83 @@ done:
     return -1;
 }
 
+/**
+ ** Legacy
+ **/
+
+int
+lmt_oss_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp)
+{
+    int retval = -1;
+    char *name;
+    float pct_mem, pct_cpu;
+
+    if (!(name = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf (s, "%*s;%s;%f;%f", name, &pct_cpu, &pct_mem) != 3) {
+        errno = EIO;
+        goto done;
+    }
+    *namep = name;
+    *pct_cpup = pct_cpu;
+    *pct_memp = pct_mem;
+    retval = 0;
+done:
+    if (retval < 0) {
+        if (name)
+            free (name);
+    }
+    return retval;
+}
+
+int
+lmt_ost_decode_v1 (char *s, char **ossnamep, char **namep,
+                   uint64_t *read_bytesp, uint64_t *write_bytesp,
+                   uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                   uint64_t *inodes_freep, uint64_t *inodes_totalp)
+{
+    int retval = -1;
+    char *name = NULL, *ossname = NULL;
+    uint64_t read_bytes, write_bytes;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+
+    if (!(ossname = malloc (strlen (s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (!(name = malloc (strlen (s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf (s, "%*s;%s;%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
+                ";%"PRIu64, ossname, name, &inodes_free,
+                &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
+                &write_bytes) != 8) {
+        errno = EIO;
+        goto done;
+    }
+    *ossnamep = ossname;
+    *namep = name;
+    *read_bytesp = read_bytes;
+    *write_bytesp = write_bytes;
+    *kbytes_freep = kbytes_free;
+    *kbytes_totalp = kbytes_total;
+    *inodes_freep = inodes_free;
+    *inodes_totalp = inodes_total;
+    retval = 0;
+done:
+    if (retval < 0) {
+        if (name)
+            free (name);
+        if (ossname)
+            free (ossname);
+    }
+    return -1;
+}
+
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */

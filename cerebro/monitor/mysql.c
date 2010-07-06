@@ -99,7 +99,7 @@ _metric_update (const char *nodename,
         result = lmt_db_insert_mdt_v1 (s, &errstr);
     } else if (!strcmp (metric_name, "lmt_router") && vers == 1) {
         result = lmt_db_insert_router_v1 (s, &errstr);
-#if 0
+
     /* legacy metrics */
     } else if (!strcmp (metric_name, "lmt_mds") && vers == 2) {
         result = lmt_db_insert_mds_v2 (s, &errstr);
@@ -107,7 +107,6 @@ _metric_update (const char *nodename,
         result = lmt_db_insert_oss_v1 (s, &errstr);
     } else if (!strcmp (metric_name, "lmt_ost") && vers == 1) {
         result = lmt_db_insert_ost_v1 (s, &errstr);
-#endif
     } else
         cerebro_err_output ("%s_v%d: from %s: unknown metric",
                             metric_name, (int)vers, nodename);

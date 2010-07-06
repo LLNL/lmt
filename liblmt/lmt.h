@@ -29,6 +29,10 @@
 int lmt_db_insert_ost_v2 (char *s, const char **errp);
 int lmt_db_insert_mdt_v1 (char *s, const char **errp);
 int lmt_db_insert_router_v1 (char *s, const char **errrp);
+/* (legacy) */
+int lmt_db_insert_mds_v2 (char *s, const char **errp);
+int lmt_db_insert_oss_v1 (char *s, const char **errp);
+int lmt_db_insert_ost_v1 (char *s, const char **errp);
 
 /* ost.c */
 int lmt_ost_string_v2 (pctx_t ctx, char *s, int len);

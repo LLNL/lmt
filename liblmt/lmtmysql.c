@@ -42,7 +42,7 @@
 #include "list.h"
 #include "hash.h"
 #include "proc.h"
-#include "lmtsql.h"
+#include "lmtmysql.h"
 #include "lmt.h"
 
 #define IDHASH_SIZE     256

@@ -41,7 +41,6 @@ AC_CHECK_HEADERS( \
 ## 
 AC_C_BIGENDIAN
 AC_C_CONST
-AC_TYPE_UINT64_T
 
 ##
 # Checks for library functions

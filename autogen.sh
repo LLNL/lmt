@@ -1,15 +1,15 @@
 #!/bin/sh
 
 echo "Running aclocal ... "
-aclocal -I config
+aclocal --force -I config
 echo "Running libtoolize ... "
-libtoolize --automake --copy 
+libtoolize --automake --copy --force
 echo "Running autoheader ... "
-autoheader
+autoheader --force
 echo "Running automake ... "
-automake --copy --add-missing 
+automake --copy --add-missing --force
 echo "Running autoconf ... "
-autoconf
+autoconf --force
 echo "Cleaning up ..."
 mv aclocal.m4 config/
 rm -rf autom4te.cache

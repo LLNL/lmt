@@ -23,12 +23,21 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-int lmt_ost_decode_v2 (char *s, char **name,
-                        float *pct_cpu, float *pct_mem, List *ostinfo);
-int lmt_ost_decode_v2_ostinfo (char *s, char **name,
-                        uint64_t *read_bytes, uint64_t *write_bytes,
-                        uint64_t *kbytes_free, uint64_t *kbytes_total,
-                        uint64_t *inodes_free, uint64_t *inodes_total);
+int lmt_ost_decode_v2 (char *s, char **namep,
+                        float *pct_cpup, float *pct_memp, List *ostinfop);
+int lmt_ost_decode_v2_ostinfo (char *s, char **namep,
+                        uint64_t *read_bytesp, uint64_t *write_bytesp,
+                        uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                        uint64_t *inodes_freep, uint64_t *inodes_totalp);
+
+/* legacy */
+
+int lmt_oss_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp);
+int lmt_ost_decode_v1 (char *s, char **ossnamep, char **namep,
+                       uint64_t *read_bytesp, uint64_t *write_bytesp,
+                       uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                       uint64_t *inodes_freep, uint64_t *inodes_totalp);
+
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

@@ -32,6 +32,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "list.h"
+
 /* Return a pointer just past n sep-delimited fields.
  * If there are fewer than that, return NULL.
  * (Push past trailing delimiter, if any)
@@ -82,6 +84,39 @@ strappendfield (char **s1p, const char *s2, char sep)
         *s1p = s;
     }
     return s;
+}
+
+/* Separate string s into a list of sep-delimited fields.
+ * Caller must destroy the returned list with list_destroy ().
+ */
+List
+list_tok (const char *s, char *sep)
+{
+    List l;
+    char *tok, *tokcpy, *cpy = NULL;
+
+    if (!(l = list_create ((ListDelF)free)))
+        goto done;
+    if (!(cpy = strdup (s)))
+        goto done;
+    tok = strtok (cpy, sep);
+    while (tok) {
+        if (!(tokcpy = strdup (tok)))
+            goto done;
+        if (!list_append (l, tokcpy)) {
+            free (tokcpy);
+            goto done;
+        }
+        tok = strtok (NULL, sep);
+    }
+    free (cpy);
+    return l;
+done:
+    if (l)
+        list_destroy (l);
+    if (cpy)
+        free (cpy);
+    return NULL;
 }
 
 /*

@@ -56,7 +56,7 @@ typedef struct {
 
 /* This is the hardwired order of ops in both mdt_v1 and mds_v2.
  * FIXME: needs audit for validity of all fields in current lustre code,
- * and relevance to monitoring goals.
+ * and relevance to monitoring goals.  Preserve this list for legacy support.
  */
 static const char *optab[] = {
     "open", "close", "mknod", "link", "unlink", "mkdir", "rmdir", "rename",
@@ -335,6 +335,8 @@ done:
     return retval;
 }
 
+/* N.B. This function is doing double duty as lmt_mds_decode_v2_mdops.
+ */
 int
 lmt_mdt_decode_v1_mdops (char *s, char **opnamep, uint64_t *samplesp,
                          uint64_t *sump, uint64_t *sumsquaresp)
@@ -363,6 +365,90 @@ done:
             free (opname);
     }
     return retval;
+}
+
+/**
+ ** Legacy
+ **/
+
+int lmt_mds_decode_v2 (char *s, char **mdsnamep, char **namep,
+                        float *pct_cpup, float *pct_memp,
+                        uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                        uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                        List *mdopsp)
+{
+    int i = 0, retval = -1;
+    char *mdsname = NULL, *name = NULL, *cpy = NULL;
+    float pct_mem, pct_cpu;
+    List mdops = NULL;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+
+    if (!(mdsname = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (!(name = malloc (strlen(s) + 1))) {
+        errno = ENOMEM;
+        goto done;
+    }
+    if (sscanf (s, "%*s;%s;%s;%f;%f;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
+            mdsname, name, &pct_cpu, &pct_mem,
+            &inodes_free, &inodes_total, &kbytes_free, &kbytes_total) != 8) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(s = strskip (s, 9, ';'))) {
+        errno = EIO;
+        goto done;
+    }
+    if (!(mdops = list_create ((ListDelF)free)))
+        goto done;
+    while ((cpy = strskipcpy (&s, 3, ';'))) {
+        if (i >= optablen) {
+            errno = EIO;
+            free (cpy);
+            goto done;
+        }
+        if (!strappendfield (&cpy, optab[i++], ';')) {
+            free (cpy);
+            goto done;
+        }
+        if (!list_append (mdops, cpy)) {
+            free (cpy);
+            goto done;
+        }
+    }
+    if (strlen (s) > 0) {
+        errno = EIO;
+        goto done;
+    }
+    *mdsnamep = mdsname;
+    *namep = name;
+    *pct_cpup = pct_cpu;
+    *pct_memp = pct_mem;
+    *inodes_freep = inodes_free;
+    *inodes_totalp = inodes_total;
+    *kbytes_freep = kbytes_free;
+    *kbytes_totalp = kbytes_total;
+    *mdopsp = mdops;
+    retval = 0;
+done:
+    if (retval < 0) {
+        if (mdsname)
+            free (mdsname);
+        if (name)
+            free (name);
+        if (mdops)
+            list_destroy (mdops);
+    }
+    return retval;
+}
+    
+int lmt_mds_decode_v2_mdops (char *s, char **opnamep, uint64_t *samplesp,
+                        uint64_t *sump, uint64_t *sumsquaresp)
+{
+    return lmt_mdt_decode_v1_mdops (s, opnamep, samplesp, sump, sumsquaresp);
 }
 
 /*

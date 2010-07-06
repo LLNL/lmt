@@ -12,9 +12,12 @@ liblmt_la_SOURCES = \
 
 if MYSQL
 liblmt_la_SOURCES += \
-	lmtsql.c \
+	lmtmysql.c \
 	lmtdb.c
 endif
+if CEREBRO
+liblmt_la_SOURCES += \
+	lmtcerebro.c
+endif
 
-liblmt_la_LIBADD = @MYSQL_LIBS@
-
+liblmt_la_LIBADD = @MYSQL_LIBS@  @CEREBRO_LIBS@

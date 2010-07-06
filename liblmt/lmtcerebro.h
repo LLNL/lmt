@@ -23,11 +23,14 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-char *strskip (char *s, int n, char sep);
-char *strskipcpy (char **sp, int n, char sep);
-char *strappendfield (char **s1p, const char *s2, char sep);
+typedef struct cmetric_struct *cmetric_t;
 
-List list_tok (const char *s, char *sep);
+int lmt_cbr_get_metrics (char *names, List *rlp, char **esp);
+
+char *lmt_cbr_get_val (cmetric_t c);
+
+char *lmt_cbr_get_name (cmetric_t c);
+
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
