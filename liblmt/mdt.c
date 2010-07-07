@@ -54,27 +54,92 @@ typedef struct {
     char *name;
 } optab_t;
 
-/* This is the hardwired order of ops in both mdt_v1 and mds_v2.
+/* This is the hardwired order of ops in both mdt_v1 and mds_v2 (count=81)
  * FIXME: needs audit for validity of all fields in current lustre code,
  * and relevance to monitoring goals.  Preserve this list for legacy support.
  */
 static const char *optab[] = {
-    "open", "close", "mknod", "link", "unlink", "mkdir", "rmdir", "rename",
-    "getxattr", "setxattr", "iocontrol", "get_info", "set_info_async",
-    "attach", "detach", "setup", "precleanup", "cleanup", "process_config",
-    "postrecov", "add_conn", "del_conn", "connect", "reconnect", "disconnect",
-    "statfs", "statfs_async", "packmd", "unpackmd", "checkmd", "preallocate",
-    "precreate", "create", "destroy", "setattr", "setattr_async", "getattr",
-    "getattr_async", "brw", "brw_async", "prep_async_page", "reget_short_lock",
-    "release_short_lock", "queue_async_io", "queue_group_io",
-    "trigger_group_io", "set_async_flags", "teardown_async_page", "merge_lvb",
-    "adjust_kms", "punch", "sync", "migrate", "copy", "iterate", "preprw",
-    "commitrw", "match", "change_cbdata", "cancel", "cancel_unused",
-    "join_lru", "init_export", "destroy_export", "extent_calc", "llog_init",
-    "llog_finish", "pin", "unpin", "import_event", "notify", "health_check",
-    "quotacheck", "quotactl", "quota_adjust_quint", "ping",
-    "register_page_removal_cb", "unregister_page_removal_cb",
-    "register_lock_cancel_cb", "unregister_lock_cancel_cb",
+    "open",
+    "close",
+    "mknod",
+    "link",
+    "unlink",
+    "mkdir",
+    "rmdir",
+    "rename",
+    "getxattr",
+    "setxattr",
+    "iocontrol",
+    "get_info",
+    "set_info_async",
+    "attach",
+    "detach",
+    "setup",
+    "precleanup",
+    "cleanup",
+    "process_config",
+    "postrecov",
+    "add_conn",
+    "del_conn",
+    "connect",
+    "reconnect",
+    "disconnect",
+    "statfs",
+    "statfs_async",
+    "packmd",
+    "unpackmd",
+    "checkmd",
+    "preallocate",
+    "precreate",
+    "create",
+    "destroy",
+    "setattr",
+    "setattr_async",
+    "getattr",
+	"getattr_async",
+	"brw",
+	"brw_async",
+	"prep_async_page",
+	"reget_short_lock",
+	"release_short_lock",
+	"queue_async_io",
+	"queue_group_io",
+	"trigger_group_io",
+	"set_async_flags",
+	"teardown_async_page",
+	"merge_lvb",
+	"adjust_kms",
+	"punch",
+	"sync",
+	"migrate",
+	"copy",
+	"iterate",
+	"preprw",
+	"commitrw",
+    "enqueue",
+	"match",
+	"change_cbdata",
+	"cancel",
+	"cancel_unused",
+	"join_lru",
+	"init_export",
+	"destroy_export",
+	"extent_calc",
+	"llog_init",
+	"llog_finish",
+	"pin",
+	"unpin",
+	"import_event",
+	"notify",
+	"health_check",
+	"quotacheck",
+	"quotactl",
+	"quota_adjust_quint",
+	"ping",
+	"register_page_removal_cb",
+	"unregister_page_removal_cb",
+	"register_lock_cancel_cb",
+	"unregister_lock_cancel_cb",
 };
 const int optablen = sizeof (optab) / sizeof(optab[0]);
 
@@ -222,8 +287,8 @@ done:
 }
 
 int
-lmt_mdt_decode_v1 (char *s, char **mdsnamep, float *pct_cpup, float *pct_memp,
-                   List *mdtinfop)
+lmt_mdt_decode_v1 (const char *s, char **mdsnamep, float *pct_cpup,
+                   float *pct_memp, List *mdtinfop)
 {
     const int mdtfields = 5 + 3 * optablen;
     int retval = -1;
@@ -235,7 +300,7 @@ lmt_mdt_decode_v1 (char *s, char **mdsnamep, float *pct_cpup, float *pct_memp,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%f;%f;", mdsname, &pct_cpu, &pct_mem) != 3) {
+    if (sscanf (s, "%*f;%[^;];%f;%f;", mdsname, &pct_cpu, &pct_mem) != 3) {
         errno = EIO;
         goto done;
     }
@@ -271,7 +336,7 @@ done:
 }
 
 int
-lmt_mdt_decode_v1_mdtinfo (char *s, char **mdtnamep,
+lmt_mdt_decode_v1_mdtinfo (const char *s, char **mdtnamep,
                            uint64_t *inodes_freep, uint64_t *inodes_totalp,
                            uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                            List *mdopsp)
@@ -287,7 +352,7 @@ lmt_mdt_decode_v1_mdtinfo (char *s, char **mdtnamep,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
+    if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
                 mdtname, &inodes_free, &inodes_total,
                 &kbytes_free, &kbytes_total) != 5) {
         errno = EIO;
@@ -338,7 +403,7 @@ done:
 /* N.B. This function is doing double duty as lmt_mds_decode_v2_mdops.
  */
 int
-lmt_mdt_decode_v1_mdops (char *s, char **opnamep, uint64_t *samplesp,
+lmt_mdt_decode_v1_mdops (const char *s, char **opnamep, uint64_t *samplesp,
                          uint64_t *sump, uint64_t *sumsquaresp)
 {
     int retval = -1;
@@ -349,7 +414,7 @@ lmt_mdt_decode_v1_mdops (char *s, char **opnamep, uint64_t *samplesp,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf(s, "%"PRIu64";%"PRIu64";%"PRIu64";%s",
+    if (sscanf(s, "%"PRIu64";%"PRIu64";%"PRIu64";%[^;]",
                &samples, &sum, &sumsquares, opname) != 4) {
         errno = EIO;
         goto done;
@@ -371,11 +436,11 @@ done:
  ** Legacy
  **/
 
-int lmt_mds_decode_v2 (char *s, char **mdsnamep, char **namep,
-                        float *pct_cpup, float *pct_memp,
-                        uint64_t *inodes_freep, uint64_t *inodes_totalp,
-                        uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
-                        List *mdopsp)
+int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **namep,
+                       float *pct_cpup, float *pct_memp,
+                       uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                       uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                       List *mdopsp)
 {
     int i = 0, retval = -1;
     char *mdsname = NULL, *name = NULL, *cpy = NULL;
@@ -392,9 +457,10 @@ int lmt_mds_decode_v2 (char *s, char **mdsnamep, char **namep,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%s;%f;%f;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
-            mdsname, name, &pct_cpu, &pct_mem,
-            &inodes_free, &inodes_total, &kbytes_free, &kbytes_total) != 8) {
+    if (sscanf (s, "%*f;%[^;];%[^;];%f;%f;%"
+                PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";", mdsname, name,
+                &pct_cpu, &pct_mem, &inodes_free, &inodes_total,
+                &kbytes_free, &kbytes_total) != 8) {
         errno = EIO;
         goto done;
     }
@@ -445,8 +511,8 @@ done:
     return retval;
 }
     
-int lmt_mds_decode_v2_mdops (char *s, char **opnamep, uint64_t *samplesp,
-                        uint64_t *sump, uint64_t *sumsquaresp)
+int lmt_mds_decode_v2_mdops (const char *s, char **opnamep, uint64_t *samplesp,
+                             uint64_t *sump, uint64_t *sumsquaresp)
 {
     return lmt_mdt_decode_v1_mdops (s, opnamep, samplesp, sump, sumsquaresp);
 }

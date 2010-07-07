@@ -22,4 +22,4 @@ lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
 
 lmtdiagnose_SOURCES = lmtdiagnose.c
-lmtdiagnose_LDADD = $(common_ldadd) @CEREBRO_LIBS@
+lmtdiagnose_LDADD = $(common_ldadd)

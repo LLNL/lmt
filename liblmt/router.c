@@ -124,8 +124,8 @@ done:
 }
 
 int
-lmt_router_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp,
-                      uint64_t *bytesp)
+lmt_router_decode_v1 (const char *s, char **namep, float *pct_cpup,
+                      float *pct_memp, uint64_t *bytesp)
 {
     int retval = -1;
     char *name;
@@ -136,7 +136,7 @@ lmt_router_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%f;%f;%"PRIu64,
+    if (sscanf (s, "%*f;%[^;];%f;%f;%"PRIu64,
                 name, &pct_cpu, &pct_mem, &bytes) != 4) {
         errno = EIO;
         goto done;

@@ -23,8 +23,8 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-char *strskip (char *s, int n, char sep);
-char *strskipcpy (char **sp, int n, char sep);
+const char *strskip (const char *s, int n, char sep);
+char *strskipcpy (const char **sp, int n, char sep);
 char *strappendfield (char **s1p, const char *s2, char sep);
 
 List list_tok (const char *s, char *sep);

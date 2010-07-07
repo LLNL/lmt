@@ -23,17 +23,18 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-int lmt_ost_decode_v2 (char *s, char **namep,
+int lmt_ost_decode_v2 (const char *s, char **namep,
                         float *pct_cpup, float *pct_memp, List *ostinfop);
-int lmt_ost_decode_v2_ostinfo (char *s, char **namep,
+int lmt_ost_decode_v2_ostinfo (const char *s, char **namep,
                         uint64_t *read_bytesp, uint64_t *write_bytesp,
                         uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                         uint64_t *inodes_freep, uint64_t *inodes_totalp);
 
 /* legacy */
 
-int lmt_oss_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp);
-int lmt_ost_decode_v1 (char *s, char **ossnamep, char **namep,
+int lmt_oss_decode_v1 (const char *s, char **namep, float *pct_cpup,
+                       float *pct_memp);
+int lmt_ost_decode_v1 (const char *s, char **ossnamep, char **namep,
                        uint64_t *read_bytesp, uint64_t *write_bytesp,
                        uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                        uint64_t *inodes_freep, uint64_t *inodes_totalp);

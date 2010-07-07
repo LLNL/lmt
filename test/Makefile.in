@@ -13,7 +13,6 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
-
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
 VPATH = @srcdir@
@@ -37,9 +36,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-sbin_PROGRAMS = tproc$(EXEEXT) tlustre$(EXEEXT) otop$(EXEEXT) \
-	lmtmetric$(EXEEXT) lmtdiagnose$(EXEEXT)
-subdir = utils
+check_PROGRAMS = tparse$(EXEEXT)
+subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_cerebro.m4 \
@@ -53,28 +51,12 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES =
-am__installdirs = "$(DESTDIR)$(sbindir)"
-sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
-PROGRAMS = $(sbin_PROGRAMS)
-am_lmtdiagnose_OBJECTS = lmtdiagnose.$(OBJEXT)
-lmtdiagnose_OBJECTS = $(am_lmtdiagnose_OBJECTS)
-am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
+am_tparse_OBJECTS = tparse.$(OBJEXT)
+tparse_OBJECTS = $(am_tparse_OBJECTS)
+tparse_LDADD = $(LDADD)
+tparse_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
-lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
-lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
-lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_otop_OBJECTS = otop.$(OBJEXT)
-otop_OBJECTS = $(am_otop_OBJECTS)
-am__DEPENDENCIES_2 =
-otop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
-am_tlustre_OBJECTS = tlustre.$(OBJEXT)
-tlustre_OBJECTS = $(am_tlustre_OBJECTS)
-tlustre_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_tproc_OBJECTS = tproc.$(OBJEXT)
-tproc_OBJECTS = $(am_tproc_OBJECTS)
-tproc_DEPENDENCIES = $(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -86,10 +68,8 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) $(otop_SOURCES) \
-	$(tlustre_SOURCES) $(tproc_SOURCES)
-DIST_SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) \
-	$(otop_SOURCES) $(tlustre_SOURCES) $(tproc_SOURCES)
+SOURCES = $(tparse_SOURCES)
+DIST_SOURCES = $(tparse_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -237,23 +217,22 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-AM_CFLAGS = @GCCWARN@
-AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt
-common_ldadd = \
-	$(top_builddir)/liblmt/liblmt.la \
-	$(top_builddir)/libproc/libproc.la \
-	$(top_builddir)/liblsd/liblsd.la
+TESTS_ENVIRONMENT = env
+TESTS = \
+	t00-tparse
 
-tproc_SOURCES = tproc.c
-tproc_LDADD = $(common_ldadd)
-tlustre_SOURCES = tlustre.c
-tlustre_LDADD = $(common_ldadd)
-otop_SOURCES = otop.c
-otop_LDADD = $(common_ldadd) $(LIBCURSES)
-lmtmetric_SOURCES = lmtmetric.c
-lmtmetric_LDADD = $(common_ldadd)
-lmtdiagnose_SOURCES = lmtdiagnose.c
-lmtdiagnose_LDADD = $(common_ldadd)
+XFAIL_TESTS = 
+CLEANFILES = *.out *.diff
+AM_CFLAGS = @GCCWARN@
+AM_CPPFLAGS = \
+	-I../liblsd -I../libproc -I../liblmt
+
+LDADD = \
+        $(top_builddir)/liblmt/liblmt.la \
+        $(top_builddir)/libproc/libproc.la \
+        $(top_builddir)/liblsd/liblsd.la
+
+tparse_SOURCES = tparse.c
 all: all-am
 
 .SUFFIXES:
@@ -267,9 +246,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  utils/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  test/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu  utils/Makefile
+	  $(AUTOMAKE) --gnu  test/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -287,49 +266,16 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-install-sbinPROGRAMS: $(sbin_PROGRAMS)
-	@$(NORMAL_INSTALL)
-	test -z "$(sbindir)" || $(mkdir_p) "$(DESTDIR)$(sbindir)"
-	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
-	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
-	  if test -f $$p \
-	     || test -f $$p1 \
-	  ; then \
-	    f=`echo "$$p1" | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'`; \
-	   echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) '$$p' '$(DESTDIR)$(sbindir)/$$f'"; \
-	   $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) "$$p" "$(DESTDIR)$(sbindir)/$$f" || exit 1; \
-	  else :; fi; \
-	done
 
-uninstall-sbinPROGRAMS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
-	  f=`echo "$$p" | sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
-	  echo " rm -f '$(DESTDIR)$(sbindir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(sbindir)/$$f"; \
-	done
-
-clean-sbinPROGRAMS:
-	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
+clean-checkPROGRAMS:
+	@list='$(check_PROGRAMS)'; for p in $$list; do \
 	  f=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-lmtdiagnose$(EXEEXT): $(lmtdiagnose_OBJECTS) $(lmtdiagnose_DEPENDENCIES) 
-	@rm -f lmtdiagnose$(EXEEXT)
-	$(LINK) $(lmtdiagnose_LDFLAGS) $(lmtdiagnose_OBJECTS) $(lmtdiagnose_LDADD) $(LIBS)
-lmtmetric$(EXEEXT): $(lmtmetric_OBJECTS) $(lmtmetric_DEPENDENCIES) 
-	@rm -f lmtmetric$(EXEEXT)
-	$(LINK) $(lmtmetric_LDFLAGS) $(lmtmetric_OBJECTS) $(lmtmetric_LDADD) $(LIBS)
-otop$(EXEEXT): $(otop_OBJECTS) $(otop_DEPENDENCIES) 
-	@rm -f otop$(EXEEXT)
-	$(LINK) $(otop_LDFLAGS) $(otop_OBJECTS) $(otop_LDADD) $(LIBS)
-tlustre$(EXEEXT): $(tlustre_OBJECTS) $(tlustre_DEPENDENCIES) 
-	@rm -f tlustre$(EXEEXT)
-	$(LINK) $(tlustre_LDFLAGS) $(tlustre_OBJECTS) $(tlustre_LDADD) $(LIBS)
-tproc$(EXEEXT): $(tproc_OBJECTS) $(tproc_DEPENDENCIES) 
-	@rm -f tproc$(EXEEXT)
-	$(LINK) $(tproc_LDFLAGS) $(tproc_OBJECTS) $(tproc_LDADD) $(LIBS)
+tparse$(EXEEXT): $(tparse_OBJECTS) $(tparse_DEPENDENCIES) 
+	@rm -f tparse$(EXEEXT)
+	$(LINK) $(tparse_LDFLAGS) $(tparse_OBJECTS) $(tparse_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -337,11 +283,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdiagnose.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmetric.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/otop.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tlustre.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tproc.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tparse.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \
@@ -422,6 +364,79 @@ GTAGS:
 distclean-tags:
 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
 
+check-TESTS: $(TESTS)
+	@failed=0; all=0; xfail=0; xpass=0; skip=0; \
+	srcdir=$(srcdir); export srcdir; \
+	list='$(TESTS)'; \
+	if test -n "$$list"; then \
+	  for tst in $$list; do \
+	    if test -f ./$$tst; then dir=./; \
+	    elif test -f $$tst; then dir=; \
+	    else dir="$(srcdir)/"; fi; \
+	    if $(TESTS_ENVIRONMENT) $${dir}$$tst; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *" $$tst "*) \
+		xpass=`expr $$xpass + 1`; \
+		failed=`expr $$failed + 1`; \
+		echo "XPASS: $$tst"; \
+	      ;; \
+	      *) \
+		echo "PASS: $$tst"; \
+	      ;; \
+	      esac; \
+	    elif test $$? -ne 77; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *" $$tst "*) \
+		xfail=`expr $$xfail + 1`; \
+		echo "XFAIL: $$tst"; \
+	      ;; \
+	      *) \
+		failed=`expr $$failed + 1`; \
+		echo "FAIL: $$tst"; \
+	      ;; \
+	      esac; \
+	    else \
+	      skip=`expr $$skip + 1`; \
+	      echo "SKIP: $$tst"; \
+	    fi; \
+	  done; \
+	  if test "$$failed" -eq 0; then \
+	    if test "$$xfail" -eq 0; then \
+	      banner="All $$all tests passed"; \
+	    else \
+	      banner="All $$all tests behaved as expected ($$xfail expected failures)"; \
+	    fi; \
+	  else \
+	    if test "$$xpass" -eq 0; then \
+	      banner="$$failed of $$all tests failed"; \
+	    else \
+	      banner="$$failed of $$all tests did not behave as expected ($$xpass unexpected passes)"; \
+	    fi; \
+	  fi; \
+	  dashes="$$banner"; \
+	  skipped=""; \
+	  if test "$$skip" -ne 0; then \
+	    skipped="($$skip tests were not run)"; \
+	    test `echo "$$skipped" | wc -c` -le `echo "$$banner" | wc -c` || \
+	      dashes="$$skipped"; \
+	  fi; \
+	  report=""; \
+	  if test "$$failed" -ne 0 && test -n "$(PACKAGE_BUGREPORT)"; then \
+	    report="Please report to $(PACKAGE_BUGREPORT)"; \
+	    test `echo "$$report" | wc -c` -le `echo "$$banner" | wc -c` || \
+	      dashes="$$report"; \
+	  fi; \
+	  dashes=`echo "$$dashes" | sed s/./=/g`; \
+	  echo "$$dashes"; \
+	  echo "$$banner"; \
+	  test -z "$$skipped" || echo "$$skipped"; \
+	  test -z "$$report" || echo "$$report"; \
+	  echo "$$dashes"; \
+	  test "$$failed" -eq 0; \
+	else :; fi
+
 distdir: $(DISTFILES)
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
@@ -450,12 +465,11 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
+	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
 check: check-am
-all-am: Makefile $(PROGRAMS)
+all-am: Makefile
 installdirs:
-	for dir in "$(DESTDIR)$(sbindir)"; do \
-	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
-	done
 install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
@@ -473,6 +487,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
@@ -482,7 +497,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-sbinPROGRAMS \
+clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -503,7 +518,7 @@ info-am:
 
 install-data-am:
 
-install-exec-am: install-sbinPROGRAMS
+install-exec-am:
 
 install-info: install-info-am
 
@@ -529,20 +544,19 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-info-am uninstall-sbinPROGRAMS
+uninstall-am: uninstall-info-am
 
-.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-sbinPROGRAMS ctags distclean \
-	distclean-compile distclean-generic distclean-libtool \
-	distclean-tags distdir dvi dvi-am html html-am info info-am \
-	install install-am install-data install-data-am install-exec \
-	install-exec-am install-info install-info-am install-man \
-	install-sbinPROGRAMS install-strip installcheck \
+.PHONY: CTAGS GTAGS all all-am check check-TESTS check-am clean \
+	clean-checkPROGRAMS clean-generic clean-libtool ctags \
+	distclean distclean-compile distclean-generic \
+	distclean-libtool distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am install-data \
+	install-data-am install-exec install-exec-am install-info \
+	install-info-am install-man install-strip installcheck \
 	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-info-am \
-	uninstall-sbinPROGRAMS
+	tags uninstall uninstall-am uninstall-info-am
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -38,10 +38,10 @@
  * If there are fewer than that, return NULL.
  * (Push past trailing delimiter, if any)
  */
-char *
-strskip (char *s, int n, char sep)
+const char *
+strskip (const char *s, int n, char sep)
 {
-    char *p;
+    const char *p;
 
     while (n > 0 && *s) {
         if ((p = strchr (s, sep)))
@@ -57,11 +57,11 @@ strskip (char *s, int n, char sep)
  * Don't return trailing delimiter, if any, in copy.
  */
 char *
-strskipcpy (char **sp, int n, char sep)
+strskipcpy (const char **sp, int n, char sep)
 {
     char *res = NULL;
-    char *s = *sp;
-    char *p = strskip (s, n, sep);
+    const char *s = *sp;
+    const char *p = strskip (s, n, sep);
     int len = p ? (p - s) : 0;
 
     if (len > 0)

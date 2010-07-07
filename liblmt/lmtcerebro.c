@@ -105,7 +105,7 @@ lmt_cbr_get_name (cmetric_t c)
 }
 
 static int
-_get_metric_data (cerebro_t ch, char *name, List rl, char **esp)
+_get_metric_data (cerebro_t ch, char *name, List rl, char **errp)
 {
     int retval; 
     cerebro_nodelist_t n = NULL;
@@ -116,18 +116,18 @@ _get_metric_data (cerebro_t ch, char *name, List rl, char **esp)
     char *nodename;
 
     if (!(n = cerebro_get_metric_data (ch, name))) {
-        *esp = cerebro_strerror (cerebro_errnum (ch));
+        *errp = cerebro_strerror (cerebro_errnum (ch));
         goto done;
     }
     if (!(nitr = cerebro_nodelist_iterator_create (n))) {
-        *esp = cerebro_strerror (cerebro_errnum (ch));
+        *errp = cerebro_strerror (cerebro_errnum (ch));
         goto done;
     }
     while (!cerebro_nodelist_iterator_at_end (nitr)) {
         if (cerebro_nodelist_iterator_nodename (nitr, &nodename) < 0 ||
             cerebro_nodelist_iterator_metric_value (nitr,
                                        &time, &type, &size, &value) < 0) {
-            *esp = cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr));
+            *errp = cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr));
             goto done;
         }
         if (!(c = _create_cmetric (name, nodename, time, type, size, value)))
@@ -137,7 +137,7 @@ _get_metric_data (cerebro_t ch, char *name, List rl, char **esp)
             goto done;
         }
         if (cerebro_nodelist_iterator_next (nitr) < 0) {
-            *esp = cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr));
+            *errp = cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr));
             goto done;
         }
     }
@@ -149,7 +149,7 @@ done:
 }
 
 int
-lmt_cbr_get_metrics (char *names, List *rlp, char **esp)
+lmt_cbr_get_metrics (char *names, List *rlp, char **errp)
 {
     int retval = -1;
     List rl = NULL;
@@ -167,7 +167,7 @@ lmt_cbr_get_metrics (char *names, List *rlp, char **esp)
     if (!(itr = list_iterator_create (nl)))
         goto done;
     while ((name = list_next (itr))) {
-        if (_get_metric_data (ch, name, rl, esp) < 0)
+        if (_get_metric_data (ch, name, rl, errp) < 0)
             goto done;
     }
     *rlp = rl;

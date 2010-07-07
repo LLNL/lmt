@@ -167,8 +167,8 @@ done:
 }
 
 int
-lmt_ost_decode_v2 (char *s, char **namep, float *pct_cpup, float *pct_memp,
-                   List *ostinfop)
+lmt_ost_decode_v2 (const char *s, char **namep, float *pct_cpup,
+                   float *pct_memp, List *ostinfop)
 {
     int retval = -1;
     char *name, *cpy = NULL;
@@ -179,7 +179,7 @@ lmt_ost_decode_v2 (char *s, char **namep, float *pct_cpup, float *pct_memp,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%f;%f;", name, &pct_cpu, &pct_mem) != 3) {
+    if (sscanf (s, "%*f;%[^;];%f;%f;", name, &pct_cpu, &pct_mem) != 3) {
         errno = EIO;
         goto done;
     }
@@ -215,7 +215,7 @@ done:
 }
 
 int
-lmt_ost_decode_v2_ostinfo (char *s, char **namep,
+lmt_ost_decode_v2_ostinfo (const char *s, char **namep,
                            uint64_t *read_bytesp, uint64_t *write_bytesp,
                            uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                            uint64_t *inodes_freep, uint64_t *inodes_totalp)
@@ -230,7 +230,7 @@ lmt_ost_decode_v2_ostinfo (char *s, char **namep,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
+    if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
                 ";%"PRIu64, name, &inodes_free,
                 &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
                 &write_bytes) != 7) {
@@ -258,7 +258,8 @@ done:
  **/
 
 int
-lmt_oss_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp)
+lmt_oss_decode_v1 (const char *s, char **namep, float *pct_cpup,
+                   float *pct_memp)
 {
     int retval = -1;
     char *name;
@@ -268,7 +269,7 @@ lmt_oss_decode_v1 (char *s, char **namep, float *pct_cpup, float *pct_memp)
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%f;%f", name, &pct_cpu, &pct_mem) != 3) {
+    if (sscanf (s, "%*f;%[^;];%f;%f", name, &pct_cpu, &pct_mem) != 3) {
         errno = EIO;
         goto done;
     }
@@ -284,8 +285,20 @@ done:
     return retval;
 }
 
+/* N.B. Having multiple lmt_ost metric values per host works with the
+ * cerebro monitor module, since it gets a callback every time a metric
+ * arrives, but it doesn't work when iterating over the cerebro server's
+ * stored metric values since the values are stored by hostname and therefore
+ * overwrite each other.  That was the major reason for having a single
+ * lmt_oss metric that embeds multiple ost values.
+ *
+ * Therefore, a caveat of continuing to support ost_v1 is that new tools
+ * that iterate over the cerebro server metric values, as opposed to mysql
+ * stored values, don't get all the data.
+ */
+
 int
-lmt_ost_decode_v1 (char *s, char **ossnamep, char **namep,
+lmt_ost_decode_v1 (const char *s, char **ossnamep, char **namep,
                    uint64_t *read_bytesp, uint64_t *write_bytesp,
                    uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                    uint64_t *inodes_freep, uint64_t *inodes_totalp)
@@ -304,10 +317,10 @@ lmt_ost_decode_v1 (char *s, char **ossnamep, char **namep,
         errno = ENOMEM;
         goto done;
     }
-    if (sscanf (s, "%*s;%s;%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                ";%"PRIu64, ossname, name, &inodes_free,
-                &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
-                &write_bytes) != 8) {
+    if (sscanf (s, "%*f;%[^;];%[^;];%"PRIu64";%"PRIu64";%"PRIu64
+                ";%"PRIu64";%"PRIu64";%"PRIu64,
+                ossname, name, &inodes_free, &inodes_total,
+                &kbytes_free, &kbytes_total, &read_bytes, &write_bytes) != 8) {
         errno = EIO;
         goto done;
     }
@@ -319,6 +332,7 @@ lmt_ost_decode_v1 (char *s, char **ossnamep, char **namep,
     *kbytes_totalp = kbytes_total;
     *inodes_freep = inodes_free;
     *inodes_totalp = inodes_total;
+
     retval = 0;
 done:
     if (retval < 0) {
@@ -327,7 +341,7 @@ done:
         if (ossname)
             free (ossname);
     }
-    return -1;
+    return retval;
 }
 
 /*

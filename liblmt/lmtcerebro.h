@@ -25,7 +25,7 @@
 
 typedef struct cmetric_struct *cmetric_t;
 
-int lmt_cbr_get_metrics (char *names, List *rlp, char **esp);
+int lmt_cbr_get_metrics (char *names, List *rlp, char **errp);
 
 char *lmt_cbr_get_val (cmetric_t c);
 

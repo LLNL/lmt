@@ -79,5 +79,6 @@ AC_CONFIG_FILES( \
   cerebro/Makefile \
   cerebro/metric/Makefile \
   cerebro/monitor/Makefile \
+  test/Makefile \
 )
 AC_OUTPUT
