@@ -1,0 +1,27 @@
+strskip 0: OK
+strskip 1: OK
+strskip 2: OK
+strskip 3: OK
+strskip 4: OK
+strskip 0: OK
+strskip 1: OK
+strskip 2: OK
+strskip 3: OK
+strskip 4: OK
+strskipcpy 1: 'foo'
+strskipcpy 1: 'bar'
+strskipcpy 1: 'baz'
+strskipcpy 1: 'foo'
+strskipcpy 1: 'bar'
+strskipcpy 1: 'baz'
+strappendfield: fubar;smurf
+oss_v1: OK
+router_v1: OK
+ost_v1: OK
+mds_v2: OK
+mdt_v1: OK
+ost_v2: OK
+mdt_v1(truncated): Input/output error
+ost_v2(truncated): Input/output error
+mdt_v1(elongated): Input/output error
+ost_v2(elongated): OK

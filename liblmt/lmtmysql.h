@@ -35,8 +35,6 @@ int lmt_db_create_all (const char *host, unsigned int port,
 
 void lmt_db_destroy (lmt_db_t db);
 
-int lmt_db_lookup (lmt_db_t db, char *svctype, char *name);
-
 int lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                         uint64_t kbytes_free, uint64_t kbytes_used,
                         uint64_t inodes_free, uint64_t inodes_used,
@@ -54,7 +52,15 @@ int lmt_db_insert_ost_data (lmt_db_t db, char *name,
 int lmt_db_insert_router_data (lmt_db_t db, char *name,
                         uint64_t bytes, float pct_cpu, const char **sqlerrp);
 
-char *lmt_db_name (lmt_db_t db);
+/* accessors */
+
+char *lmt_db_fsname (lmt_db_t db);
+
+int lmt_db_lookup (lmt_db_t db, char *svctype, char *name);
+
+typedef int (*lmt_db_map_f) (const char *key, void *arg);
+
+int lmt_db_server_map (lmt_db_t db, char *svctype, lmt_db_map_f mf, void *arg);
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

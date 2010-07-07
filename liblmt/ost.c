@@ -250,7 +250,7 @@ done:
         if (name)
             free (name);
     }
-    return -1;
+    return retval;
 }
 
 /**

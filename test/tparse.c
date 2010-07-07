@@ -34,32 +34,15 @@
 #include <unistd.h>
 #include <math.h>
 #include <string.h>
-#if HAVE_GETOPT_H
-#include <getopt.h>
-#endif
 #include <libgen.h>
 
 #include "list.h"
 #include "hash.h"
 
-#include "proc.h"
-#include "lmt.h"
-
 #include "ost.h"
 #include "mdt.h"
 #include "router.h"
 #include "util.h"
-
-#define OPTIONS "f:"
-#if HAVE_GETOPT_LONG
-#define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
-static const struct option longopts[] = {
-    {"filesystem",      required_argument,  0, 'f'},
-    {0, 0, 0, 0},
-};
-#else
-#define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
-#endif
 
 const char *oss_v1_str =
     "1.0;tycho1;0.100000;98.810898";
@@ -67,70 +50,158 @@ const char *ost_v1_str =
     "1.0;tycho1;lc1-OST0000;121615156;122494976;"
     "1819998804;1929120176;19644389;289174933853";
 const char *mds_v2_str =
-    "2.0;tycho-mds2;lc2-MDT0000;0.000000;1.561927;31242342;31242480;124969368;"
-    "125441296;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "2.0;tycho-mds2;lc2-MDT0000;0.000000;1.561927;"
+    "31242342;31242480;124969368;125441296;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
     "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;1;0;0;0;0;0;0;0;0;0;0;0;0;"
     "0;0;0;0;0;0;0;0;3132344;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;"
     "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
     "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
     "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;0;0;0;0;0;0;0;0;0;"
     "0;0;0;0;0;217;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0";
+
 const char *router_v1_str =
     "1.0;alc42;0.100000;98.810898;1845066588";
+const char *ost_v2_str = 
+    "2;tycho1;0.100000;98.810898;"
+    "lc1-OST0000;121615156;122494976;181999880;192912016;1964438;289174933853;"
+    "lc1-OST0008;121615156;122494976;181999880;192912016;1964438;289174933853;"
+    "lc1-OST0010;121615156;122494976;181999880;192912016;1964438;289174933853";
+const char *mdt_v1_str =
+    "1;tycho-mds2;0.000000;1.561927;"
+    "lc2-MDT0000;31242342;31242480;124969368;125441296;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;1;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;3132344;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;217;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "lc1-MDT0000;31242342;31242480;124969368;125441296;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;1;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;3132344;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;217;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0";
 
 void parse_utils (void);
 void parse_current (void);
+void parse_current_short (void);
+void parse_current_long (void);
 void parse_legacy (void);
 
 static char *prog;
 
-static void
-usage()
-{
-    fprintf (stderr,
-"Usage: lmtdiagnose [OPTIONS]\n"
-"   -f,--filesystem NAME        select file system [default all]\n"
-    );
-    exit (1);
-}
-
 int
 main (int argc, char *argv[])
 {
-    char *fs = NULL;
-    int c;
-
     prog = basename (argv[0]);
-    optind = 0;
-    opterr = 0;
-    while ((c = GETOPT (argc, argv, OPTIONS, longopts)) != -1) {
-        switch (c) {
-            case 'f':   /* --filesystem NAME */
-                fs = optarg;
-                break;
-            default:
-                usage ();
-        }
-    }
-    if (optind < argc)
-        usage();
 
     parse_utils ();
     parse_legacy ();
+    parse_current ();
+    parse_current_short ();
+    parse_current_long ();
     exit (0);
 }
 
 int
-_parse_ost_v2 (char *s)
+_parse_ost_v2 (const char *s)
 {
     int retval = -1;
+    char *ossname = NULL;
+    char *ostname = NULL;
+    float pct_cpu, pct_mem;
+    uint64_t read_bytes, write_bytes;
+    uint64_t inodes_free, inodes_total;
+    uint64_t kbytes_free, kbytes_total;
+    List ostinfo = NULL;
+    ListIterator itr = NULL;
+    char *osi;
+
+    if (lmt_ost_decode_v2 (s, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
+        goto done;
+    if (!(itr = list_iterator_create (ostinfo)))
+        goto done;
+    while ((osi = list_next (itr))) {
+        if (lmt_ost_decode_v2_ostinfo (osi, &ostname, &read_bytes, &write_bytes,
+                                       &kbytes_free, &kbytes_total,
+                                       &inodes_free, &inodes_total) < 0)
+            goto done;
+        free (ostname);
+    }
+    retval = 0;
+done:
+    if (ossname)
+        free (ossname);
+    if (itr)
+        list_iterator_destroy (itr);
+    if (ostinfo)
+        list_destroy (ostinfo);
     return retval;
+}
+
+int
+_parse_mdt_v1_mdops (List mdops)
+{
+    int retval = -1;
+    char *opname, *op;
+    uint64_t samples, sum, sumsq;
+    ListIterator itr;
+
+    if (!(itr = list_iterator_create (mdops)))
+        goto done;
+    while ((op = list_next (itr))) {
+        if (lmt_mdt_decode_v1_mdops (op, &opname, &samples, &sum, &sumsq) < 0)
+            goto done;
+        free (opname);
+    }
+    retval = 0;
+done:
+    if (itr)
+        list_iterator_destroy (itr);
+    return retval;    
 }
 
 int
 _parse_mdt_v1 (const char *s)
 {
     int retval = -1;
+    char *mdsname = NULL;
+    char *mdtname = NULL;
+    float pct_cpu, pct_mem;
+    uint64_t inodes_free, inodes_total;
+    uint64_t kbytes_free, kbytes_total;
+    List mdtinfo = NULL;
+    List mdops = NULL;
+    ListIterator itr = NULL;
+    char *mdi;
+
+    if (lmt_mdt_decode_v1 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+        goto done;
+    if (!(itr = list_iterator_create (mdtinfo)))
+        goto done;
+    while ((mdi = list_next (itr))) {
+        if (lmt_mdt_decode_v1_mdtinfo (mdi, &mdtname, &inodes_free,
+                     &inodes_total, &kbytes_free, &kbytes_total, &mdops) < 0)
+            goto done;
+        free (mdtname);
+        if (_parse_mdt_v1_mdops (mdops) < 0) {
+            list_destroy (mdops); 
+            goto done;
+        }
+        list_destroy (mdops); 
+    }
+    retval = 0;
+done:
+    if (mdsname)
+        free (mdsname);
+    if (itr)
+        list_iterator_destroy (itr);
+    if (mdtinfo)
+        list_destroy (mdtinfo);
     return retval;
 }
 
@@ -279,8 +350,63 @@ parse_utils (void)
 }
 
 void
+parse_current_short (void)
+{
+    int n;
+    char *mdt_v1_str_short = strdup (mdt_v1_str);
+    char *ost_v2_str_short = strdup (ost_v2_str);
+
+    if (!mdt_v1_str_short || !ost_v2_str_short) {
+        fprintf (stderr, "%s: out of memory\n", prog);
+        exit (1);
+    }
+    mdt_v1_str_short[strlen (mdt_v1_str_short) - 35] = '\0';
+    n = _parse_mdt_v1 (mdt_v1_str_short);
+    printf ("mdt_v1(truncated): %s\n", n < 0 ? strerror (errno) : "OK");
+
+    ost_v2_str_short[strlen (ost_v2_str_short) - 35] = '\0';
+    n = _parse_ost_v2 (ost_v2_str_short);
+    printf ("ost_v2(truncated): %s\n", n < 0 ? strerror (errno) : "OK");
+
+    free (mdt_v1_str_short);
+    free (ost_v2_str_short);
+}
+
+void
+parse_current_long (void)
+{
+    int n;
+    int mdtlen = strlen (mdt_v1_str) + 36;
+    int ostlen = strlen (ost_v2_str) + 36;
+    char *mdt_v1_str_long = malloc (mdtlen);
+    char *ost_v2_str_long = malloc (ostlen);
+
+    if (!mdt_v1_str_long || !ost_v2_str_long) {
+        fprintf (stderr, "%s: out of memory\n", prog);
+        exit (1);
+    }
+    snprintf (mdt_v1_str_long, mdtlen, "%ssdfdfsdlafwererefsdf", mdt_v1_str);
+    n = _parse_mdt_v1 (mdt_v1_str_long);
+    printf ("mdt_v1(elongated): %s\n", n < 0 ? strerror (errno) : "OK");
+
+    /* we're too dumb to detect this case, oh well */
+    snprintf (ost_v2_str_long, ostlen, "%ssdfdfsdlafwererefsdf", ost_v2_str);
+    n = _parse_ost_v2 (ost_v2_str_long);
+    printf ("ost_v2(elongated): %s\n", n < 0 ? strerror (errno) : "OK");
+
+    free (mdt_v1_str_long);
+    free (ost_v2_str_long);
+}
+
+void
 parse_current (void)
 {
+    int n;
+
+    n = _parse_mdt_v1 (mdt_v1_str);
+    printf ("mdt_v1: %s\n", n < 0 ? strerror (errno) : "OK");
+    n = _parse_ost_v2 (ost_v2_str);
+    printf ("ost_v2: %s\n", n < 0 ? strerror (errno) : "OK");
 }
 
 void

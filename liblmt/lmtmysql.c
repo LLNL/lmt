@@ -133,14 +133,14 @@ _create_svcid (const char *key_prefix, const char *key,
                uint64_t id, svcid_t **sp)
 {
     svcid_t *s = malloc (sizeof (svcid_t));
-    int keylen = strlen (key) + strlen (key_prefix) + 1;
+    int keylen = strlen (key) + strlen (key_prefix) + 2;
 
     if (!s)
         goto nomem;
     memset (s, 0, sizeof (svcid_t));
     if (!(s->key = malloc (keylen)))
         goto nomem;
-    snprintf (s->key, keylen, "%s%s", key_prefix, key);
+    snprintf (s->key, keylen, "%s_%s", key_prefix, key);
     s->id = id;
     *sp = s;
     return 0;
@@ -251,8 +251,49 @@ done:
 int
 lmt_db_lookup (lmt_db_t db, char *svctype, char *name)
 {
+    assert (db->magic == LMT_DBHANDLE_MAGIC);
+
     return _lookup_idhash (db, svctype, name, NULL);
 }
+
+/* private arg structure for _mapfun () */
+struct map_struct {
+    char *svctype;
+    lmt_db_map_f mf;
+    void *arg;
+    int error;
+};
+
+int
+_mapfun (void *data, const void *key, void *arg)
+{
+    struct map_struct *mp = (struct map_struct *)arg;
+    char *s = (char *)key;
+    char *p = strchr (s, '_');
+
+    if (p && !strncmp (s, mp->svctype, p - s)) {
+        if (mp->mf (p + 1, mp->arg) < 0)
+            mp->error++;
+    }
+    return 0;
+}
+
+int
+lmt_db_server_map (lmt_db_t db, char *svctype, lmt_db_map_f mf, void *arg)
+{
+    struct map_struct m;
+    
+    assert (db->magic == LMT_DBHANDLE_MAGIC);
+
+    m.svctype = svctype;
+    m.mf = mf;
+    m.arg = arg;
+    m.error = 0;
+
+    hash_for_each (db->idhash, (hash_arg_f)_mapfun, &m);
+    return (m.error ? -1 : 0);
+}
+
 
 /**
  ** Database insert functions
@@ -665,9 +706,11 @@ done:
 }
 
 char *
-lmt_db_name (lmt_db_t db)
+lmt_db_fsname (lmt_db_t db)
 {
-    return db->name;
+    char *p = strchr (db->name, '_');
+
+    return (p ? p + 1 : db->name);
 }
 
 /*
