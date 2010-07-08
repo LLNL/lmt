@@ -273,7 +273,7 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s,
      * FIXME: [schema] MDS/MDT should be handled like OSS/OST.
      * N.B. To support MDS with MDT's for multiple file systems, we must use
      * mdtname to hash MDS_ID because we will get hits in >1 file system with
-     * the msdname.
+     * the mdsname.
      */
     if (!(itr = list_iterator_create (dbs)))
         goto done;
@@ -397,7 +397,7 @@ lmt_db_insert_mds_v2 (char *s, const char **errp)
     int retval = -1;
     ListIterator itr = NULL;
     lmt_db_t db;
-    char *op, *name = NULL, *mdsname = NULL;
+    char *op, *mdtname = NULL, *mdsname = NULL;
     float pct_cpu, pct_mem;
     uint64_t inodes_free, inodes_total;
     uint64_t kbytes_free, kbytes_total;
@@ -406,7 +406,7 @@ lmt_db_insert_mds_v2 (char *s, const char **errp)
 
     if (_init_db_ifneeded (errp, &retval) < 0)
         goto done;
-    if (lmt_mds_decode_v2 (s, &mdsname, &name, &pct_cpu, &pct_mem,
+    if (lmt_mds_decode_v2 (s, &mdsname, &mdtname, &pct_cpu, &pct_mem,
                            &inodes_free, &inodes_total,
                            &kbytes_free, &kbytes_total, &mdops) < 0) {
         if (errno == EIO)
@@ -416,9 +416,9 @@ lmt_db_insert_mds_v2 (char *s, const char **errp)
     if (!(itr = list_iterator_create (dbs)))
         goto done;
     while ((db = list_next (itr))) {
-        if (lmt_db_lookup (db, "mdt", name) < 0)
+        if (lmt_db_lookup (db, "mdt", mdtname) < 0)
             continue; 
-        if (lmt_db_insert_mds_data (db, name, pct_cpu,
+        if (lmt_db_insert_mds_data (db, mdtname, pct_cpu,
                                     kbytes_free, kbytes_total - kbytes_free,
                                     inodes_free, inodes_total - inodes_free,
                                                             errp) < 0) {
@@ -438,15 +438,15 @@ lmt_db_insert_mds_v2 (char *s, const char **errp)
     if (!(itr = list_iterator_create (mdops)))
         goto done;
     while ((op = list_next (itr))) {
-        if (_insert_mds_ops (name, op, errp) < 0)
+        if (_insert_mds_ops (mdtname, op, errp) < 0)
             goto done;
     }
     retval = 0;
 done:
-    if (name)
-        free (name);    
+    if (mdtname)
+        free (mdtname);    
     if (mdsname)
-        free (name);    
+        free (mdsname);    
     if (mdops)
         list_destroy (mdops);
     if (itr)

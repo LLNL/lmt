@@ -206,7 +206,7 @@ _populate_idhash (lmt_db_t db)
     if (_populate_idhash_qry (db, sql_sel_mds_info, "mds") < 0)
         goto done;
     /* MDS_INFO:    MDS_NAME -> MDS_ID */
-    if (_populate_idhash_qry (db, sql_sel_mds_info, "mdt") < 0)
+    if (_populate_idhash_qry (db, sql_sel_mdt_info, "mdt") < 0)
         goto done;
     /* OSS_INFO:    HOSTNAME -> OSS_ID */
     if (_populate_idhash_qry (db, sql_sel_oss_info, "oss") < 0)
@@ -359,6 +359,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
+    /* db permissions are checked when stmt is prepared, not now  */
     if (!db->ins_mds_data) {
         errno = EPERM;
         goto done;

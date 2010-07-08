@@ -34,7 +34,7 @@ int lmt_mdt_decode_v1_mdops (const char *s, char **opnamep, uint64_t *samplesp,
 
 /* legacy */
 
-int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **namep,
+int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **mdtnamep,
                         float *pct_cpup, float *pct_memp,
                         uint64_t *inodes_freep, uint64_t *inodes_totalp,
                         uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
