@@ -74,7 +74,6 @@ static const char *db_user = "lwatchclient";
 static const char *db_passwd = NULL;
 
 struct lmt_fs_struct {
-    char *name;
     List oss;
     List ost;
     List mds;
@@ -158,7 +157,7 @@ _lmtfs_create (void)
     f->mds = list_create ((ListDelF)free);
     f->mdt = list_create ((ListDelF)free);
     f->router = list_create ((ListDelF)free);
-    if (!f->name || !f->oss || !f->ost || !f->mds || !f->mdt || !f->router)
+    if (!f->oss || !f->ost || !f->mds || !f->mdt || !f->router)
         oom ();
     return f; 
 }
@@ -415,7 +414,12 @@ read_cerebro_data (void)
 
 int _map (const char *key, void *arg)
 {
-    return list_append ((List)arg, (char *)key) == NULL ? -1 : 0;
+    char *cpy = strdup ((char *)key);
+    if (!cpy)
+	oom ();
+    if (!append_uniq ((List)arg, cpy))
+	oom ();
+    return 0;
 }
 
 lmt_fs_t 
