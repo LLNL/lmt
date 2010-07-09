@@ -112,7 +112,7 @@ _metric_update (const char *nodename,
     } else
         cerebro_err_output ("%s_v%d: from %s: unknown metric",
                             metric_name, (int)vers, nodename);
-    if (result < 0)
+    if (result < 0 && errno != ESRCH)
         cerebro_err_debug ("%s_v%d: from %s: %s",
                            metric_name, (int)vers, nodename,
                            errstr ? errstr : strerror (errno));
