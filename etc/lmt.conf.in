@@ -1,0 +1,29 @@
+--
+-- Example lmt.conf
+-- Note: this file is parsed by an embedded LUA interpreter
+--
+
+lmt_debug = 0
+
+lmt_dbhost = nil
+lmt_dbport = 0
+
+lmt_ro_dbuser = "lwatchclient"
+lmt_ro_dbpasswd = nil
+
+lmt_rw_dbuser = "lwatchadmin"
+
+--
+-- Assign lmt_rw_dbpasswd from contents of dbpasswd.lwatchadmin file,
+-- or if not readable, assign a nil password.  Using this strategy,
+-- only UNIX users able to read the file can authenticate for read-write.
+--
+
+f = io.open("@X_SYSCONFDIR@/lmt/dbpasswd.lwatchadmin")
+if (f) then
+  lmt_rw_dbpasswd = f:read("*all")
+  f:close()
+else
+  lmt_rw_dbpasswd = nil
+end
+

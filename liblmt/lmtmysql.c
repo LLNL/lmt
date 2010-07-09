@@ -568,8 +568,7 @@ _prepare_stmt (lmt_db_t db, MYSQL_STMT **sp, const char *sql)
     errno = 0;
     if (mysql_stmt_prepare (s, sql, strlen (sql))) {
         mysql_stmt_close (s);
-        retval = 0; /* prepare of insert fails if GRANT does not permit it */
-        goto done;
+        goto done; /* prepare fails if GRANT would not permit operation */
     }
     *sp = s;
     retval = 0;
@@ -635,18 +634,21 @@ lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp,
     if (!mysql_real_connect (db->conn, dbhost, dbuser, dbpass, dbname, dbport,
                              NULL, 0))
         goto done;
-    if (_prepare_stmt (db, &db->ins_timestamp_info, sql_ins_timestamp_info) < 0)
-        goto done;
-    if (_prepare_stmt (db, &db->ins_mds_data, sql_ins_mds_data) < 0)
-        goto done;
-    if (_prepare_stmt (db, &db->ins_mds_ops_data, sql_ins_mds_ops_data) < 0)
-        goto done;
-    if (_prepare_stmt (db, &db->ins_oss_data, sql_ins_oss_data) < 0)
-        goto done;
-    if (_prepare_stmt (db, &db->ins_ost_data, sql_ins_ost_data) < 0)
-        goto done;
-    if (_prepare_stmt (db, &db->ins_router_data, sql_ins_router_data) < 0)
-        goto done;
+    if (!readonly) {
+        if (_prepare_stmt (db, &db->ins_timestamp_info,
+                                sql_ins_timestamp_info) < 0)
+            goto done;
+        if (_prepare_stmt (db, &db->ins_mds_data, sql_ins_mds_data) < 0)
+            goto done;
+        if (_prepare_stmt (db, &db->ins_mds_ops_data, sql_ins_mds_ops_data) < 0)
+            goto done;
+        if (_prepare_stmt (db, &db->ins_oss_data, sql_ins_oss_data) < 0)
+            goto done;
+        if (_prepare_stmt (db, &db->ins_ost_data, sql_ins_ost_data) < 0)
+            goto done;
+        if (_prepare_stmt (db, &db->ins_router_data, sql_ins_router_data) < 0)
+            goto done;
+    }
     db->timestamp = 0;
     db->timestamp_id = 0;
     if (!(db->idhash = hash_create (IDHASH_SIZE, (hash_key_f)hash_key_string,

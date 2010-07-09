@@ -82,5 +82,7 @@ AC_CONFIG_FILES( \
   cerebro/metric/Makefile \
   cerebro/monitor/Makefile \
   test/Makefile \
+  etc/Makefile \
+  etc/lmt.conf \
 )
 AC_OUTPUT
