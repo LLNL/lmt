@@ -440,10 +440,10 @@ done:
         free (mdtname);    
     if (mdsname)
         free (mdsname);    
-    if (mdops)
-        list_destroy (mdops);
     if (itr)
         list_iterator_destroy (itr);        
+    if (mdops)
+        list_destroy (mdops);
     return retval;
 }
 

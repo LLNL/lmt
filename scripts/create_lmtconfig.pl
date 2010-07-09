@@ -55,6 +55,7 @@ Usage: $prog [OPTIONS]...
   -d, --create-database FS    Generate SQL to populate database for FS
   -f, --config-file FILE      Specify filesystem config instead of ldev.conf
   -F, --ldev-file FILE        Override path to /etc/ldev.conf
+  -s, --schema-file FILE      Override path to create_schema-1.1.sql
 
 NOTE: FS configuration is by default taken from /etc/ldev.conf.
 You may override this path with -F or you may use the original LMT2
