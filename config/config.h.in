@@ -24,6 +24,9 @@
 /* Define to 1 if you have the `bcopy' function. */
 #undef HAVE_BCOPY
 
+/* Define if using cerebro */
+#undef HAVE_CEREBRO
+
 /* Define to 1 if you have the `closedir' function. */
 #undef HAVE_CLOSEDIR
 
@@ -75,6 +78,12 @@
 
 /* Define if you have the libdl library or equivalent. */
 #undef HAVE_LIBDL
+
+/* Define to 1 if you have the `lua' library (-llua). */
+#undef HAVE_LIBLUA
+
+/* Define to 1 if you have the <lua.h> header file. */
+#undef HAVE_LUA_H
 
 /* Define to 1 if you have the <mach-o/dyld.h> header file. */
 #undef HAVE_MACH_O_DYLD_H

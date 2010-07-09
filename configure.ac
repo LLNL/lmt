@@ -34,6 +34,7 @@ AC_LIB_LTDL
 AC_HEADER_STDC
 AC_CHECK_HEADERS( \
   getopt.h \
+  lua.h
 )
 
 ##
@@ -52,6 +53,7 @@ AC_CHECK_FUNCS( \
 )
 X_AC_CHECK_PTHREADS
 X_AC_CURSES
+X_AC_CHECK_COND_LIB(lua, luaL_newstate)
 
 ##
 # Checks for package feature enablement and requisite libs

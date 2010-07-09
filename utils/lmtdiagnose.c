@@ -50,12 +50,14 @@
 #include "router.h"
 #include "lmtmysql.h"
 #include "lmtcerebro.h"
+#include "lmtconf.h"
 
-#define OPTIONS "v"
+#define OPTIONS "vc:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
-    {"verbose",         no_argument,  0, 'v'},
+    {"verbose",         no_argument,        0, 'v'},
+    {"config-file",     required_argument,  0, 'c'},
     {0, 0, 0, 0},
 };
 #else
@@ -68,11 +70,6 @@ static const struct option longopts[] = {
 
 static char *prog;
 
-/* default to localhost:3306 root:"" */
-static const char *db_host = "localhost";
-static const unsigned int db_port = 0;
-static const char *db_user = "lwatchclient";
-static const char *db_passwd = NULL;
 
 static int legacy_ost = 0;
 static int verbose = 0;
@@ -95,7 +92,7 @@ void analyze (lmt_fs_t fdb, lmt_fs_t fcrb);
 static void
 usage()
 {
-    fprintf (stderr, "Usage: lmtdiagnose [-v]\n");
+    fprintf (stderr, "Usage: lmtdiagnose [-v] [-c lmt.conf]\n");
     exit (1);
 }
 
@@ -104,6 +101,7 @@ main (int argc, char *argv[])
 {
     lmt_fs_t fdb, fcrb;
     int c;
+    char *conffile = NULL;
 
     prog = basename (argv[0]);
     optind = 0;
@@ -113,12 +111,18 @@ main (int argc, char *argv[])
             case 'v':   /* --verbose */
                 verbose = 1;
                 break;
+            case 'c':   /* --config-file FILE */
+                conffile = optarg;
+                break;
             default:
                 usage ();
         }
     }
     if (optind < argc)
         usage();
+
+    if (lmt_conf_init (1, conffile) < 0)
+        exit (1);
 
     fdb = read_mysql_data ();
     fcrb = read_cerebro_data ();
@@ -368,6 +372,8 @@ done:
 lmt_fs_t
 read_cerebro_data (void)
 {
+    lmt_fs_t f = _lmtfs_create ();
+#ifdef HAVE_CEREBRO
     List l = NULL;;
     ListIterator itr;
     char *name, *val;
@@ -375,13 +381,16 @@ read_cerebro_data (void)
     float vers;
     const char *errstr = NULL;
     int err;
-    lmt_fs_t f = _lmtfs_create ();
 
+    if (verbose)
+        printf ("%s: cerebro: reading metric data\n", prog);
     if (lmt_cbr_get_metrics (METRIC_NAMES, &l, (char **)&errstr) < 0) {
         fprintf (stderr, "%s: lmt_ost: %s\n", prog,
                  errstr ? errstr : strerror (errno));
         exit (1);
     }
+    if (verbose)
+        printf ("%s: cerebro: %d metric data elements\n", prog, list_count (l));
     if (!(itr = list_iterator_create (l)))
         oom ();
     while ((c = list_next (itr))) {
@@ -418,6 +427,10 @@ read_cerebro_data (void)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
+#else
+    if (verbose)
+        printf ("%s: cerebro is disabled in this build of LMT\n", prog);
+#endif
     return f;
 }
 
@@ -434,21 +447,26 @@ int _map (const char *key, void *arg)
 lmt_fs_t 
 read_mysql_data (void)
 {
+    lmt_fs_t f = _lmtfs_create ();
+#ifdef HAVE_MYSQL
+    lmt_db_t db;
     List dbs = NULL;
     const char *errstr = NULL;
     ListIterator itr;
-    lmt_db_t db;
-    lmt_fs_t f = _lmtfs_create ();
+    char *db_host = NULL;
+    unsigned int db_port = 0;
+    char *db_user = lmt_conf_get_ro_dbuser ();
+    char *db_passwd = lmt_conf_get_ro_dbpasswd ();
 
+    if (verbose)
+        printf ("%s: mysql: connecting\n", prog);
     if (lmt_db_create_all (db_host, db_port, db_user, db_passwd,
                                                     &dbs, &errstr) < 0) {
         fprintf (stderr, "%s: %s\n", prog, errstr ? errstr : strerror (errno));
         exit (1);
     }
-    if (list_is_empty (dbs)) {
-        fprintf (stderr, "%s: mysql has no file systems configured\n", prog);
-        exit (1);
-    }
+    if (verbose)
+        printf ("%s: mysql: %d LMT databases found\n", prog, list_count (dbs));
     if (!(itr = list_iterator_create (dbs)))
         oom ();
     while ((db = list_next (itr))) {
@@ -465,6 +483,10 @@ read_mysql_data (void)
     }
     list_iterator_destroy (itr);
     list_destroy (dbs);
+#else
+    if (verbose)
+        printf ("%s: mysql is disabled in this build of LMT\n", prog);
+#endif
 
     return f;
 }
@@ -486,51 +508,53 @@ listcmp (char *svctype, List l1, char *s1, List l2, char *s2)
 
 void analyze (lmt_fs_t fdb, lmt_fs_t fcrb)
 {
+#ifdef HAVE_MYSQL
     if (verbose) {
-        printf ("%s: cross-checking oss data\n", prog);
-        printf ("%s: mysql:   %d oss nodes\n", prog, list_count (fdb->oss));
-        printf ("%s: cerebro: %d oss nodes\n", prog, list_count (fcrb->oss));
+        printf ("%s: mysql: %d oss nodes\n",    prog, list_count (fdb->oss));
+        printf ("%s: mysql: %d osts\n",         prog, list_count (fdb->ost));
+        printf ("%s: mysql: %d mds nodes\n",    prog, list_count (fdb->mds));
+        printf ("%s: mysql: %d mdts\n",         prog, list_count (fdb->mdt));
+        printf ("%s: mysql: %d router nodes\n", prog, list_count (fdb->router));
     }
+#endif
+#ifdef HAVE_CEREBRO
+    if (verbose) {
+        printf ("%s: cerebro: %d oss nodes\n",  prog, list_count (fcrb->oss));
+        printf ("%s: cerebro: %d osts\n",       prog, list_count (fcrb->ost));
+        printf ("%s: cerebro: %d mds nodes\n",  prog, list_count (fcrb->mds));
+        printf ("%s: cerbero: %d mdts\n",       prog, list_count (fcrb->mdt));
+        printf ("%s: cerebro: %d router nodes\n", prog,
+                list_count (fcrb->router));
+    }
+#endif
+#if defined (HAVE_CEREBRO) && defined (HAVE_MYSQL)
+    if (verbose)
+        printf ("%s: cross-checking oss data\n", prog);
     listcmp ("oss",    fdb->oss,    "mysql", fcrb->oss,    "cerebro");
     listcmp ("oss",    fcrb->oss,   "cerebro", fdb->oss,   "mysql");
 
-    if (verbose) {
-        printf ("%s: cross-checking ost data\n", prog);
-        printf ("%s: mysql:   %d osts\n", prog, list_count (fdb->ost));
-        printf ("%s: cerebro: %d osts\n", prog, list_count (fcrb->ost));
-        if (legacy_ost)
-            printf ("%s: cerebro data may be incomplete "
-                    "due to legacy mds_v2 cerebro data\n", prog);
-    }
+    if (verbose)
+        printf ("%s: cross-checking ost data%s\n", prog,
+                legacy_ost ? " (relaxed due to legacy ost_v1 use)" : "");
     if (!legacy_ost)
         listcmp ("ost",    fdb->ost,    "mysql", fcrb->ost,    "cerebro");
     listcmp ("ost",    fcrb->ost,    "cerebro", fdb->ost,    "mysql");
 
-    if (verbose) {
+    if (verbose)
         printf ("%s: cross-checking mds data\n", prog);
-        printf ("%s: mysql:   %d mds nodes\n", prog, list_count (fdb->mds));
-        printf ("%s: cerebro: %d mds nodes\n", prog, list_count (fcrb->mds));
-    }
     listcmp ("mds",    fdb->mds,    "mysql", fcrb->mds,    "cerebro");
     listcmp ("mds",    fcrb->mds,    "cerebro", fdb->mds,    "mysql");
 
-    if (verbose) {
+    if (verbose)
         printf ("%s: cross-checking mdt data\n", prog);
-        printf ("%s: mysql:   %d mdts\n", prog, list_count (fdb->mdt));
-        printf ("%s: cerbero: %d mdts\n", prog, list_count (fcrb->mdt));
-    }
     listcmp ("mdt",    fdb->mdt,    "mysql", fcrb->mdt,    "cerebro");
     listcmp ("mdt",    fcrb->mdt,    "cerebro", fdb->mdt,    "mysql");
 
-    if (verbose) {
+    if (verbose)
         printf ("%s: cross-checking router data\n", prog);
-        printf ("%s: mysql:   %d router nodes\n", prog,
-                list_count (fdb->router));
-        printf ("%s: cerebro: %d router nodes\n", prog,
-                list_count (fcrb->router));
-    }
     listcmp ("router", fcrb->router, "cerebro", fdb->router, "mysql");
     listcmp ("router", fdb->router, "mysql", fcrb->router, "cerebro");
+#endif
 }
 
 /*

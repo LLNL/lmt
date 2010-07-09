@@ -44,6 +44,7 @@
 #include "proc.h"
 #include "lmtmysql.h"
 #include "lmt.h"
+#include "lmtconf.h"
 
 #define IDHASH_SIZE     256
 
@@ -605,12 +606,17 @@ lmt_db_destroy (lmt_db_t db)
 }
 
 int
-lmt_db_create (const char *host, unsigned int port,
-               const char *user, const char *passwd,
-               const char *dbname, lmt_db_t *dbp, const char **sqlerrp)
+lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp,
+               const char **sqlerrp)
 {
     lmt_db_t db;
     int retval = -1;
+    char *dbhost = lmt_conf_get_dbhost ();
+    int dbport = lmt_conf_get_dbport ();
+    char *dbuser = readonly ? lmt_conf_get_ro_dbuser ()
+                            : lmt_conf_get_rw_dbuser ();
+    char *dbpass = readonly ? lmt_conf_get_ro_dbpasswd ()
+                            : lmt_conf_get_rw_dbpasswd ();
 
     if (!(db = malloc (sizeof (*db)))) {
         errno = ENOMEM;
@@ -626,7 +632,7 @@ lmt_db_create (const char *host, unsigned int port,
         errno = ENOMEM;
         goto done;
     }
-    if (!mysql_real_connect (db->conn, host, user, passwd, dbname, port,
+    if (!mysql_real_connect (db->conn, dbhost, dbuser, dbpass, dbname, dbport,
                              NULL, 0))
         goto done;
     if (_prepare_stmt (db, &db->ins_timestamp_info, sql_ins_timestamp_info) < 0)
@@ -661,9 +667,7 @@ done:
 }
 
 int
-lmt_db_create_all (const char *host, unsigned int port,
-                   const char *user, const char *passwd,
-                   List *dblp, const char **sqlerrp)
+lmt_db_create_all (int readonly, List *dblp, const char **sqlerrp)
 {
     MYSQL *conn = NULL;
     MYSQL_RES *res = NULL;
@@ -671,12 +675,19 @@ lmt_db_create_all (const char *host, unsigned int port,
     List dbl = NULL;
     lmt_db_t db;
     int retval = -1;
+    char *dbhost = lmt_conf_get_dbhost ();
+    int dbport = lmt_conf_get_dbport ();
+    char *dbuser = readonly ? lmt_conf_get_ro_dbuser ()
+                            : lmt_conf_get_rw_dbuser ();
+    char *dbpass = readonly ? lmt_conf_get_ro_dbpasswd ()
+                            : lmt_conf_get_rw_dbpasswd ();
 
     if (!(conn = mysql_init (NULL))) {
         errno = ENOMEM;    
         goto done;
     }
-    if (!mysql_real_connect (conn, host, user, passwd, NULL, port, NULL, 0)) {
+    if (!mysql_real_connect (conn, dbhost, dbuser, dbpass, NULL, dbport,
+                             NULL, 0)) {
         *sqlerrp = mysql_error (conn);
         goto done;
     }
@@ -685,7 +696,7 @@ lmt_db_create_all (const char *host, unsigned int port,
     if (!(dbl = list_create ((ListDelF)lmt_db_destroy)))
         goto done;
     while ((row = mysql_fetch_row (res))) {
-        if (lmt_db_create (host, port, user, passwd, row[0], &db, sqlerrp) < 0)
+        if (lmt_db_create (readonly, row[0], &db, sqlerrp) < 0)
             goto done;
         if (!list_append (dbl, db)) {
             lmt_db_destroy (db);

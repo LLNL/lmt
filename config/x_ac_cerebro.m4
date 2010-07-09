@@ -25,5 +25,6 @@ AC_DEFUN([X_AC_CEREBRO], [
     fi
     CEREBRO_LIBS=-lcerebro
     AC_SUBST([CEREBRO_LIBS])
+    AC_DEFINE(HAVE_CEREBRO, 1, [Define if using cerebro])
   fi
 ])dnl

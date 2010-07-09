@@ -7705,6 +7705,7 @@ AC_SUBST([am__untar])
 ]) # _AM_PROG_TAR
 
 m4_include([config/x_ac_cerebro.m4])
+m4_include([config/x_ac_check_cond_lib.m4])
 m4_include([config/x_ac_check_pthreads.m4])
 m4_include([config/x_ac_curses.m4])
 m4_include([config/x_ac_expand_install_dirs.m4])

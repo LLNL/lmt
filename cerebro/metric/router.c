@@ -41,6 +41,7 @@
 
 #include "proc.h"
 #include "lmt.h"
+#include "lmtconf.h"
 
 #define METRIC_NAME         "lmt_router"
 #define METRIC_FLAGS        (CEREBRO_METRIC_MODULE_FLAGS_SEND_ON_PERIOD)
@@ -126,6 +127,7 @@ _cleanup (void)
 static int
 _setup (void)
 {
+    lmt_conf_init (0, NULL);
     return 0;
 }
 

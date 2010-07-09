@@ -25,13 +25,10 @@
 
 typedef struct lmt_db_struct *lmt_db_t;
 
-int lmt_db_create (const char *host, unsigned int port, const char *user,
-                        const char *passwd, const char *dbname,
-                        lmt_db_t *dbp, const char **sqlerrp);
+int lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp,
+                   const char **sqlerrp);
 
-int lmt_db_create_all (const char *host, unsigned int port,
-                        const char *user, const char *passwd,
-                        List *dblp, const char **sqlerrp);
+int lmt_db_create_all (int readonly, List *dblp, const char **sqlerrp);
 
 void lmt_db_destroy (lmt_db_t db);
 

@@ -48,6 +48,7 @@ subdir = liblmt
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_cerebro.m4 \
+	$(top_srcdir)/config/x_ac_check_cond_lib.m4 \
 	$(top_srcdir)/config/x_ac_check_pthreads.m4 \
 	$(top_srcdir)/config/x_ac_curses.m4 \
 	$(top_srcdir)/config/x_ac_expand_install_dirs.m4 \
@@ -59,12 +60,14 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
-liblmt_la_DEPENDENCIES =
-am__liblmt_la_SOURCES_DIST = ost.c mdt.c router.c util.c lmtmysql.c \
-	lmtdb.c lmtcerebro.c
+am__DEPENDENCIES_1 =
+liblmt_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
+am__liblmt_la_SOURCES_DIST = ost.c mdt.c router.c util.c lmtconf.c \
+	lmtmysql.c lmtdb.c lmtcerebro.c
 @MYSQL_TRUE@am__objects_1 = lmtmysql.lo lmtdb.lo
 @CEREBRO_TRUE@am__objects_2 = lmtcerebro.lo
-am_liblmt_la_OBJECTS = ost.lo mdt.lo router.lo util.lo \
+am_liblmt_la_OBJECTS = ost.lo mdt.lo router.lo util.lo lmtconf.lo \
 	$(am__objects_1) $(am__objects_2)
 liblmt_la_OBJECTS = $(am_liblmt_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
@@ -128,6 +131,7 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
 LIBADD_DL = @LIBADD_DL@
 LIBCURSES = @LIBCURSES@
+LIBLUA = @LIBLUA@
 LIBOBJS = @LIBOBJS@
 LIBPTHREAD = @LIBPTHREAD@
 LIBS = @LIBS@
@@ -228,11 +232,11 @@ target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
-AM_CPPFLAGS = -I../libproc -I../liblsd @MYSQL_CFLAGS@
+AM_CPPFLAGS = -I../libproc -I../liblsd $(MYSQL_CFLAGS)
 noinst_LTLIBRARIES = liblmt.la
-liblmt_la_SOURCES = ost.c mdt.c router.c util.c $(am__append_1) \
-	$(am__append_2)
-liblmt_la_LIBADD = @MYSQL_LIBS@  @CEREBRO_LIBS@
+liblmt_la_SOURCES = ost.c mdt.c router.c util.c lmtconf.c \
+	$(am__append_1) $(am__append_2)
+liblmt_la_LIBADD = $(MYSQL_LIBS) $(CEREBRO_LIBS) $(LIBLUA)
 all: all-am
 
 .SUFFIXES:
@@ -285,6 +289,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtcerebro.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtconf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmysql.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mdt.Plo@am__quote@
