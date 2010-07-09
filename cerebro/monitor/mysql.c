@@ -40,6 +40,7 @@
 
 #include "proc.h"
 #include "lmt.h"
+#include "lmtconf.h"
 
 #define MONITOR_NAME            "lmt_mysql"
 #define METRIC_NAMES            "lmt_mdt,lmt_ost,lmt_router"
@@ -48,6 +49,7 @@
 static int
 _setup (void)
 {
+    lmt_conf_init (0, NULL);
     return 0;
 }
 

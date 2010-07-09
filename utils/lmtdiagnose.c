@@ -453,15 +453,10 @@ read_mysql_data (void)
     List dbs = NULL;
     const char *errstr = NULL;
     ListIterator itr;
-    char *db_host = NULL;
-    unsigned int db_port = 0;
-    char *db_user = lmt_conf_get_ro_dbuser ();
-    char *db_passwd = lmt_conf_get_ro_dbpasswd ();
 
     if (verbose)
         printf ("%s: mysql: connecting\n", prog);
-    if (lmt_db_create_all (db_host, db_port, db_user, db_passwd,
-                                                    &dbs, &errstr) < 0) {
+    if (lmt_db_create_all (1, &dbs, &errstr) < 0) {
         fprintf (stderr, "%s: %s\n", prog, errstr ? errstr : strerror (errno));
         exit (1);
     }
