@@ -693,8 +693,11 @@ lmt_db_create_all (int readonly, List *dblp, const char **sqlerrp)
         *sqlerrp = mysql_error (conn);
         goto done;
     }
-    if (!(res = mysql_list_dbs (conn, "filesystem_%")))
+    if (!(res = mysql_list_dbs (conn, "filesystem_%"))) {
+        if (errno == 0)
+            *sqlerrp = "mysql_list_dbs filesystem_% failed";
         goto done;
+    }
     if (!(dbl = list_create ((ListDelF)lmt_db_destroy)))
         goto done;
     while ((row = mysql_fetch_row (res))) {
