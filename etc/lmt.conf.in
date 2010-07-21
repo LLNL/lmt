@@ -3,27 +3,27 @@
 -- Note: this file is parsed by an embedded LUA interpreter
 --
 
-lmt_debug = 0
+lmt_db_debug = 0
 
-lmt_dbhost = nil
-lmt_dbport = 0
+lmt_db_host = nil
+lmt_db_port = 0
 
-lmt_ro_dbuser = "lwatchclient"
-lmt_ro_dbpasswd = nil
+lmt_db_rouser = "lwatchclient"
+lmt_db_ropasswd = nil
 
-lmt_rw_dbuser = "lwatchadmin"
+lmt_db_rwdbuser = "lwatchadmin"
 
 --
--- Assign lmt_rw_dbpasswd from contents of dbpasswd.lwatchadmin file,
+-- Assign lmt_db_rwpasswd from contents of rwpasswd file,
 -- or if not readable, assign a nil password.  Using this strategy,
 -- only UNIX users able to read the file can authenticate for read-write.
 --
 
-f = io.open("@X_SYSCONFDIR@/lmt/dbpasswd.lwatchadmin")
+f = io.open("@X_SYSCONFDIR@/lmt/rwpasswd")
 if (f) then
-  lmt_rw_dbpasswd = f:read("*all")
+  lmt_db_rwpasswd = f:read("*all")
   f:close()
 else
-  lmt_rw_dbpasswd = nil
+  lmt_db_rwpasswd = nil
 end
 

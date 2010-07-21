@@ -610,12 +610,12 @@ lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp,
 {
     lmt_db_t db;
     int retval = -1;
-    char *dbhost = lmt_conf_get_dbhost ();
-    int dbport = lmt_conf_get_dbport ();
-    char *dbuser = readonly ? lmt_conf_get_ro_dbuser ()
-                            : lmt_conf_get_rw_dbuser ();
-    char *dbpass = readonly ? lmt_conf_get_ro_dbpasswd ()
-                            : lmt_conf_get_rw_dbpasswd ();
+    char *dbhost = lmt_conf_get_db_host ();
+    int dbport = lmt_conf_get_db_port ();
+    char *dbuser = readonly ? lmt_conf_get_db_rouser ()
+                            : lmt_conf_get_db_rwuser ();
+    char *dbpass = readonly ? lmt_conf_get_db_ropasswd ()
+                            : lmt_conf_get_db_rwpasswd ();
 
     if (!(db = malloc (sizeof (*db)))) {
         errno = ENOMEM;
@@ -677,12 +677,12 @@ lmt_db_create_all (int readonly, List *dblp, const char **sqlerrp)
     List dbl = NULL;
     lmt_db_t db;
     int retval = -1;
-    char *dbhost = lmt_conf_get_dbhost ();
-    int dbport = lmt_conf_get_dbport ();
-    char *dbuser = readonly ? lmt_conf_get_ro_dbuser ()
-                            : lmt_conf_get_rw_dbuser ();
-    char *dbpass = readonly ? lmt_conf_get_ro_dbpasswd ()
-                            : lmt_conf_get_rw_dbpasswd ();
+    char *dbhost = lmt_conf_get_db_host ();
+    int dbport = lmt_conf_get_db_port ();
+    char *dbuser = readonly ? lmt_conf_get_db_rouser ()
+                            : lmt_conf_get_db_rwuser ();
+    char *dbpass = readonly ? lmt_conf_get_db_ropasswd ()
+                            : lmt_conf_get_db_rwpasswd ();
 
     if (!(conn = mysql_init (NULL))) {
         errno = ENOMEM;    

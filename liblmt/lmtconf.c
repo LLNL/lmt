@@ -47,23 +47,23 @@
 #include "lmtconf.h"
 
 typedef struct {
-    char *rw_dbuser;
-    char *rw_dbpasswd;
-    char *ro_dbuser;
-    char *ro_dbpasswd;
-    char *dbhost;
-    int dbport;
-    int debug;
+    char *db_rwuser;
+    char *db_rwpasswd;
+    char *db_rouser;
+    char *db_ropasswd;
+    char *db_host;
+    int db_port;
+    int db_debug;
 } config_t;
 
 static config_t config = {
-    .rw_dbuser = NULL,
-    .rw_dbpasswd = NULL,
-    .ro_dbuser = NULL,
-    .ro_dbpasswd = NULL,
-    .dbhost = NULL,
-    .dbport = 0,
-    .debug = 0,
+    .db_rwuser = NULL,
+    .db_rwpasswd = NULL,
+    .db_rouser = NULL,
+    .db_ropasswd = NULL,
+    .db_host = NULL,
+    .db_port = 0,
+    .db_debug = 0,
 };
 
 static int
@@ -82,80 +82,80 @@ _set_conf_str (char **cfg, char *s)
 }
 
 char *
-lmt_conf_get_ro_dbuser (void)
+lmt_conf_get_db_rouser (void)
 {
-    return config.ro_dbuser;
+    return config.db_rouser;
 }
 int
-lmt_conf_set_ro_dbuser (char *s)
+lmt_conf_set_db_rouser (char *s)
 {
-    return _set_conf_str (&config.ro_dbuser, s);
+    return _set_conf_str (&config.db_rouser, s);
 }
 
 char *
-lmt_conf_get_ro_dbpasswd (void)
+lmt_conf_get_db_ropasswd (void)
 {
-    return config.ro_dbpasswd;
+    return config.db_ropasswd;
 }
 int
-lmt_conf_set_ro_dbpasswd (char *s)
+lmt_conf_set_db_ropasswd (char *s)
 {
-    return _set_conf_str (&config.ro_dbpasswd , s);
+    return _set_conf_str (&config.db_ropasswd , s);
 }
 
 char *
-lmt_conf_get_rw_dbuser (void)
+lmt_conf_get_db_rwuser (void)
 {
-    return config.rw_dbuser;
+    return config.db_rwuser;
 }
 int
-lmt_conf_set_rw_dbuser (char *s)
+lmt_conf_set_db_rwuser (char *s)
 {
-    return _set_conf_str (&config.rw_dbuser, s);
+    return _set_conf_str (&config.db_rwuser, s);
 }
 
 char *
-lmt_conf_get_rw_dbpasswd (void)
+lmt_conf_get_db_rwpasswd (void)
 {
-    return config.rw_dbpasswd;
+    return config.db_rwpasswd;
 }
 int
-lmt_conf_set_rw_dbpasswd (char *s)
+lmt_conf_set_db_rwpasswd (char *s)
 {
-    return _set_conf_str (&config.rw_dbpasswd, s);
+    return _set_conf_str (&config.db_rwpasswd, s);
 }
 
 char *
-lmt_conf_get_dbhost (void)
+lmt_conf_get_db_host (void)
 {
-    return config.dbhost;
+    return config.db_host;
 }
 int
-lmt_conf_set_dbhost (char *s)
+lmt_conf_set_db_host (char *s)
 {
-    return _set_conf_str (&config.dbhost, s);
+    return _set_conf_str (&config.db_host, s);
 }
 
 int
-lmt_conf_get_dbport (void)
+lmt_conf_get_db_port (void)
 {
-    return config.dbport;
+    return config.db_port;
 }
 void
-lmt_conf_set_dbport (int i)
+lmt_conf_set_db_port (int i)
 {
-    config.dbport = i;
+    config.db_port = i;
 }
 
 int
-lmt_conf_get_debug (void)
+lmt_conf_get_db_debug (void)
 {
-    return config.debug;
+    return config.db_debug;
 }
 void
-lmt_conf_set_debug (int i)
+lmt_conf_set_db_debug (int i)
 {
-    config.debug = i;
+    config.db_debug = i;
 }
 
 #ifdef HAVE_LUA_H
@@ -237,26 +237,26 @@ lmt_conf_init (int vopt, char *path)
                 fprintf (stderr, "%s\n", lua_tostring (L, -1));
             goto done;
         }
-        if (_lua_getglobal_string (vopt, path, L, "lmt_rw_dbuser",
-                               &config.rw_dbuser) < 0)
+        if (_lua_getglobal_string (vopt, path, L, "lmt_db_rwuser",
+                                                &config.db_rwuser) < 0)
             goto done;
-        if (_lua_getglobal_string (vopt, path, L, "lmt_rw_dbpasswd",
-                               &config.rw_dbpasswd) < 0)
+        if (_lua_getglobal_string (vopt, path, L, "lmt_db_rwpasswd",
+                                                &config.db_rwpasswd) < 0)
             goto done;
-        if (_lua_getglobal_string (vopt, path, L, "lmt_ro_dbuser",
-                               &config.ro_dbuser) < 0)
+        if (_lua_getglobal_string (vopt, path, L, "lmt_db_rouser",
+                                                &config.db_rouser) < 0)
             goto done;
-        if (_lua_getglobal_string (vopt, path, L, "lmt_ro_dbpasswd",
-                               &config.ro_dbpasswd) < 0)
+        if (_lua_getglobal_string (vopt, path, L, "lmt_db_ropasswd",
+                                                &config.db_ropasswd) < 0)
             goto done;
-        if (_lua_getglobal_string (vopt, path, L, "lmt_dbhost",
-                               &config.dbhost) < 0)
+        if (_lua_getglobal_string (vopt, path, L, "lmt_db_host",
+                                                &config.db_host) < 0)
             goto done;
-        if (_lua_getglobal_int (vopt, path, L, "lmt_dbport",
-                               &config.dbport) < 0)
+        if (_lua_getglobal_int (vopt, path, L, "lmt_db_port",
+                                                &config.db_port) < 0)
             goto done;
-        if (_lua_getglobal_int (vopt, path, L, "lmt_debug",
-                            &config.debug) < 0)
+        if (_lua_getglobal_int (vopt, path, L, "lmt_db_debug",
+                                                &config.db_debug) < 0)
             goto done;
         res = 0;
 done:
