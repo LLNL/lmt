@@ -45,6 +45,8 @@
 #include "lmtmysql.h"
 #include "lmt.h"
 #include "lmtconf.h"
+#include "util.h"
+#include "error.h"
 
 #define IDHASH_SIZE     256
 
@@ -129,26 +131,17 @@ _destroy_svcid (svcid_t *s)
    }
 }
 
-static int
-_create_svcid (const char *key_prefix, const char *key,
-               uint64_t id, svcid_t **sp)
+static svcid_t *
+_create_svcid (const char *key_prefix, const char *key, uint64_t id)
 {
-    svcid_t *s = malloc (sizeof (svcid_t));
+    svcid_t *s = xmalloc (sizeof (svcid_t));
     int keylen = strlen (key) + strlen (key_prefix) + 2;
 
-    if (!s)
-        goto nomem;
     memset (s, 0, sizeof (svcid_t));
-    if (!(s->key = malloc (keylen)))
-        goto nomem;
+    s->key = xmalloc (keylen);
     snprintf (s->key, keylen, "%s_%s", key_prefix, key);
     s->id = id;
-    *sp = s;
-    return 0;
-nomem:
-    _destroy_svcid (s);
-    errno = ENOMEM;
-    return -1;
+    return s;
 }
 
 static int
@@ -186,8 +179,7 @@ _populate_idhash_qry (lmt_db_t db, const char *sql, const char *pfx)
         if (_verify_type (res, 1, MYSQL_TYPE_LONG) < 0)
             goto done;
         id = strtoul (row[1], NULL, 10);
-        if (_create_svcid (pfx, row[0], id, &s) < 0)
-            goto done;
+        s = _create_svcid (pfx, row[0], id);
         if (!hash_insert (db->idhash, s->key, s))
             goto done;
     }
@@ -351,8 +343,7 @@ done:
 int
 lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                         uint64_t kbytes_free, uint64_t kbytes_used,
-                        uint64_t inodes_free, uint64_t inodes_used,
-                        const char **sqlerrp)
+                        uint64_t inodes_free, uint64_t inodes_used)
 {
     MYSQL_BIND param[7];
     uint64_t mds_id;
@@ -362,12 +353,15 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
 
     /* db permissions are checked when stmt is prepared, not now  */
     if (!db->ins_mds_data) {
-        errno = EPERM;
+        if (lmt_conf_get_db_debug ())
+            msg ("no permission to insert into %s", lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
-    if (_lookup_idhash(db, "mdt", mdtname, &mds_id) < 0)
+    if (_lookup_idhash(db, "mdt", mdtname, &mds_id) < 0) {
+        /* potentially an expected failure - see lmtdb.c */
         goto done;
+    }
     if (_update_timestamp (db) < 0)
         goto done;
 
@@ -382,23 +376,28 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
     _param_init_int (&param[5], MYSQL_TYPE_LONGLONG, &inodes_free);
     _param_init_int (&param[6], MYSQL_TYPE_LONGLONG, &inodes_used);
    
-    if (mysql_stmt_bind_param (db->ins_mds_data, param))
+    if (mysql_stmt_bind_param (db->ins_mds_data, param)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error binding parameters for insert into %s: %s",
+                lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
-    if (mysql_stmt_execute (db->ins_mds_data))
+    }
+    if (mysql_stmt_execute (db->ins_mds_data)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error executing insert into %s: %s",
+                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
+    }
     //if (mysql_stmt_affected_rows (db->mds_data) != 1)
     //    goto done;
     retval = 0;
 done:
-    if (retval < 0)
-        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
 int
 lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
-                        uint64_t samples, uint64_t sum, uint64_t sumsquares,
-                        const char **sqlerrp)
+                        uint64_t samples, uint64_t sum, uint64_t sumsquares)
 {
     MYSQL_BIND param[6];
     uint64_t mds_id, op_id;
@@ -406,14 +405,20 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_mds_ops_data) {
-        errno = EPERM;
+        if (lmt_conf_get_db_debug ())
+            msg ("no permission to insert into %s", lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
-    if (_lookup_idhash (db, "mdt", mdtname, &mds_id) < 0)
+    if (_lookup_idhash (db, "mdt", mdtname, &mds_id) < 0) {
+        /* potentially an expected failure - see lmtdb.c */
         goto done;
-    if (_lookup_idhash (db, "op", opname, &op_id) < 0)
+    }
+    if (_lookup_idhash (db, "op", opname, &op_id) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("operation %s not found for %s", opname, lmt_db_fsname (db));
         goto done;
+    }
     //if (_update_timestamp (db) < 0)
     //    goto done;
 
@@ -425,20 +430,26 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     _param_init_int (&param[4], MYSQL_TYPE_LONGLONG, &sum);
     _param_init_int (&param[5], MYSQL_TYPE_LONGLONG, &sumsquares);
    
-    if (mysql_stmt_bind_param (db->ins_mds_ops_data, param))
+    if (mysql_stmt_bind_param (db->ins_mds_ops_data, param)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error binding parameters for insert into %s: %s",
+                lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
-    if (mysql_stmt_execute (db->ins_mds_ops_data))
+    }
+    if (mysql_stmt_execute (db->ins_mds_ops_data)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error executing insert into %s: %s",
+                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
+    }
     retval = 0;
 done:
-    if (retval < 0)
-        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
 int
 lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
-                        float pct_memory, const char **sqlerrp)
+                        float pct_memory)
 {
     MYSQL_BIND param[4];
     uint64_t oss_id;
@@ -446,11 +457,13 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_oss_data) {
-        errno = EPERM;
+        if (lmt_conf_get_db_debug ())
+            msg ("no permission to insert into %s", lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_oss_data) == 4);
     if (_lookup_idhash (db, "oss", name, &oss_id) < 0)
+        /* potentially an expected failure - see lmtdb.c */
         goto done;
     if (_update_timestamp (db) < 0)
         goto done;
@@ -461,14 +474,20 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
     _param_init_int (&param[2], MYSQL_TYPE_FLOAT, &pct_cpu);
     _param_init_int (&param[3], MYSQL_TYPE_FLOAT, &pct_memory);
    
-    if (mysql_stmt_bind_param (db->ins_oss_data, param))
+    if (mysql_stmt_bind_param (db->ins_oss_data, param)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error binding parameters for insert into %s: %s",
+                lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
-    if (mysql_stmt_execute (db->ins_oss_data))
+    }
+    if (mysql_stmt_execute (db->ins_oss_data)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error executing insert into %s: %s",
+                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
+    }
     retval = 0;
 done:
-    if (retval < 0)
-        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
@@ -476,8 +495,7 @@ int
 lmt_db_insert_ost_data (lmt_db_t db, char *name,
                         uint64_t read_bytes, uint64_t write_bytes,
                         uint64_t kbytes_free, uint64_t kbytes_used,
-                        uint64_t inodes_free, uint64_t inodes_used,
-                        const char **sqlerrp)
+                        uint64_t inodes_free, uint64_t inodes_used)
 {
     MYSQL_BIND param[8];
     uint64_t ost_id;
@@ -485,12 +503,15 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_ost_data) {
-        errno = EPERM;
+        if (lmt_conf_get_db_debug ())
+            msg ("no permission to insert into %s", lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_ost_data) == 8);
-    if (_lookup_idhash (db, "ost", name, &ost_id) < 0)
+    if (_lookup_idhash (db, "ost", name, &ost_id) < 0) {
+        /* potentially an expected failure - see lmtdb.c */
         goto done;
+    }
     if (_update_timestamp (db) < 0)
         goto done;
 
@@ -504,20 +525,26 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
     _param_init_int (&param[6], MYSQL_TYPE_LONGLONG, &inodes_free);
     _param_init_int (&param[7], MYSQL_TYPE_LONGLONG, &inodes_used);
    
-    if (mysql_stmt_bind_param (db->ins_ost_data, param))
+    if (mysql_stmt_bind_param (db->ins_ost_data, param)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error binding parameters for insert into %s: %s",
+                lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
-    if (mysql_stmt_execute (db->ins_ost_data))
+    }
+    if (mysql_stmt_execute (db->ins_ost_data)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error executing insert into %s: %s",
+                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
+    }
     retval = 0;
 done:
-    if (retval < 0)
-        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
 int
 lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
-                           float pct_cpu, const char **sqlerrp)
+                           float pct_cpu)
 {
     MYSQL_BIND param[4];
     uint64_t router_id;
@@ -525,12 +552,15 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_router_data) {
-        errno = EPERM;
+        if (lmt_conf_get_db_debug ())
+            msg ("no permission to insert into %s", lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_router_data) == 4);
-    if (_lookup_idhash (db, "router", name, &router_id) < 0)
+    if (_lookup_idhash (db, "router", name, &router_id) < 0) {
+        /* potentially an expected failure - see lmtdb.c */
         goto done;
+    }
     if (_update_timestamp (db) < 0)
         goto done;
 
@@ -540,14 +570,20 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
     _param_init_int (&param[2], MYSQL_TYPE_LONGLONG, &bytes);
     _param_init_int (&param[3], MYSQL_TYPE_FLOAT, &pct_cpu);
    
-    if (mysql_stmt_bind_param (db->ins_router_data, param))
+    if (mysql_stmt_bind_param (db->ins_router_data, param)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error binding parameters for insert into %s: %s",
+                lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
-    if (mysql_stmt_execute (db->ins_router_data))
+    }
+    if (mysql_stmt_execute (db->ins_router_data)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error executing insert into %s: %s",
+                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
+    }
     retval = 0;
 done:
-    if (retval < 0)
-        *sqlerrp = mysql_error (db->conn);
     return retval;
 }
 
@@ -561,10 +597,8 @@ _prepare_stmt (lmt_db_t db, MYSQL_STMT **sp, const char *sql)
     int retval = -1;
     MYSQL_STMT *s;
 
-    if (!(s = mysql_stmt_init (db->conn))) {
-        errno = ENOMEM;
-        goto done;
-    }
+    if (!(s = mysql_stmt_init (db->conn)))
+        msg_exit ("out of memory");
     errno = 0;
     if (mysql_stmt_prepare (s, sql, strlen (sql))) {
         mysql_stmt_close (s);
@@ -605,10 +639,9 @@ lmt_db_destroy (lmt_db_t db)
 }
 
 int
-lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp,
-               const char **sqlerrp)
+lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp)
 {
-    lmt_db_t db;
+    lmt_db_t db = xmalloc (sizeof (*db));
     int retval = -1;
     char *dbhost = lmt_conf_get_db_host ();
     int dbport = lmt_conf_get_db_port ();
@@ -616,65 +649,66 @@ lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp,
                             : lmt_conf_get_db_rwuser ();
     char *dbpass = readonly ? lmt_conf_get_db_ropasswd ()
                             : lmt_conf_get_db_rwpasswd ();
+    int prepfail = 0;
 
-    if (!(db = malloc (sizeof (*db)))) {
-        errno = ENOMEM;
-        goto done;
-    }
     memset (db, 0, sizeof (*db));
     db->magic = LMT_DBHANDLE_MAGIC;
-    if (!(db->name = strdup (dbname))) {
-        errno = ENOMEM;
-        goto done;
-    }
-    if (!(db->conn = mysql_init (NULL))) {
-        errno = ENOMEM;
-        goto done;
-    }
+    db->name = xstrdup (dbname);
+    if (!(db->conn = mysql_init (NULL)))
+        msg_exit ("out of memory");
     if (!mysql_real_connect (db->conn, dbhost, dbuser, dbpass, dbname, dbport,
-                             NULL, 0))
+                             NULL, 0)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_create: connect %s: %s", dbname,
+                 mysql_error (db->conn));
         goto done;
+    }
     if (!readonly) {
         if (_prepare_stmt (db, &db->ins_timestamp_info,
                                 sql_ins_timestamp_info) < 0)
-            goto done;
+            prepfail++;
         if (_prepare_stmt (db, &db->ins_mds_data, sql_ins_mds_data) < 0)
-            goto done;
+            prepfail++;
         if (_prepare_stmt (db, &db->ins_mds_ops_data, sql_ins_mds_ops_data) < 0)
-            goto done;
+            prepfail++;
         if (_prepare_stmt (db, &db->ins_oss_data, sql_ins_oss_data) < 0)
-            goto done;
+            prepfail++;
         if (_prepare_stmt (db, &db->ins_ost_data, sql_ins_ost_data) < 0)
-            goto done;
+            prepfail++;
         if (_prepare_stmt (db, &db->ins_router_data, sql_ins_router_data) < 0)
-            goto done;
+            prepfail++;
+    }
+    if (prepfail) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_create: %s: failed to prepare %d/6 inserts",
+                 dbname, prepfail);
+        goto done;
     }
     db->timestamp = 0;
     db->timestamp_id = 0;
-    if (!(db->idhash = hash_create (IDHASH_SIZE, (hash_key_f)hash_key_string,
-                                    (hash_cmp_f)strcmp,
-                                    (hash_del_f)_destroy_svcid)))
-        goto done; 
-    if (_populate_idhash (db) < 0)
+    db->idhash = hash_create (IDHASH_SIZE, (hash_key_f)hash_key_string,
+                              (hash_cmp_f)strcmp, (hash_del_f)_destroy_svcid);
+    if (_populate_idhash (db) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_create: %s: failed to populate idhash: %s",
+                 dbname, mysql_error (db->conn));
         goto done;
+    }
     retval = 0;
     *dbp = db;
 done:
-    if (retval < 0 && db) {
-        if (db->conn && strlen (mysql_error (db->conn)) > 0)
-            *sqlerrp = mysql_error (db->conn);
+    if (retval < 0)
         lmt_db_destroy (db);
-    }
     return retval;
 }
 
 int
-lmt_db_create_all (int readonly, List *dblp, const char **sqlerrp)
+lmt_db_create_all (int readonly, List *dblp)
 {
     MYSQL *conn = NULL;
     MYSQL_RES *res = NULL;
     MYSQL_ROW row;
-    List dbl = NULL;
+    List dbl = list_create ((ListDelF)lmt_db_destroy);
     lmt_db_t db;
     int retval = -1;
     char *dbhost = lmt_conf_get_db_host ();
@@ -684,29 +718,23 @@ lmt_db_create_all (int readonly, List *dblp, const char **sqlerrp)
     char *dbpass = readonly ? lmt_conf_get_db_ropasswd ()
                             : lmt_conf_get_db_rwpasswd ();
 
-    if (!(conn = mysql_init (NULL))) {
-        errno = ENOMEM;    
-        goto done;
-    }
+    if (!(conn = mysql_init (NULL)))
+        msg_exit ("out of memory");
     if (!mysql_real_connect (conn, dbhost, dbuser, dbpass, NULL, dbport,
                              NULL, 0)) {
-        *sqlerrp = mysql_error (conn);
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_create_all: %s",  mysql_error (conn));
         goto done;
     }
     if (!(res = mysql_list_dbs (conn, "filesystem_%"))) {
-        if (errno == 0)
-            *sqlerrp = "mysql_list_dbs filesystem_% failed";
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_create_all: unable to list lmt databases");
         goto done;
     }
-    if (!(dbl = list_create ((ListDelF)lmt_db_destroy)))
-        goto done;
     while ((row = mysql_fetch_row (res))) {
-        if (lmt_db_create (readonly, row[0], &db, sqlerrp) < 0)
+        if (lmt_db_create (readonly, row[0], &db) < 0)
             goto done;
-        if (!list_append (dbl, db)) {
-            lmt_db_destroy (db);
-            goto done;
-        }
+        list_append (dbl, db);
     }
     *dblp = dbl;
     retval = 0;
@@ -715,10 +743,8 @@ done:
         mysql_free_result (res);
     if (conn)
         mysql_close (conn);
-    if (retval < 0) {
-        if (dbl)
-            list_destroy (dbl);
-    }
+    if (retval < 0)
+        list_destroy (dbl);
     return retval;
 }
 

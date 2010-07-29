@@ -39,12 +39,9 @@
 #endif
 #include <stdio.h>
 
-#include "proc.h"
+#include "error.h"
 
-/* Note: unless otherwise noted, functions return -1 on error (errno set),
- * 0 or greater on success.  Scanf functions return number of matches.
- * On EOF, functions return -1 with errno clear.
- */
+#include "proc.h"
 
 #define PCTX_MAGIC  0xf00f5542
 
@@ -60,12 +57,10 @@ struct proc_ctx_struct {
 pctx_t
 proc_create (const char *root)
 {
-    pctx_t  ctx = malloc (sizeof (*ctx));
+    pctx_t  ctx;
 
-    if (!ctx) {
-        errno = ENOMEM;
-        return NULL;
-    }
+    if (!(ctx = malloc (sizeof (*ctx))))
+        msg_exit ("out of memory");
     snprintf (ctx->pctx_root, sizeof (ctx->pctx_root), "%s/", root);
     ctx->pctx_path = ctx->pctx_root + strlen (ctx->pctx_root);
     ctx->pctx_pathlen = sizeof (ctx->pctx_root) - strlen (ctx->pctx_root);
@@ -88,17 +83,16 @@ proc_destroy (pctx_t ctx)
 static int
 _open (pctx_t ctx)
 {
-    int error = -1;
-
-    if (!(ctx->pctx_dp = opendir (ctx->pctx_root)))
-        if (errno == ENOTDIR) {
-            errno = 0;
-            ctx->pctx_fp = fopen (ctx->pctx_root, "r");
-        }
-    if (ctx->pctx_dp || ctx->pctx_fp)
-        error = 0; 
-
-    return error;
+    if ((ctx->pctx_dp = opendir (ctx->pctx_root)))
+        return 0;
+    if (errno != ENOTDIR)
+        return -1;
+    errno = 0;
+    if (!(ctx->pctx_fp = fopen (ctx->pctx_root, "r"))) {
+        /* fopen sets errno on failure */
+        return -1;
+    }
+    return 0;
 }
 
 int
@@ -125,16 +119,16 @@ int
 proc_openf (pctx_t ctx, const char *fmt, ...)
 {
     va_list ap;
-    int error;
+    int ret;
 
     assert (ctx->pctx_magic == PCTX_MAGIC);
     assert (!ctx->pctx_fp && !ctx->pctx_dp);
 
     va_start (ap, fmt);
-    error = proc_vopenf (ctx, fmt, ap);
+    ret = proc_vopenf (ctx, fmt, ap);
     va_end (ap);
 
-    return error;
+    return ret;
 }
 
 void
@@ -144,9 +138,9 @@ proc_close (pctx_t ctx)
     assert (ctx->pctx_fp || ctx->pctx_dp);
 
     if (ctx->pctx_fp)
-        fclose (ctx->pctx_fp);
+        (void)fclose (ctx->pctx_fp);
     else
-        closedir (ctx->pctx_dp);
+        (void)closedir (ctx->pctx_dp);
     ctx->pctx_fp = NULL;
     ctx->pctx_dp = NULL;
 }
@@ -154,55 +148,63 @@ proc_close (pctx_t ctx)
 static int
 proc_vscanf (pctx_t ctx, const char *path, const char *fmt, va_list ap)
 {
-    int error = -1;
+    int n = -1;
 
     assert (ctx->pctx_magic == PCTX_MAGIC);
     assert (path || ctx->pctx_fp);
     assert (!ctx->pctx_dp);
 
-    if (!path || (error = proc_open (ctx, path)) == 0) {
-        error = vfscanf (ctx->pctx_fp, fmt, ap);
-        if (path)
-            proc_close (ctx);
+    if (!path) {
+        if (proc_open (ctx, path) < 0)
+            return -1;
     }
-    return error;
+    n = vfscanf (ctx->pctx_fp, fmt, ap);
+    if (path)
+        proc_close (ctx);
+    return n;
 }
 
 int
 proc_scanf (pctx_t ctx, const char *path, const char *fmt, ...)
 {
     va_list ap;
-    int error;
+    int n;
 
     assert (ctx->pctx_magic == PCTX_MAGIC);
     assert (path || ctx->pctx_fp);
     assert (!ctx->pctx_dp);
 
     va_start (ap, fmt);
-    error = proc_vscanf (ctx, path, fmt, ap);
+    n = proc_vscanf (ctx, path, fmt, ap);
     va_end (ap);
 
-    return error;
+    return n;
 }
 
+/* Returns -1 with errno == 0 for EOF
+ * Trailing newlines are trimmed in the result.
+ */
 int
 proc_gets (pctx_t ctx, const char *path, char *buf, int len)
 {
-    int i, error = 0;
+    int i, ret = 0;
 
     assert (ctx->pctx_magic == PCTX_MAGIC);
     assert (path || ctx->pctx_fp);
     assert (!ctx->pctx_dp);
 
-    if (!path || (error = proc_open (ctx, path)) == 0) {
-        if (!fgets (buf, len, ctx->pctx_fp))
-            error = -1;
-        if (path)
-            proc_close (ctx);
-        if (error >= 0 && (i = strlen (buf)) > 0 && buf[i - 1] == '\n')
-            buf[i - 1] = '\0'; 
+    if (!path) {
+        if (proc_open (ctx, path) < 0)
+            return -1;
     }
-    return error;
+    errno = 0;
+    if (!fgets (buf, len, ctx->pctx_fp))
+        ret = -1;
+    if (path)
+        proc_close (ctx);
+    if (ret == 0 && (i = strlen (buf)) > 0 && buf[i - 1] == '\n')
+        buf[i - 1] = '\0'; 
+    return ret;
 }
 
 int
@@ -223,7 +225,7 @@ proc_readdir (pctx_t ctx, proc_readdir_flag_t flag, char **namep)
         if ((flag & PROC_READDIR_NOFILE) && d->d_type != DT_DIR)
             continue;
         if (!(name = strdup (d->d_name)))
-            errno = ENOMEM;
+            msg_exit ("out of memory");
         break;                    
     }
     if (!d || !name)

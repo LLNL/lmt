@@ -36,9 +36,13 @@
 #include <errno.h>
 #include <stdint.h>
 
+#include <cerebro.h>
 #include <cerebro/cerebro_monitor_module.h>
 
+#include "error.h"
+
 #include "proc.h"
+
 #include "lmt.h"
 #include "lmtconf.h"
 
@@ -49,6 +53,8 @@
 static int
 _setup (void)
 {
+    lmt_log_init (MONITOR_NAME);
+    lmt_log_set_dest ("cerebro");
     lmt_conf_init (0, NULL);
     return 0;
 }
@@ -78,47 +84,37 @@ _metric_update (const char *nodename,
               unsigned int metric_value_len,
               void *metric_value)
 {
-    const char *errstr = NULL; 
-    char *s;
+    char *s = metric_value;
     float vers;
     int result = 0;
 
-    if (!(s = malloc (metric_value_len + 1))) {
-        cerebro_err_output ("out of memory");
+    if (metric_value_type != CEREBRO_DATA_VALUE_TYPE_STRING) {
+        msg ("%s: %s: incorrect metric_type: %d", nodename, metric_name,
+                                                  metric_value_type);
         goto done;
     }
-    memcpy (s, metric_value, metric_value_len);
-    s[metric_value_len] = '\0';
-
     if (sscanf (s, "%f;", &vers) != 1) {
-        cerebro_err_output ("error parsing metric version");
+        msg ("%s: %s: error parsing metric version", nodename, metric_name);
         goto done;
     }
     /* current metrics */
     if (!strcmp (metric_name, "lmt_ost") && vers == 2) {
-        result = lmt_db_insert_ost_v2 (s, &errstr);
+        result = lmt_db_insert_ost_v2 (s);
     } else if (!strcmp (metric_name, "lmt_mdt") && vers == 1) {
-        result = lmt_db_insert_mdt_v1 (s, &errstr);
+        result = lmt_db_insert_mdt_v1 (s);
     } else if (!strcmp (metric_name, "lmt_router") && vers == 1) {
-        result = lmt_db_insert_router_v1 (s, &errstr);
+        result = lmt_db_insert_router_v1 (s);
 
     /* legacy metrics */
     } else if (!strcmp (metric_name, "lmt_mds") && vers == 2) {
-        result = lmt_db_insert_mds_v2 (s, &errstr);
+        result = lmt_db_insert_mds_v2 (s);
     } else if (!strcmp (metric_name, "lmt_oss") && vers == 1) {
-        result = lmt_db_insert_oss_v1 (s, &errstr);
+        result = lmt_db_insert_oss_v1 (s);
     } else if (!strcmp (metric_name, "lmt_ost") && vers == 1) {
-        result = lmt_db_insert_ost_v1 (s, &errstr);
+        result = lmt_db_insert_ost_v1 (s);
     } else
-        cerebro_err_output ("%s_v%d: from %s: unknown metric",
-                            metric_name, (int)vers, nodename);
-    if (result < 0 && errno != ESRCH)
-        cerebro_err_debug ("%s_v%d: from %s: %s",
-                           metric_name, (int)vers, nodename,
-                           errstr ? errstr : strerror (errno));
+        msg ("%s: %s_v%d: unknown metric", nodename, metric_name, (int)vers);
 done:
-    if (s)
-        free (s);
     return 0; 
 }
 

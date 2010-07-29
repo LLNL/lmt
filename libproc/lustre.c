@@ -33,6 +33,7 @@
 
 #include "list.h"
 #include "hash.h"
+#include "error.h"
 
 #include "proc.h"
 #include "lustre.h"
@@ -69,94 +70,99 @@
 static int
 _readint1 (pctx_t ctx, char *tmpl, char *a1, uint64_t *valp)
 {
-    int error;
+    uint64_t val;
+    int ret;
 
-    errno = 0;
-    error = proc_openf (ctx, tmpl, a1);
-    if (error < 0)
+    if ((ret = proc_openf (ctx, tmpl, a1)) < 0)
         goto done;
-    if (proc_scanf (ctx, NULL, "%"PRIu64, valp) != 1)
-        error = -1;
+    if (proc_scanf (ctx, NULL, "%"PRIu64, &val) != 1) {
+        errno = EIO;
+        ret = -1;
+    }
     proc_close (ctx);
 done:
-    if (error < 0 && errno == 0)    /* EOF or 0 items scanned */
-        errno = EIO;
-    return error;
+    if (ret == 0)
+        *valp = val;
+    return ret;
 }
 
 static int
 _readstr1 (pctx_t ctx, char *tmpl, char *a1, char **valp)
 {
-    int error;
+    int ret;
     char s[256];
 
-    errno = 0;
-    error = proc_openf (ctx, tmpl, a1);
-    if (error < 0)
+    if ((ret = proc_openf (ctx, tmpl, a1)) < 0)
         goto done;
-    if (proc_scanf (ctx, NULL, "%255s", s) != 1)
-        error = -1;
-    proc_close (ctx);
-    if (error >= 0 && !(*valp = strdup (s))) {
-        errno = ENOMEM;
-        error = -1;
-    }
-done:
-    if (error < 0 && errno == 0)    /* EOF or 0 items scanned */
+    if (proc_scanf (ctx, NULL, "%255s", s) != 1) {
         errno = EIO;
-    return error;
+        ret = -1;
+    }
+    proc_close (ctx);
+done:
+    if (ret == 0) {
+        if (!(*valp = strdup (s)))
+            msg_exit ("out of memory");
+    }
+    return ret;
 }
 
 int
 proc_lustre_files (pctx_t ctx, char *name, uint64_t *fp, uint64_t *tp)
 {
+    int ret = -1;
     uint64_t f, t;
-    int error = -1;
+    char *tmplf, *tmplt;
 
     if (strstr (name, "-OST")) {
-        error = _readint1 (ctx, PROC_FS_LUSTRE_OST_FILESFREE, name, &f);
-        if (error < 0)
-            goto done;
-        error = _readint1 (ctx, PROC_FS_LUSTRE_OST_FILESTOTAL, name, &t);
+        tmplf = PROC_FS_LUSTRE_OST_FILESFREE;
+        tmplt = PROC_FS_LUSTRE_OST_FILESTOTAL;
     } else if (strstr (name, "-MDT")) {
-        error = _readint1 (ctx, PROC_FS_LUSTRE_MDT_FILESFREE, name, &f);
-        if (error < 0)
-            goto done;
-        error = _readint1 (ctx, PROC_FS_LUSTRE_MDT_FILESTOTAL, name, &t);
-    } else 
+        tmplf = PROC_FS_LUSTRE_MDT_FILESFREE;
+        tmplt = PROC_FS_LUSTRE_MDT_FILESTOTAL;
+    } else {
         errno = EINVAL;
+        goto done;
+    }
+    if ((ret = _readint1 (ctx, tmplf, name, &f)) < 0)
+        goto done;
+    if ((ret = _readint1 (ctx, tmplt, name, &t)) < 0)
+        goto done;
 done:
-    if (error >= 0) {
+    if (ret == 0) {
         *fp = f;
         *tp = t;
     }
-    return error;
+    return ret;
 }
 
 int
 proc_lustre_kbytes (pctx_t ctx, char *name, uint64_t *fp, uint64_t *tp)
 {
+    int ret = -1;
     uint64_t f, t;
-    int error = -1;
+    char *tmplf, *tmplt;
 
     if (strstr (name, "-OST")) {
-        error = _readint1 (ctx, PROC_FS_LUSTRE_OST_KBYTESFREE, name, &f);
-        if (error < 0)
-            goto done;
-        error = _readint1 (ctx, PROC_FS_LUSTRE_OST_KBYTESTOTAL, name, &t);
+        tmplf = PROC_FS_LUSTRE_OST_KBYTESFREE;
+        tmplt = PROC_FS_LUSTRE_OST_KBYTESTOTAL;
     } else if (strstr (name, "-MDT")) {
-        error = _readint1 (ctx, PROC_FS_LUSTRE_MDT_KBYTESFREE, name, &f);
-        if (error < 0)
-            goto done;
-        error = _readint1 (ctx, PROC_FS_LUSTRE_MDT_KBYTESTOTAL, name, &t);
-    } else 
+        tmplf = PROC_FS_LUSTRE_MDT_KBYTESFREE;
+        tmplt = PROC_FS_LUSTRE_OST_KBYTESTOTAL;
+    } else {
         errno = EINVAL;
+        goto done;
+    }
+    if ((ret = _readint1 (ctx, tmplf, name, &f)) < 0)
+        goto done;
+    if ((ret = _readint1 (ctx, tmplt, name, &t)) < 0)
+        goto done;
 done:
-    if (error >= 0) {
+    if (ret == 0) {
         *fp = f;
         *tp = t;
     }
-    return error;
+    return ret;
 }
 
 static void
@@ -173,50 +179,42 @@ int
 proc_lustre_uuid (pctx_t ctx, char *name, char **uuidp)
 {
     char *uuid;
-    int error = -1;
+    int ret = -1;
 
     if (strstr (name, "-OST")) {
-        error = _readstr1 (ctx, PROC_FS_LUSTRE_OST_UUID, name, &uuid);
+        ret = _readstr1 (ctx, PROC_FS_LUSTRE_OST_UUID, name, &uuid);
     } else if (strstr (name, "-MDT")) {
-        error = _readstr1 (ctx, PROC_FS_LUSTRE_MDT_UUID, name, &uuid);
+        ret = _readstr1 (ctx, PROC_FS_LUSTRE_MDT_UUID, name, &uuid);
     } else 
         errno = EINVAL;
-    if (error >= 0) {
+    if (ret == 0) {
         _trim_uuid (uuid);
         *uuidp = uuid;
     }
-    return error;
+    return ret;
 }
 
 static int
 _subdirlist (pctx_t ctx, const char *path, List *lp)
 {
-    List l;
-    int error;
+    List l = list_create((ListDelF)free);
+    int ret;
     char *name;
 
     errno = 0;
-    if (!(l = list_create ((ListDelF)free))) {
-        error = -1;
+    if ((ret = proc_open (ctx, path)) < 0)
         goto done;
-    }
-    if ((error = proc_open (ctx, path)) < 0)
-        goto done;
-    while ((error = proc_readdir (ctx, PROC_READDIR_NOFILE, &name)) >= 0) {
-        if (!list_append (l, name)) {
-            error = -1;
-            break;
-        }
-    }
-    if (error < 0 && errno == 0) /* treat EOF as success */
-        error = 0;
+    while ((ret = proc_readdir (ctx, PROC_READDIR_NOFILE, &name)) >= 0)
+        list_append (l, name);
+    if (ret < 0 && errno == 0) /* treat EOF as success */
+        ret = 0;
     proc_close (ctx);
 done:
-    if (error < 0)
-         list_destroy (l);
-    else
+    if (ret == 0)
         *lp = l;
-    return error;
+    else
+         list_destroy (l);
+    return ret;
 }
 
 int
@@ -243,24 +241,19 @@ _destroy_shash (shash_t *s)
     }
 }
 
-static int
-_create_shash (char *key, char *val, shash_t **sp)
+static shash_t *
+_create_shash (char *key, char *val)
 {
-    shash_t *s = malloc (sizeof (shash_t));
+    shash_t *s;
 
-    if (!s)
-        goto nomem;
+    if (!(s = malloc (sizeof (shash_t))))
+        msg_exit ("out of memory");
     memset (s, 0, sizeof (shash_t));
     if (!(s->key = strdup (key)))
-        goto nomem;
+        msg_exit ("out of memory");
     if (!(s->val = strdup (val)))
-        goto nomem;
-    *sp = s;
-    return 0;
-nomem:
-    _destroy_shash (s);
-    errno = ENOMEM;
-    return -1;
+        msg_exit ("out of memory");
+    return s;
 }
 
 static int
@@ -281,8 +274,7 @@ _parse_stat (char *s, shash_t **itemp)
         errno = EIO;
         return -1;
     }
-    if (_create_shash (key, s, itemp) < 0)
-        return -1;
+    *itemp = _create_shash (key, s);
     return 0;
 }
 
@@ -291,52 +283,47 @@ _hash_stats (pctx_t ctx, hash_t h)
 {
     char line[256];
     shash_t *s;
-    int error;
+    int ret;
 
     errno = 0;
-    while ((error = proc_gets (ctx, NULL, line, sizeof (line))) >= 0) {
-        error = _parse_stat (line, &s);
-        if (error < 0)
+    while ((ret = proc_gets (ctx, NULL, line, sizeof (line))) >= 0) {
+        if ((ret = _parse_stat (line, &s)) < 0)
             break;
         if (!hash_insert (h, s->key, s)) {
             _destroy_shash (s);
-            error = -1;
+            ret = -1;
             break;
         }
     }
-    if (error < 0 && errno == 0) /* treat EOF as success */
-        error = 0;
-    return error;
+    if (ret == -1 && errno == 0) /* treat EOF as success */
+        ret = 0;
+    return ret;
 }
 
 int
 proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp)
 {
     hash_t h = NULL;
-    int error = -1;
+    int ret = -1;
 
     if (strstr (name, "-OST"))
-        error = proc_openf (ctx, PROC_FS_LUSTRE_OST_STATS, name);
+        ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_STATS, name);
     else if (strstr (name, "-MDT"))
-        error = proc_openf (ctx, PROC_FS_LUSTRE_MDT_STATS, name);
+        ret = proc_openf (ctx, PROC_FS_LUSTRE_MDT_STATS, name);
     else 
         errno = EINVAL;
-    if (error < 0)
+    if (ret < 0)
         goto done;
-    if (!(h = hash_create (STATS_HASH_SIZE, (hash_key_f)hash_key_string,
-                           (hash_cmp_f)strcmp, (hash_del_f)_destroy_shash))) {
-        errno = ENOMEM;
-        error = -1;
-    } else
-        error = _hash_stats (ctx, h);
+    h = hash_create (STATS_HASH_SIZE, (hash_key_f)hash_key_string,
+                    (hash_cmp_f)strcmp, (hash_del_f)_destroy_shash);
+    ret = _hash_stats (ctx, h);
     proc_close (ctx);
 done:
-    if (error < 0) {
-        if (h)
-            hash_destroy (h);
-    } else
+    if (ret == 0)
         *hp = h;                           
-    return error;
+    else if (h)
+        hash_destroy (h);
+    return ret;
 }
 
 /* stat format is:  <key>   <count> samples [<unit>] <min> <max> <sum> <sumsq> 
@@ -353,10 +340,12 @@ proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
     uint64_t max = 0;
     uint64_t sum = 0;
     uint64_t sumsq = 0;
-    int retval = -1;
+    int ret = -1;
 
-    if (!(s = hash_find (stats, key)))
+    if (!(s = hash_find (stats, key))) {
+        errno = EINVAL;
         goto done;
+    }
     if (sscanf (s->val,
                 "%"PRIu64" samples %*s %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64,
                 &count, &min, &max, &sum, &sumsq) < 1) {
@@ -373,36 +362,42 @@ proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
         *sump = sum;
     if (sumsqp)
         *sumsqp = sumsq;
-    retval = 0;
+    ret = 0;
 done:
-    return retval;
+    return ret;
 }
 
 int
 proc_lustre_rwbytes (pctx_t ctx, char *name, uint64_t *rbp, uint64_t *wbp)
 {
-    int error = -1;
+    int ret = -1;
     hash_t stats = NULL;
 
     if (proc_lustre_hashstats (ctx, name, &stats) < 0)
         goto done;
+    /* If values are zero, token will not be present in proc file, so
+     * ignore errors parsing these tokens from proc.
+     */
     *rbp = *wbp = 0;
-    (void)proc_lustre_parsestat (stats, "read_bytes", NULL, NULL, NULL,
-                                 rbp, NULL);
-    (void)proc_lustre_parsestat (stats, "write_bytes", NULL, NULL, NULL,
-                                 wbp, NULL);
-    error = 0;
+    proc_lustre_parsestat (stats, "read_bytes", NULL, NULL, NULL, rbp, NULL);
+    proc_lustre_parsestat (stats, "write_bytes", NULL, NULL, NULL, wbp, NULL);
+    ret = 0;
 done:
     if (stats)
         hash_destroy (stats);
-    return error;
+    return ret;
 }
 
 int
 proc_lustre_lnet_newbytes (pctx_t ctx, uint64_t *valp)
 {
-    if (proc_scanf (ctx, PROC_SYS_LNET_STATS, "%*u %*u %*u %*u %*u "
-                    "%*u %*u %*u %*u %"PRIu64" %*u", valp) != 1) {
+    int n;
+
+    n = proc_scanf (ctx, PROC_SYS_LNET_STATS, "%*u %*u %*u %*u %*u "
+                    "%*u %*u %*u %*u %"PRIu64" %*u", valp);
+    if (n < 0)
+        return -1;
+    if (n != 1) {
         errno = EIO;
         return -1;
     }
@@ -416,7 +411,8 @@ proc_lustre_lnet_routing_enabled (pctx_t ctx, int *valp)
     int retval = 0;
 
     if (!proc_gets (ctx, PROC_SYS_LNET_ROUTES, buf, sizeof (buf))) {
-        errno = EIO;
+        if (errno == 0)
+            errno = EIO;
         retval = -1;
     } else if (!strcmp (buf, "Routing enabled")) {
         *valp = 1;

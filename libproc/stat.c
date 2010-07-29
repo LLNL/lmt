@@ -46,12 +46,13 @@ proc_stat (pctx_t ctx, uint64_t *usrp, uint64_t *nicep, uint64_t *sysp,
     n = proc_scanf (ctx, PROC_STAT, " cpu%*[ ] %"PRIu64" %"PRIu64" %"PRIu64
                     " %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64"",
                     &usr, &nice, &sys, &idle, &iowait, &irq, &softirq);
-    if (n < 0)
-        goto error;
-    if (n < 7) {
+    if (n < 0) {
+        /* errno already set */
+        return -1;
+    }
+    if (n != 7) {
         errno = EIO; 
-        n = -1;
-        goto error;
+        return -1;
     }
     if (usrp)
         *usrp = usr;
@@ -67,8 +68,7 @@ proc_stat (pctx_t ctx, uint64_t *usrp, uint64_t *nicep, uint64_t *sysp,
         *irqp = irq;
     if (softirqp)
         *softirqp = softirq;
-error:
-    return  n;
+    return 0;
 }
 
 /* Summarize proc_stat () values as two sums.  We can use these values in
@@ -79,17 +79,14 @@ int
 proc_stat2 (pctx_t ctx, uint64_t *usagep, uint64_t *totalp)
 {
     uint64_t usr, nice, sys, idle, iowait, irq, softirq;
-    int n;
 
-    n = proc_stat (ctx, &usr, &nice, &sys, &idle, &iowait, &irq, &softirq);
-    if (n < 0)
-        goto error;
+    if (proc_stat (ctx, &usr, &nice, &sys, &idle, &iowait, &irq, &softirq) < 0)
+        return -1;
     if (usagep)
         *usagep = usr + nice + sys + irq + softirq;
     if (totalp)
         *totalp = usr + nice + sys + idle + iowait + irq + softirq;
-error:
-    return  n;
+    return 0;
 }
 
 /*

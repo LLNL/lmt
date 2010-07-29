@@ -39,6 +39,7 @@
 
 #include "list.h"
 #include "hash.h"
+#include "error.h"
 
 #include "proc.h"
 #include "stat.h"
@@ -47,6 +48,8 @@
 
 #include "lmt.h"
 #include "router.h"
+#include "util.h"
+#include "lmtconf.h"
 
 typedef struct {
     uint64_t    usage[2];
@@ -65,6 +68,8 @@ _get_cpu_usage (pctx_t ctx, double *fp)
     if (proc_stat2 (ctx, &u.usage[1], &u.total[1]) < 0) {
         if (u.valid > 0)
             u.valid--;
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading cpu usage from proc");
     } else {
         if (u.valid < 2)
             u.valid++;
@@ -82,8 +87,11 @@ _get_mem_usage (pctx_t ctx, double *fp)
 {
     uint64_t kfree, ktot;
 
-    if (proc_meminfo (ctx, &ktot, &kfree) < 0)
+    if (proc_meminfo (ctx, &ktot, &kfree) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading memory usage from proc");
         return -1;
+    }
     *fp = ((double)(ktot - kfree) / (double)(ktot)) * 100.0;
     return 0;
 }
@@ -103,21 +111,28 @@ lmt_router_string_v1 (pctx_t ctx, char *s, int len)
         errno = 0;
         goto done;
     }
-    if (uname (&uts) < 0)
+    if (uname (&uts) < 0) {
+        err ("uname");
         goto done;
-    if (_get_cpu_usage (ctx, &cpupct) < 0)
+    }
+    if (_get_cpu_usage (ctx, &cpupct) < 0) {
         goto done;
-    if (_get_mem_usage (ctx, &mempct) < 0)
+    }
+    if (_get_mem_usage (ctx, &mempct) < 0) {
         goto done;
-    if (proc_lustre_lnet_newbytes (ctx, &newbytes) < 0)
+    }
+    if (proc_lustre_lnet_newbytes (ctx, &newbytes) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading lustre lnet newbytes from proc");
         goto done;
+    }
     n = snprintf (s, len, "1;%s;%f;%f;%"PRIu64,
                   uts.nodename, cpupct, mempct, newbytes);
     if (n >= len) {
-        errno = E2BIG;
+        if (lmt_conf_get_proto_debug ())
+            msg ("string overflow");
         goto done;
     }
-
     retval = 0;
 done:
     return retval;
@@ -128,17 +143,14 @@ lmt_router_decode_v1 (const char *s, char **namep, float *pct_cpup,
                       float *pct_memp, uint64_t *bytesp)
 {
     int retval = -1;
-    char *name;
+    char *name = xmalloc (strlen (s) + 1);
     float pct_mem, pct_cpu;
     uint64_t bytes;
 
-    if (!(name = malloc (strlen(s) + 1))) {
-        errno = ENOMEM;
-        goto done;
-    }
     if (sscanf (s, "%*f;%[^;];%f;%f;%"PRIu64,
                 name, &pct_cpu, &pct_mem, &bytes) != 4) {
-        errno = EIO;
+        if (lmt_conf_get_proto_debug ())
+            msg ("lmt_router_v1: parse error");
         goto done;
     }
     *namep = name;
@@ -147,11 +159,10 @@ lmt_router_decode_v1 (const char *s, char **namep, float *pct_cpup,
     *pct_memp = pct_mem;
     retval = 0;
 done:
-    if (retval < 0 && name)
+    if (retval < 0)
         free (name);
     return retval;
 }
-
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

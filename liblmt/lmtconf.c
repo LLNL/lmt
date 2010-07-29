@@ -54,6 +54,8 @@ typedef struct {
     char *db_host;
     int db_port;
     int db_debug;
+    int cbr_debug;
+    int proto_debug;
 } config_t;
 
 static config_t config = {
@@ -64,6 +66,8 @@ static config_t config = {
     .db_host = NULL,
     .db_port = 0,
     .db_debug = 0,
+    .cbr_debug = 0,
+    .proto_debug = 0,
 };
 
 static int
@@ -156,6 +160,28 @@ void
 lmt_conf_set_db_debug (int i)
 {
     config.db_debug = i;
+}
+
+int
+lmt_conf_get_cbr_debug (void)
+{
+    return config.cbr_debug;
+}
+void
+lmt_conf_set_cbr_debug (int i)
+{
+    config.cbr_debug = i;
+}
+
+int
+lmt_conf_get_proto_debug (void)
+{
+    return config.proto_debug;
+}
+void
+lmt_conf_set_proto_debug (int i)
+{
+    config.proto_debug = i;
 }
 
 #ifdef HAVE_LUA_H
@@ -257,6 +283,12 @@ lmt_conf_init (int vopt, char *path)
             goto done;
         if (_lua_getglobal_int (vopt, path, L, "lmt_db_debug",
                                                 &config.db_debug) < 0)
+            goto done;
+        if (_lua_getglobal_int (vopt, path, L, "lmt_cbr_debug",
+                                                &config.cbr_debug) < 0)
+            goto done;
+        if (_lua_getglobal_int (vopt, path, L, "lmt_proto_debug",
+                                                &config.proto_debug) < 0)
             goto done;
         res = 0;
 done:

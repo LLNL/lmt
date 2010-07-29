@@ -1,6 +1,6 @@
 /*****************************************************************************
- *  Copyright (C) 2010 Lawrence Livermore National Security, LLC.
- *  This module written by Jim Garlick <garlick@llnl.gov>
+ *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
+ *  This module written by Jim Garlick <garlick@llnl.gov>.
  *  UCRL-CODE-232438
  *  All Rights Reserved.
  *
@@ -23,42 +23,24 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include <errno.h>
-#include <inttypes.h>
+void err_init (char *p);
+void err_fini (void);
+void err_set_dest (char *dest);
+char *err_get_dest (void);
 
-#include "proc.h"
-#include "meminfo.h"
-
-#define PROC_MEMINFO   "meminfo"
-
-/* Return MemTotal and MemFree values (kilobytes) which can be used to
- * compute a percentage of memory in use.
- */
-int
-proc_meminfo (pctx_t ctx, uint64_t *ktotp, uint64_t *kfreep)
-{
-    uint64_t ktot, kfree;
-    int n, ret = -1;
-
-    n = proc_scanf (ctx, PROC_MEMINFO,
-                    " MemTotal: %"PRIu64" kB MemFree: %"PRIu64" kB",
-                    &ktot, &kfree);
-    if (n < 0)
-        goto error;
-    if (n != 2) {
-        errno = EIO; 
-        goto error;
-    }
-    ret = 0;
-    if (ktotp)
-        *ktotp = ktot;
-    if (kfreep)
-        *kfreep = kfree;
-error:
-    return ret;
-}
+void err_exit (const char *fmt, ...)
+        __attribute__ ((format (printf, 1, 2)));
+void err (const char *fmt, ...)
+        __attribute__ ((format (printf, 1, 2)));
+void errn_exit (int errnum, const char *fmt, ...)
+        __attribute__ ((format (printf, 2, 3)));
+void errn (int errnum, const char *fmt, ...)
+        __attribute__ ((format (printf, 2, 3)));
+void msg_exit (const char *fmt, ...)
+        __attribute__ ((format (printf, 1, 2)));
+void msg (const char *fmt, ...)
+        __attribute__ ((format (printf, 1, 2)));
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */
-

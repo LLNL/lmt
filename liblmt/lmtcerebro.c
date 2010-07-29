@@ -39,8 +39,10 @@
 
 #include "list.h"
 #include "util.h"
+#include "error.h"
 
 #include "lmtcerebro.h"
+#include "lmtconf.h"
 
 struct cmetric_struct {
     char *nodename;
@@ -105,7 +107,7 @@ lmt_cbr_get_name (cmetric_t c)
 }
 
 static int
-_get_metric_data (cerebro_t ch, char *name, List rl, char **errp)
+_get_metric_data (cerebro_t ch, char *name, List rl)
 {
     int retval; 
     cerebro_nodelist_t n = NULL;
@@ -116,18 +118,24 @@ _get_metric_data (cerebro_t ch, char *name, List rl, char **errp)
     char *nodename;
 
     if (!(n = cerebro_get_metric_data (ch, name))) {
-        *errp = cerebro_strerror (cerebro_errnum (ch));
+        if (lmt_conf_get_cbr_debug ())
+            msg ("error getting metric data for %s: %s",
+                 name, cerebro_strerror (cerebro_errnum (ch)));
         goto done;
     }
     if (!(nitr = cerebro_nodelist_iterator_create (n))) {
-        *errp = cerebro_strerror (cerebro_errnum (ch));
+        if (lmt_conf_get_cbr_debug ())
+            msg ("error creating nodelist iterator for %s metric data: %s",
+                 name, cerebro_strerror (cerebro_errnum (ch)));
         goto done;
     }
     while (!cerebro_nodelist_iterator_at_end (nitr)) {
         if (cerebro_nodelist_iterator_nodename (nitr, &nodename) < 0 ||
             cerebro_nodelist_iterator_metric_value (nitr,
                                        &time, &type, &size, &value) < 0) {
-            *errp = cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr));
+            if (lmt_conf_get_cbr_debug ())
+                msg ("error retrieving metric value for %s: %s", name,
+                   cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr)));
             goto done;
         }
         if (!(c = _create_cmetric (name, nodename, time, type, size, value)))
@@ -137,7 +145,9 @@ _get_metric_data (cerebro_t ch, char *name, List rl, char **errp)
             goto done;
         }
         if (cerebro_nodelist_iterator_next (nitr) < 0) {
-            *errp = cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr));
+            if (lmt_conf_get_cbr_debug ())
+                msg ("error iterating on metric %s: %s", name,
+                   cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr)));
             goto done;
         }
     }
@@ -149,7 +159,7 @@ done:
 }
 
 int
-lmt_cbr_get_metrics (char *names, List *rlp, char **errp)
+lmt_cbr_get_metrics (char *names, List *rlp)
 {
     int retval = -1;
     List rl = NULL;
@@ -167,7 +177,7 @@ lmt_cbr_get_metrics (char *names, List *rlp, char **errp)
     if (!(itr = list_iterator_create (nl)))
         goto done;
     while ((name = list_next (itr))) {
-        if (_get_metric_data (ch, name, rl, errp) < 0)
+        if (_get_metric_data (ch, name, rl) < 0)
             goto done;
     }
     *rlp = rl;

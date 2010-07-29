@@ -13,4 +13,5 @@ liblsd_la_SOURCES = \
 	hash.h \
 	thread.c \
 	thread.h \
-	error.c
+	error.c \
+	error.h

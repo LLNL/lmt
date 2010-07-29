@@ -33,6 +33,37 @@
 #include <stdlib.h>
 
 #include "list.h"
+#include "error.h"
+
+void *
+xmalloc (size_t size)
+{
+    void *obj = malloc (size);
+
+    if (!obj)
+        msg_exit ("out of memory");
+    return obj;
+}
+
+char *
+xstrdup (const char *s)
+{
+    char *cpy = strdup (s);
+
+    if (!cpy)
+        msg_exit ("out of memory");
+    return cpy;
+}
+
+char *
+xstrndup (const char *s, size_t n)
+{
+    char *cpy = strndup (s, n);
+
+    if (!cpy)
+        msg_exit ("out of memory");
+    return cpy;
+}
 
 /* Return a pointer just past n sep-delimited fields.
  * If there are fewer than that, return NULL.
@@ -65,7 +96,7 @@ strskipcpy (const char **sp, int n, char sep)
     int len = p ? (p - s) : 0;
 
     if (len > 0)
-        res = strndup (s, s[len - 1] == sep ? len - 1 : len);
+        res = xstrndup (s, s[len - 1] == sep ? len - 1 : len);
     if (res)
         *sp += len;
     return res;
@@ -76,13 +107,11 @@ strappendfield (char **s1p, const char *s2, char sep)
 {
     char *s1 = *s1p;
     int len = strlen(s1) + strlen(s2) + 2;
-    char *s = malloc (len);
+    char *s = xmalloc (len);
 
-    if (s) {
-        snprintf (s, len, "%s%c%s", s1, sep, s2);
-        free (s1);
-        *s1p = s;
-    }
+    snprintf (s, len, "%s%c%s", s1, sep, s2);
+    free (s1);
+    *s1p = s;
     return s;
 }
 
@@ -92,31 +121,17 @@ strappendfield (char **s1p, const char *s2, char sep)
 List
 list_tok (const char *s, char *sep)
 {
-    List l;
-    char *tok, *tokcpy, *cpy = NULL;
+    List l = list_create ((ListDelF)free);
+    char *cpy = xstrdup (s);
+    char *tok;
 
-    if (!(l = list_create ((ListDelF)free)))
-        goto done;
-    if (!(cpy = strdup (s)))
-        goto done;
     tok = strtok (cpy, sep);
     while (tok) {
-        if (!(tokcpy = strdup (tok)))
-            goto done;
-        if (!list_append (l, tokcpy)) {
-            free (tokcpy);
-            goto done;
-        }
+        list_append (l, xstrdup (tok));
         tok = strtok (NULL, sep);
     }
     free (cpy);
     return l;
-done:
-    if (l)
-        list_destroy (l);
-    if (cpy)
-        free (cpy);
-    return NULL;
 }
 
 /*

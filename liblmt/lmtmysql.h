@@ -25,29 +25,25 @@
 
 typedef struct lmt_db_struct *lmt_db_t;
 
-int lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp,
-                   const char **sqlerrp);
+int lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp);
 
-int lmt_db_create_all (int readonly, List *dblp, const char **sqlerrp);
+int lmt_db_create_all (int readonly, List *dblp);
 
 void lmt_db_destroy (lmt_db_t db);
 
 int lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                         uint64_t kbytes_free, uint64_t kbytes_used,
-                        uint64_t inodes_free, uint64_t inodes_used,
-                        const char **sqlerrp);
+                        uint64_t inodes_free, uint64_t inodes_used);
 int lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
-                        uint64_t samples, uint64_t sum, uint64_t sumsquares,
-                        const char **sqlerrp);
+                        uint64_t samples, uint64_t sum, uint64_t sumsquares);
 int lmt_db_insert_oss_data (lmt_db_t db, char *name,
-                        float pctcpu, float pctmem, const char **sqlerrp);
+                        float pctcpu, float pctmem);
 int lmt_db_insert_ost_data (lmt_db_t db, char *name,
                         uint64_t read_bytes, uint64_t write_bytes,
                         uint64_t kbytes_free, uint64_t kbytes_used,
-                        uint64_t inodes_free, uint64_t inodes_used,
-                        const char **sqlerrp);
+                        uint64_t inodes_free, uint64_t inodes_used);
 int lmt_db_insert_router_data (lmt_db_t db, char *name,
-                        uint64_t bytes, float pct_cpu, const char **sqlerrp);
+                        uint64_t bytes, float pct_cpu);
 
 /* accessors */
 

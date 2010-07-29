@@ -41,14 +41,16 @@
 
 #include "list.h"
 #include "hash.h"
+#include "error.h"
 
 #include "proc.h"
-#include "lmt.h"
 
 #include "ost.h"
 #include "mdt.h"
 #include "router.h"
 #include "lmtmysql.h"
+#include "lmtconf.h"
+#include "lmt.h"
 
 /**
  ** Manage a list of db handles.
@@ -60,7 +62,7 @@ static struct timeval last_connect = { .tv_usec = 0, .tv_sec = 0 };
 #define MIN_RECONNECT_SECS  15
 
 static int
-_init_db_ifneeded (const char **errp, int *retp)
+_init_db_ifneeded (int *retp)
 {
     int retval = -1;
     struct timeval now;
@@ -73,7 +75,8 @@ _init_db_ifneeded (const char **errp, int *retp)
             goto done;
         }
         last_connect = now;
-        if (lmt_db_create_all (0, &dbs, errp) < 0)
+        msg ("connecting to database");
+        if (lmt_db_create_all (0, &dbs) < 0)
             goto done;
     }
     retval = 0;
@@ -84,6 +87,7 @@ done:
 static void
 _trigger_db_reconnect (void)
 {
+    msg ("disconnecting from database");
     if (dbs) {
         list_destroy (dbs);
         dbs = NULL;
@@ -96,7 +100,7 @@ _trigger_db_reconnect (void)
 
 /* Helper for lmt_db_insert_ost_v2 () */
 static int
-_insert_ostinfo (char *s, const char **errp)
+_insert_ostinfo (char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -110,12 +114,9 @@ _insert_ostinfo (char *s, const char **errp)
     if (lmt_ost_decode_v2_ostinfo (s, &name, &read_bytes, &write_bytes,
                                     &kbytes_free, &kbytes_total,
                                     &inodes_free, &inodes_total) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing ost_v2 string";
         goto done;
     }
-    if (!(itr = list_iterator_create (dbs)))
-        goto done;
+    itr = list_iterator_create (dbs);
     while ((db = list_next (itr))) {
         if (lmt_db_lookup (db, "ost", name) < 0)
             continue; 
@@ -123,18 +124,21 @@ _insert_ostinfo (char *s, const char **errp)
          * failover, OST's bandwidth will be attributed to wrong OSS.
          */
         if (lmt_db_insert_ost_data (db, name, read_bytes, write_bytes,
-                                    kbytes_free, kbytes_total - kbytes_free,
-                                    inodes_free, inodes_total - inodes_free,
-                                    errp) < 0) {
+                               kbytes_free, kbytes_total - kbytes_free,
+                               inodes_free, inodes_total - inodes_free) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
         inserts++;
     }
-    if (inserts == 0) /* ost not found in any dbs (ESRCH) */
+    if (inserts == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("ost %s not found in any db", name);
         goto done;
+    }
     if (inserts > 1) {
-        *errp = "ost is present in more than one db";
+        if (lmt_conf_get_db_debug ())
+            msg ("ost %s is present in more than one db", name);
         goto done;
     }
 done:
@@ -146,7 +150,7 @@ done:
 }
 
 int
-lmt_db_insert_ost_v2 (char *s, const char **errp)
+lmt_db_insert_ost_v2 (char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -156,13 +160,10 @@ lmt_db_insert_ost_v2 (char *s, const char **errp)
     List ostinfo = NULL;
     int inserts = 0;
 
-    if (_init_db_ifneeded (errp, &retval) < 0)
+    if (_init_db_ifneeded (&retval) < 0)
         goto done;
-    if (lmt_ost_decode_v2 (s, &name, &pct_cpu, &pct_mem, &ostinfo) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing ost_v2 string";
+    if (lmt_ost_decode_v2 (s, &name, &pct_cpu, &pct_mem, &ostinfo) < 0)
         goto done;
-    }
 
     /* Insert the OSS_DATA.
      */
@@ -171,14 +172,17 @@ lmt_db_insert_ost_v2 (char *s, const char **errp)
     while ((db = list_next (itr))) {
         if (lmt_db_lookup (db, "oss", name) < 0)
             continue; 
-        if (lmt_db_insert_oss_data (db, name, pct_cpu, pct_mem, errp) < 0) {
+        if (lmt_db_insert_oss_data (db, name, pct_cpu, pct_mem) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
         inserts++;
     }
-    if (inserts == 0) /* oss not found in any DB's (ESRCH) */
+    if (inserts == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("ost %s not found in any db", name);
         goto done;
+    }
     list_iterator_destroy (itr);
 
     /* Insert the OST_DATA (for each OST on the OSS).
@@ -186,7 +190,7 @@ lmt_db_insert_ost_v2 (char *s, const char **errp)
     if (!(itr = list_iterator_create (ostinfo)))
         goto done;
     while ((ostr = list_next (itr))) {
-        if (_insert_ostinfo (ostr, errp) < 0)
+        if (_insert_ostinfo (ostr) < 0)
             goto done;
     }
     retval = 0;
@@ -202,7 +206,7 @@ done:
 
 /* helper for _insert_mds () */
 static int
-_insert_mds_ops (char *mdtname, char *s, const char **errp)
+_insert_mds_ops (char *mdtname, char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -211,11 +215,8 @@ _insert_mds_ops (char *mdtname, char *s, const char **errp)
     uint64_t samples, sum, sumsquares;
     int inserts = 0;
 
-    if (lmt_mdt_decode_v1_mdops (s, &opname, &samples, &sum, &sumsquares) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing mdt_v1 string (ops part)";
+    if (lmt_mdt_decode_v1_mdops (s, &opname, &samples, &sum, &sumsquares) < 0)
         goto done;
-    }
     if (!(itr = list_iterator_create (dbs)))
         goto done;
     while ((db = list_next (itr))) {
@@ -224,14 +225,17 @@ _insert_mds_ops (char *mdtname, char *s, const char **errp)
         if (lmt_db_lookup (db, "op", opname) < 0)
             continue; 
         if (lmt_db_insert_mds_ops_data (db, mdtname, opname,
-                                        samples, sum, sumsquares, errp) < 0) {
+                                        samples, sum, sumsquares) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
         inserts++;
     }
-    if (inserts == 0) /* mdt not found in any DB's (ESRCH) */
+    if (inserts == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("mdt %s not found in any db", mdtname);
         goto done;
+    }
     retval = 0;
 done:
     if (opname)
@@ -243,8 +247,7 @@ done:
 
 /* helper for lmt_db_insert_mdt_v1 () */
 static int
-_insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s,
-             const char **errp)
+_insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -256,11 +259,8 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s,
     int inserts = 0;
 
     if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free, &inodes_total,
-                                   &kbytes_free, &kbytes_total, &mdops) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing mdt_v1 string (mdt part)";
+                                   &kbytes_free, &kbytes_total, &mdops) < 0)
         goto done;
-    }
 
     /* Insert the MDS_DATA
      * FIXME: [schema] MDS/MDT should be handled like OSS/OST.
@@ -268,25 +268,27 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s,
      * mdtname to hash MDS_ID because we will get hits in >1 file system with
      * the mdsname.
      */
-    if (!(itr = list_iterator_create (dbs)))
-        goto done;
+    itr = list_iterator_create (dbs);
     while ((db = list_next (itr))) {
         if (lmt_db_lookup (db, "mdt", mdtname) < 0)
             continue; 
         /* FIXME: [schema] pct_mem is not used */
         if (lmt_db_insert_mds_data (db, mdtname, pct_cpu,
-                                    kbytes_free, kbytes_total - kbytes_free,
-                                    inodes_free, inodes_total - inodes_free,
-                                                            errp) < 0) {
+                                kbytes_free, kbytes_total - kbytes_free,
+                                inodes_free, inodes_total - inodes_free) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
         inserts++;
     }
-    if (inserts == 0) /* mdt not found in any DB's (ESRCH) */
+    if (inserts == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("mdt %s is not found in any db", mdtname);
         goto done;
+    }
     if (inserts > 1) {
-        *errp = "mdt is present in more than one db";
+        if (lmt_conf_get_db_debug ())
+            msg ("mdt %s is present in more than one db", mdtname);
         goto done;
     }
     list_iterator_destroy (itr);
@@ -296,7 +298,7 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s,
     if (!(itr = list_iterator_create (mdops)))
         goto done;
     while ((op = list_next (itr))) {
-        if (_insert_mds_ops (mdtname, op, errp) < 0)
+        if (_insert_mds_ops (mdtname, op) < 0)
             goto done;
     }
     retval = 0;
@@ -311,7 +313,7 @@ done:
 }
 
 int
-lmt_db_insert_mdt_v1 (char *s, const char **errp)
+lmt_db_insert_mdt_v1 (char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -319,17 +321,13 @@ lmt_db_insert_mdt_v1 (char *s, const char **errp)
     float pct_cpu, pct_mem;
     List mdtinfo = NULL;
 
-    if (_init_db_ifneeded (errp, &retval) < 0)
+    if (_init_db_ifneeded (&retval) < 0)
         goto done;
-    if (lmt_mdt_decode_v1 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing mdt_v1 string (mds part)";
+    if (lmt_mdt_decode_v1 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
         goto done;
-    }
-    if (!(itr = list_iterator_create (mdtinfo)))
-        goto done;
+    itr = list_iterator_create (mdtinfo);
     while ((mdt = list_next (itr))) {
-        if (_insert_mds (mdsname, pct_cpu, pct_mem, mdt, errp) < 0)
+        if (_insert_mds (mdsname, pct_cpu, pct_mem, mdt) < 0)
             goto done;
     }
     retval = 0;
@@ -344,7 +342,7 @@ done:
 }
 
 int
-lmt_db_insert_router_v1 (char *s, const char **errp)
+lmt_db_insert_router_v1 (char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -353,20 +351,21 @@ lmt_db_insert_router_v1 (char *s, const char **errp)
     float pct_cpu, pct_mem;
     uint64_t bytes;
 
-    if (_init_db_ifneeded (errp, &retval) < 0)
+    if (_init_db_ifneeded (&retval) < 0)
         goto done;
-    if (lmt_router_decode_v1 (s, &name, &pct_cpu, &pct_mem, &bytes) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing router_v1 string";
+    if (lmt_router_decode_v1 (s, &name, &pct_cpu, &pct_mem, &bytes) < 0)
         goto done;
-    }
     if (!(itr = list_iterator_create (dbs)))
         goto done;
     /* FIXME: [schema] pct_mem is not recorded */
     while ((db = list_next (itr))) {
-        if (lmt_db_lookup (db, "router", name) < 0)
-            goto done; /* router not present in all db's (ESRCH) */
-        if (lmt_db_insert_router_data (db, name, bytes, pct_cpu, errp) < 0) {
+        if (lmt_db_lookup (db, "router", name) < 0) {
+            if (lmt_conf_get_db_debug ())
+                msg ("router %s is not found in %s db",
+                     name, lmt_db_fsname (db));
+            goto done;
+        }
+        if (lmt_db_insert_router_data (db, name, bytes, pct_cpu) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
@@ -385,7 +384,7 @@ done:
  **/
 
 int
-lmt_db_insert_mds_v2 (char *s, const char **errp)
+lmt_db_insert_mds_v2 (char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -397,24 +396,20 @@ lmt_db_insert_mds_v2 (char *s, const char **errp)
     List mdops = NULL;
     int inserts = 0;
 
-    if (_init_db_ifneeded (errp, &retval) < 0)
+    if (_init_db_ifneeded (&retval) < 0)
         goto done;
     if (lmt_mds_decode_v2 (s, &mdsname, &mdtname, &pct_cpu, &pct_mem,
                            &inodes_free, &inodes_total,
-                           &kbytes_free, &kbytes_total, &mdops) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing mds_v2 string";
+                           &kbytes_free, &kbytes_total, &mdops) < 0)
         goto done;
-    }
     if (!(itr = list_iterator_create (dbs)))
         goto done;
     while ((db = list_next (itr))) {
         if (lmt_db_lookup (db, "mdt", mdtname) < 0)
             continue; 
         if (lmt_db_insert_mds_data (db, mdtname, pct_cpu,
-                                    kbytes_free, kbytes_total - kbytes_free,
-                                    inodes_free, inodes_total - inodes_free,
-                                                            errp) < 0) {
+                                kbytes_free, kbytes_total - kbytes_free,
+                                inodes_free, inodes_total - inodes_free) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
@@ -423,7 +418,8 @@ lmt_db_insert_mds_v2 (char *s, const char **errp)
     if (inserts == 0) /* mds not found in any DB's (ESRCH) */
         goto done;
     if (inserts > 1) {
-        *errp = "mdt is present in more than one db";
+        if (lmt_conf_get_db_debug ())
+            msg ("mdt %s is present in more than one db", mdtname);
         goto done;
     }
     list_iterator_destroy (itr);
@@ -431,7 +427,7 @@ lmt_db_insert_mds_v2 (char *s, const char **errp)
     if (!(itr = list_iterator_create (mdops)))
         goto done;
     while ((op = list_next (itr))) {
-        if (_insert_mds_ops (mdtname, op, errp) < 0)
+        if (_insert_mds_ops (mdtname, op) < 0)
             goto done;
     }
     retval = 0;
@@ -448,7 +444,7 @@ done:
 }
 
 int
-lmt_db_insert_oss_v1 (char *s, const char **errp)
+lmt_db_insert_oss_v1 (char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -457,26 +453,26 @@ lmt_db_insert_oss_v1 (char *s, const char **errp)
     float pct_cpu, pct_mem;
     int inserts = 0;
 
-    if (_init_db_ifneeded (errp, &retval) < 0)
+    if (_init_db_ifneeded (&retval) < 0)
         goto done;
-    if (lmt_oss_decode_v1 (s, &name, &pct_cpu, &pct_mem) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing oss_v1 string";
+    if (lmt_oss_decode_v1 (s, &name, &pct_cpu, &pct_mem) < 0)
         goto done;
-    }
     if (!(itr = list_iterator_create (dbs)))
         goto done;
     while ((db = list_next (itr))) {
         if (lmt_db_lookup (db, "oss", name) < 0)
             continue; 
-        if (lmt_db_insert_oss_data (db, name, pct_cpu, pct_mem, errp) < 0) {
+        if (lmt_db_insert_oss_data (db, name, pct_cpu, pct_mem) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
         inserts++;
     }
-    if (inserts == 0) /* oss not found in any DB's (ESRCH) */
+    if (inserts == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("oss %s is not found in any db", name);
         goto done;
+    }
     retval = 0;
 done:
     if (name)
@@ -487,7 +483,7 @@ done:
 }
 
 int
-lmt_db_insert_ost_v1 (char *s, const char **errp)
+lmt_db_insert_ost_v1 (char *s)
 {
     int retval = -1;
     ListIterator itr = NULL;
@@ -498,32 +494,31 @@ lmt_db_insert_ost_v1 (char *s, const char **errp)
     uint64_t inodes_free, inodes_total;
     int inserts = 0;
 
-    if (_init_db_ifneeded (errp, &retval) < 0)
+    if (_init_db_ifneeded (&retval) < 0)
         goto done;
 
     if (lmt_ost_decode_v1 (s, &ossname, &name, &read_bytes, &write_bytes,
                            &kbytes_free, &kbytes_total,
                            &inodes_free, &inodes_total) < 0) {
-        if (errno == EIO)
-            *errp = "error parsing ost_v1 string";
         goto done;
     }
-    if (!(itr = list_iterator_create (dbs)))
-        goto done;
+    itr = list_iterator_create (dbs);
     while ((db = list_next (itr))) {
         if (lmt_db_lookup (db, "ost", name) < 0)
             continue; 
         if (lmt_db_insert_ost_data (db, name, read_bytes, write_bytes,
-                                    kbytes_free, kbytes_total - kbytes_free,
-                                    inodes_free, inodes_total - inodes_free,
-                                    errp) < 0) {
+                                kbytes_free, kbytes_total - kbytes_free,
+                                inodes_free, inodes_total - inodes_free) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
         inserts++;
     }
-    if (inserts == 0) /* oss not found in any DB's (ESRCH) */
+    if (inserts == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("ost %s is not found in any db", name);
         goto done;
+    }
     retval = 0;
 done:
     if (name)

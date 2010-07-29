@@ -38,11 +38,13 @@
 
 #include "list.h"
 #include "hash.h"
+#include "error.h"
 
 #include "ost.h"
 #include "mdt.h"
 #include "router.h"
 #include "util.h"
+#include "lmtconf.h"
 
 const char *oss_v1_str =
     "1.0;tycho1;0.100000;98.810898";
@@ -92,12 +94,13 @@ void parse_current_short (void);
 void parse_current_long (void);
 void parse_legacy (void);
 
-static char *prog;
-
 int
 main (int argc, char *argv[])
 {
-    prog = basename (argv[0]);
+    err_init (argv[0]);
+    lmt_conf_init (1, NULL);
+
+    lmt_conf_set_proto_debug (1);
 
     parse_utils ();
     parse_legacy ();
@@ -310,40 +313,32 @@ parse_utils (void)
         const char *p;
 
         p = strskip(s[i], 0, ';');
-        printf ("strskip 0: %s\n", p == s[i] ? "OK" : "FAIL");
+        msg ("strskip 0: %s", p == s[i] ? "OK" : "FAIL");
         p = strskip(s[i], 1, ';');
-        printf ("strskip 1: %s\n", p == s[i]+4 ? "OK" : "FAIL");
+        msg ("strskip 1: %s", p == s[i]+4 ? "OK" : "FAIL");
         p = strskip(s[i], 2, ';');
-        printf ("strskip 2: %s\n", p == s[i]+8 ? "OK" : "FAIL");
+        msg ("strskip 2: %s", p == s[i]+8 ? "OK" : "FAIL");
         p = strskip(s[i], 3, ';');
-        printf ("strskip 3: %s\n", p == s[i]+strlen (s[i]) ? "OK" : "FAIL");
+        msg ("strskip 3: %s", p == s[i]+strlen (s[i]) ? "OK" : "FAIL");
         p = strskip(s[i], 4, ';');
-        printf ("strskip 4: %s\n", p ==  NULL ? "OK" : "FAIL");
+        msg ("strskip 4: %s", p ==  NULL ? "OK" : "FAIL");
     }
     for (i = 0; i < sizeof (s) / sizeof (s[0]); i++) {
         const char *q = s[i];
         char *p;
 
-        /* FIXME: distinguish out of memory from end of string */
         while ((p = strskipcpy (&q, 1, ';'))) {
-            printf ("strskipcpy 1: '%s'\n", p);
+            msg ("strskipcpy 1: '%s'", p);
             free (p);
         }
         if (strlen (q) > 0)
-            printf ("strskipcpy failed to consume entire string\n");
+            msg ("strskipcpy failed to consume entire string");
     }
     {
-        char *p = strdup ("fubar");
+        char *p = xstrdup ("fubar");
 
-        if (!p) {
-            fprintf (stderr, "out of memory\n");
-            exit (1);
-        }
-        if (!strappendfield (&p, "smurf", ';')) {
-            fprintf (stderr, "out of memory\n");
-            exit (1);
-        }
-        printf ("strappendfield: %s\n", p);
+        strappendfield (&p, "smurf", ';');
+        msg ("strappendfield: %s", p);
         free (p);
     }
     
@@ -353,20 +348,16 @@ void
 parse_current_short (void)
 {
     int n;
-    char *mdt_v1_str_short = strdup (mdt_v1_str);
-    char *ost_v2_str_short = strdup (ost_v2_str);
+    char *mdt_v1_str_short = xstrdup (mdt_v1_str);
+    char *ost_v2_str_short = xstrdup (ost_v2_str);
 
-    if (!mdt_v1_str_short || !ost_v2_str_short) {
-        fprintf (stderr, "%s: out of memory\n", prog);
-        exit (1);
-    }
     mdt_v1_str_short[strlen (mdt_v1_str_short) - 35] = '\0';
     n = _parse_mdt_v1 (mdt_v1_str_short);
-    printf ("mdt_v1(truncated): %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("mdt_v1(truncated): %s", n < 0 ? "FAIL" : "OK");
 
     ost_v2_str_short[strlen (ost_v2_str_short) - 35] = '\0';
     n = _parse_ost_v2 (ost_v2_str_short);
-    printf ("ost_v2(truncated): %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("ost_v2(truncated): %s", n < 0 ? "FAIL" : "OK");
 
     free (mdt_v1_str_short);
     free (ost_v2_str_short);
@@ -378,21 +369,17 @@ parse_current_long (void)
     int n;
     int mdtlen = strlen (mdt_v1_str) + 36;
     int ostlen = strlen (ost_v2_str) + 36;
-    char *mdt_v1_str_long = malloc (mdtlen);
-    char *ost_v2_str_long = malloc (ostlen);
+    char *mdt_v1_str_long = xmalloc (mdtlen);
+    char *ost_v2_str_long = xmalloc (ostlen);
 
-    if (!mdt_v1_str_long || !ost_v2_str_long) {
-        fprintf (stderr, "%s: out of memory\n", prog);
-        exit (1);
-    }
     snprintf (mdt_v1_str_long, mdtlen, "%ssdfdfsdlafwererefsdf", mdt_v1_str);
     n = _parse_mdt_v1 (mdt_v1_str_long);
-    printf ("mdt_v1(elongated): %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("mdt_v1(elongated): %s", n < 0 ? "FAIL" : "OK");
 
     /* we're too dumb to detect this case, oh well */
     snprintf (ost_v2_str_long, ostlen, "%ssdfdfsdlafwererefsdf", ost_v2_str);
     n = _parse_ost_v2 (ost_v2_str_long);
-    printf ("ost_v2(elongated): %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("ost_v2(elongated): %s", n < 0 ? "FAIL" : "OK");
 
     free (mdt_v1_str_long);
     free (ost_v2_str_long);
@@ -404,9 +391,9 @@ parse_current (void)
     int n;
 
     n = _parse_mdt_v1 (mdt_v1_str);
-    printf ("mdt_v1: %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("mdt_v1: %s", n < 0 ? "FAIL" : "OK");
     n = _parse_ost_v2 (ost_v2_str);
-    printf ("ost_v2: %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("ost_v2: %s", n < 0 ? "FAIL" : "OK");
 }
 
 void
@@ -415,16 +402,16 @@ parse_legacy (void)
     int n;
 
     n = _parse_oss_v1 (oss_v1_str);
-    printf ("oss_v1: %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("oss_v1: %s", n < 0 ? "FAIL" : "OK");
 
     n = _parse_router_v1 (router_v1_str);
-    printf ("router_v1: %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("router_v1: %s", n < 0 ? "FAIL" : "OK");
 
     n = _parse_ost_v1 (ost_v1_str);
-    printf ("ost_v1: %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("ost_v1: %s", n < 0 ? "FAIL" : "OK");
 
     n = _parse_mds_v2 (mds_v2_str);
-    printf ("mds_v2: %s\n", n < 0 ? strerror (errno) : "OK");
+    msg ("mds_v2: %s", n < 0 ? "FAIL" : "OK");
 }
 
 /*

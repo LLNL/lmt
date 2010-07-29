@@ -1,3 +1,10 @@
+tparse: lmt_mdt_v1: parse error: string not exhausted
+tparse: mdt_v1(truncated): FAIL
+tparse: lmt_ost_v2: parse error: string not exhausted
+tparse: ost_v2(truncated): FAIL
+tparse: lmt_mdt_v1: parse error: mdops
+tparse: mdt_v1(elongated): FAIL
+tparse: ost_v2(elongated): OK
 strskip 0: OK
 strskip 1: OK
 strskip 2: OK
@@ -21,7 +28,3 @@ ost_v1: OK
 mds_v2: OK
 mdt_v1: OK
 ost_v2: OK
-mdt_v1(truncated): Input/output error
-ost_v2(truncated): Input/output error
-mdt_v1(elongated): Input/output error
-ost_v2(elongated): OK

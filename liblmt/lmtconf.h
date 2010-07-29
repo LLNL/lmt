@@ -46,6 +46,12 @@ void  lmt_conf_set_db_port (int i);
 int   lmt_conf_get_db_debug (void);
 void  lmt_conf_set_db_debug (int i);
 
+int   lmt_conf_get_cbr_debug (void);
+void  lmt_conf_set_cbr_debug (int i);
+
+int   lmt_conf_get_proto_debug (void);
+void  lmt_conf_set_proto_debug (int i);
+
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */
