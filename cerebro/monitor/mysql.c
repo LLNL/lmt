@@ -57,7 +57,6 @@ _setup (void)
     lmt_log_set_dest ("cerebro");
     msg ("lmt_msyql: loading");
     lmt_conf_init (0, NULL);
-    msg ("lmt_msyql: parsed config file");
     return 0;
 }
 

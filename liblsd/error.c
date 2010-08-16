@@ -38,7 +38,7 @@
 #include <stdio.h>
 
 #ifdef HAVE_CEREBRO_H
-#include <cerebro.h>
+#include <cerebro/cerebro_error.h>
 #endif
 
 #include "error.h"

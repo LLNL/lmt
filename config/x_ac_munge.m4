@@ -19,7 +19,7 @@ AC_DEFUN([X_AC_MUNGE], [
     [enable_munge=$enableval], [enable_munge=yes])
   AM_CONDITIONAL([MUNGE], [test x$enable_munge == xyes])
   if test x$enable_munge == xyes; then
-    AC_CHECK_HEADER([munge.h])
+    AC_CHECK_HEADERS([munge.h])
     if test x$ac_cv_header_munge_h != xyes; then
       AC_MSG_ERROR([Please install munge or configure --disable-munge])
     fi

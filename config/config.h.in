@@ -27,6 +27,9 @@
 /* Define if using cerebro */
 #undef HAVE_CEREBRO
 
+/* Define to 1 if you have the <cerebro.h> header file. */
+#undef HAVE_CEREBRO_H
+
 /* Define to 1 if you have the `closedir' function. */
 #undef HAVE_CLOSEDIR
 

@@ -19,7 +19,7 @@ AC_DEFUN([X_AC_CEREBRO], [
     [enable_cerebro=$enableval], [enable_cerebro=yes])
   AM_CONDITIONAL([CEREBRO], [test x$enable_cerebro == xyes])
   if test x$enable_cerebro == xyes; then
-    AC_CHECK_HEADER([cerebro.h])
+    AC_CHECK_HEADERS([cerebro.h])
     if test x$ac_cv_header_cerebro_h != xyes; then
       AC_MSG_ERROR([Please install cerebro or configure --disable-cerebro])
     fi

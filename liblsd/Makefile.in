@@ -38,7 +38,8 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 subdir = liblsd
-DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
+DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_cerebro.m4 \
 	$(top_srcdir)/config/x_ac_check_cond_lib.m4 \
@@ -229,7 +230,8 @@ liblsd_la_SOURCES = \
 	hash.h \
 	thread.c \
 	thread.h \
-	error.c
+	error.c \
+	error.h
 
 all: all-am
 
