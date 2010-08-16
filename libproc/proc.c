@@ -154,7 +154,7 @@ proc_vscanf (pctx_t ctx, const char *path, const char *fmt, va_list ap)
     assert (path || ctx->pctx_fp);
     assert (!ctx->pctx_dp);
 
-    if (!path) {
+    if (path) {
         if (proc_open (ctx, path) < 0)
             return -1;
     }
@@ -193,7 +193,7 @@ proc_gets (pctx_t ctx, const char *path, char *buf, int len)
     assert (path || ctx->pctx_fp);
     assert (!ctx->pctx_dp);
 
-    if (!path) {
+    if (path) {
         if (proc_open (ctx, path) < 0)
             return -1;
     }
