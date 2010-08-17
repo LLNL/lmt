@@ -384,7 +384,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
     }
     if (mysql_stmt_execute (db->ins_mds_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s: %s",
+            msg ("error executing insert into %s mds_data: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
@@ -438,7 +438,7 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     }
     if (mysql_stmt_execute (db->ins_mds_ops_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s: %s",
+            msg ("error executing insert into %s mds_ops_data: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
@@ -482,7 +482,7 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
     }
     if (mysql_stmt_execute (db->ins_oss_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s: %s",
+            msg ("error executing insert into %s oss_data: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
@@ -533,7 +533,7 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
     }
     if (mysql_stmt_execute (db->ins_ost_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s: %s",
+            msg ("error executing insert into %s ost_data: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
@@ -578,7 +578,7 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
     }
     if (mysql_stmt_execute (db->ins_router_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s: %s",
+            msg ("error executing insert into %s router_data: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
