@@ -354,7 +354,8 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
     /* db permissions are checked when stmt is prepared, not now  */
     if (!db->ins_mds_data) {
         if (lmt_conf_get_db_debug ())
-            msg ("no permission to insert into %s", lmt_db_fsname (db));
+            msg ("no permission to insert into MDS_DATA of %s",
+                 lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
@@ -378,13 +379,13 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
    
     if (mysql_stmt_bind_param (db->ins_mds_data, param)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error binding parameters for insert into %s: %s",
+            msg ("error binding parameters for insert into %s MDS_DATA: %s",
                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
     if (mysql_stmt_execute (db->ins_mds_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s mds_data: %s",
+            msg ("error executing insert into %s MDS_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }

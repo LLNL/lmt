@@ -133,12 +133,12 @@ _insert_ostinfo (char *s)
     }
     if (inserts == 0) {
         if (lmt_conf_get_db_debug ())
-            msg ("ost %s not found in any db", name);
+            msg ("ost %s not found in OST_INFO of any db", name);
         goto done;
     }
     if (inserts > 1) {
         if (lmt_conf_get_db_debug ())
-            msg ("ost %s is present in more than one db", name);
+            msg ("ost %s is present in OST_INFO of >1 db", name);
         goto done;
     }
 done:
@@ -283,12 +283,12 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s)
     }
     if (inserts == 0) {
         if (lmt_conf_get_db_debug ())
-            msg ("mdt %s is not found in any db", mdtname);
+            msg ("mdt %s is not found in MDS_INFO of any db", mdtname);
         goto done;
     }
     if (inserts > 1) {
         if (lmt_conf_get_db_debug ())
-            msg ("mdt %s is present in more than one db", mdtname);
+            msg ("mdt %s is present in MDS_INFO of >1 db", mdtname);
         goto done;
     }
     list_iterator_destroy (itr);
@@ -361,7 +361,7 @@ lmt_db_insert_router_v1 (char *s)
     while ((db = list_next (itr))) {
         if (lmt_db_lookup (db, "router", name) < 0) {
             if (lmt_conf_get_db_debug ())
-                msg ("router %s is not found in %s db",
+                msg ("router %s is not found in ROUTER_INFO of %s db",
                      name, lmt_db_fsname (db));
             goto done;
         }
@@ -419,7 +419,7 @@ lmt_db_insert_mds_v2 (char *s)
         goto done;
     if (inserts > 1) {
         if (lmt_conf_get_db_debug ())
-            msg ("mdt %s is present in more than one db", mdtname);
+            msg ("mdt %s is present in MDS_INFO of >1 db", mdtname);
         goto done;
     }
     list_iterator_destroy (itr);
@@ -470,7 +470,7 @@ lmt_db_insert_oss_v1 (char *s)
     }
     if (inserts == 0) {
         if (lmt_conf_get_db_debug ())
-            msg ("oss %s is not found in any db", name);
+            msg ("oss %s is not found in OSS_INFO of any db", name);
         goto done;
     }
     retval = 0;
@@ -516,7 +516,7 @@ lmt_db_insert_ost_v1 (char *s)
     }
     if (inserts == 0) {
         if (lmt_conf_get_db_debug ())
-            msg ("ost %s is not found in any db", name);
+            msg ("ost %s is not found OST_INFO of any db", name);
         goto done;
     }
     retval = 0;
