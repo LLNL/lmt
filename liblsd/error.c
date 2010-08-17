@@ -231,7 +231,7 @@ _verr (int errnum, const char *fmt, va_list ap)
             break;
         case DEST_CEREBRO:
 #ifdef HAVE_CEREBRO_H
-            cerebro_err_output ("%s: %s", buf, errbuf);
+            cerebro_err_output ("%s: %s: %s", prog, buf, errbuf);
 #endif
             break;
     }
@@ -255,7 +255,7 @@ _vlog (const char *fmt, va_list ap)
             break;
         case DEST_CEREBRO:
 #ifdef HAVE_CEREBRO_H
-            cerebro_err_output ("%s", buf);
+            cerebro_err_output ("%s: %s", prog, buf);
 #endif
             break;
     }

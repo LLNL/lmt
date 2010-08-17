@@ -11,7 +11,7 @@ lmt_db_port = 0
 lmt_db_rouser = "lwatchclient"
 lmt_db_ropasswd = nil
 
-lmt_db_rwdbuser = "lwatchadmin"
+lmt_db_rwuser = "lwatchadmin"
 
 --
 -- Assign lmt_db_rwpasswd from contents of rwpasswd file,

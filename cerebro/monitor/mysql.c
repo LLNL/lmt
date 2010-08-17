@@ -55,7 +55,6 @@ _setup (void)
 {
     err_init (MONITOR_NAME);
     err_set_dest ("cerebro");
-    msg ("lmt_msyql: loading");
     lmt_conf_init (0, NULL);
     return 0;
 }
