@@ -354,7 +354,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
     /* db permissions are checked when stmt is prepared, not now  */
     if (!db->ins_mds_data) {
         if (lmt_conf_get_db_debug ())
-            msg ("no permission to insert into MDS_DATA of %s",
+            msg ("no permission to insert into %s MDS_DATA",
                  lmt_db_fsname (db));
         goto done;
     }
@@ -407,7 +407,8 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_mds_ops_data) {
         if (lmt_conf_get_db_debug ())
-            msg ("no permission to insert into %s", lmt_db_fsname (db));
+            msg ("no permission to insert into %s MDS_OPS_DATA",
+                 lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
@@ -417,7 +418,8 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     }
     if (_lookup_idhash (db, "op", opname, &op_id) < 0) {
         if (lmt_conf_get_db_debug ())
-            msg ("operation %s not found for %s", opname, lmt_db_fsname (db));
+            msg ("operation %s not found for %s MDS_OPS_DATA",
+                  opname, lmt_db_fsname (db));
         goto done;
     }
     //if (_update_timestamp (db) < 0)
@@ -433,13 +435,13 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
    
     if (mysql_stmt_bind_param (db->ins_mds_ops_data, param)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error binding parameters for insert into %s: %s",
+            msg ("error binding parameters for insert into %s MDS_OPS_DATA: %s",
                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
     if (mysql_stmt_execute (db->ins_mds_ops_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s mds_ops_data: %s",
+            msg ("error executing insert into %s MDS_OPS_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
@@ -459,7 +461,8 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_oss_data) {
         if (lmt_conf_get_db_debug ())
-            msg ("no permission to insert into %s", lmt_db_fsname (db));
+            msg ("no permission to insert into %s OSS_DATA",
+                 lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_oss_data) == 4);
@@ -477,13 +480,13 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
    
     if (mysql_stmt_bind_param (db->ins_oss_data, param)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error binding parameters for insert into %s: %s",
+            msg ("error binding parameters for insert into %s OSS_DATA: %s",
                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
     if (mysql_stmt_execute (db->ins_oss_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s oss_data: %s",
+            msg ("error executing insert into %s OSS_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
@@ -505,7 +508,8 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_ost_data) {
         if (lmt_conf_get_db_debug ())
-            msg ("no permission to insert into %s", lmt_db_fsname (db));
+            msg ("no permission to insert into %s OST_DATA",
+                 lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_ost_data) == 8);
@@ -528,13 +532,13 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
    
     if (mysql_stmt_bind_param (db->ins_ost_data, param)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error binding parameters for insert into %s: %s",
+            msg ("error binding parameters for insert into %s OST_DATA: %s",
                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
     if (mysql_stmt_execute (db->ins_ost_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s ost_data: %s",
+            msg ("error executing insert into %s OST_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
@@ -554,7 +558,8 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
     assert (db->magic == LMT_DBHANDLE_MAGIC);
     if (!db->ins_router_data) {
         if (lmt_conf_get_db_debug ())
-            msg ("no permission to insert into %s", lmt_db_fsname (db));
+            msg ("no permission to insert into %s ROUTER_DATA",
+                 lmt_db_fsname (db));
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_router_data) == 4);
@@ -573,13 +578,13 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
    
     if (mysql_stmt_bind_param (db->ins_router_data, param)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error binding parameters for insert into %s: %s",
+            msg ("error binding parameters for insert into %s ROUTER_DATA: %s",
                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
     if (mysql_stmt_execute (db->ins_router_data)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error executing insert into %s router_data: %s",
+            msg ("error executing insert into %s ROUTER_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
