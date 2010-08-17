@@ -53,8 +53,8 @@
 static int
 _setup (void)
 {
-    lmt_log_init (MONITOR_NAME);
-    lmt_log_set_dest ("cerebro");
+    err_init (MONITOR_NAME);
+    err_set_dest ("cerebro");
     msg ("lmt_msyql: loading");
     lmt_conf_init (0, NULL);
     return 0;
