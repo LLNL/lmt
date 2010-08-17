@@ -1,3 +1,5 @@
+AM_CFLAGS = @GCCWARN@
+
 AM_CPPFLAGS = \
 	-I$(top_builddir)/liblmt \
 	-I$(top_builddir)/libproc \

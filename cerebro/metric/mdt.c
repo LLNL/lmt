@@ -39,9 +39,11 @@
 #include <cerebro.h>
 #include <cerebro/cerebro_metric_module.h>
 
+#include "list.h"
 #include "proc.h"
 #include "lmt.h"
 #include "lmtconf.h"
+#include "util.h"
 
 #define METRIC_NAME         "lmt_mds"
 #define METRIC_FLAGS        (CEREBRO_METRIC_MODULE_FLAGS_SEND_ON_PERIOD)
@@ -55,7 +57,7 @@ _get_metric_value (unsigned int *metric_value_type,
     char *buf = xmalloc (CEREBRO_MAX_DATA_STRING_LEN);
     int retval = -1;
 
-    if (lmt_mds_string_v3 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0)
+    if (lmt_mdt_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0)
         goto done; 
     *metric_value_type = CEREBRO_DATA_VALUE_TYPE_STRING;
     *metric_value_len = strlen (buf) + 1;
