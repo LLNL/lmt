@@ -38,6 +38,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <mysql.h>
+#include <mysqld_error.h>
 
 #include "list.h"
 #include "hash.h"
@@ -384,6 +385,11 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
         goto done;
     }
     if (mysql_stmt_execute (db->ins_mds_data)) {
+        if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
+            /* expected failure if previous insert was delayed */
+            retval = 0;
+            goto done;
+        }
         if (lmt_conf_get_db_debug ())
             msg ("error executing insert into %s MDS_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
@@ -440,6 +446,11 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
         goto done;
     }
     if (mysql_stmt_execute (db->ins_mds_ops_data)) {
+        if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
+            /* expected failure if previous insert was delayed */
+            retval = 0;
+            goto done;
+        }
         if (lmt_conf_get_db_debug ())
             msg ("error executing insert into %s MDS_OPS_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
@@ -485,6 +496,11 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
         goto done;
     }
     if (mysql_stmt_execute (db->ins_oss_data)) {
+        if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
+            /* expected failure if previous insert was delayed */
+            retval = 0;
+            goto done;
+        }
         if (lmt_conf_get_db_debug ())
             msg ("error executing insert into %s OSS_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
@@ -537,6 +553,11 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
         goto done;
     }
     if (mysql_stmt_execute (db->ins_ost_data)) {
+        if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
+            /* expected failure if previous insert was delayed */
+            retval = 0;
+            goto done;
+        }
         if (lmt_conf_get_db_debug ())
             msg ("error executing insert into %s OST_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
@@ -583,6 +604,11 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
         goto done;
     }
     if (mysql_stmt_execute (db->ins_router_data)) {
+        if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
+            /* expected failure if previous insert was delayed */
+            retval = 0;
+            goto done;
+        }
         if (lmt_conf_get_db_debug ())
             msg ("error executing insert into %s ROUTER_DATA: %s",
                  lmt_db_fsname (db), mysql_error (db->conn));
