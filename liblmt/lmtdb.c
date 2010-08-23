@@ -111,66 +111,26 @@ _trigger_db_reconnect (void)
     }
 }
 
-/* Helper for _ost_to_db () and _mdt_to_db () */
-static lmt_db_t 
-_finddb (char *name, int len)
+/* Locate db for ost or mdt using assumption about naming:
+ * e.g. lc1-OST0000 corresponds to filesystem_lc1.
+ * or   lc2-MDT0000 corresponds to filesystem_lc2.
+ */
+static lmt_db_t
+_svc_to_db (char *name)
 {
     lmt_db_t db = NULL;
     ListIterator itr;
+    char *p = strchr (name, '-');
+    int len = p ? p - name : strlen (name);
 
     itr = list_iterator_create (dbs);
     while ((db = list_next (itr)))
         if (!strncmp (lmt_db_fsname (db), name, len))
             break;
     list_iterator_destroy (itr);
-
-    return db;
-}
-
-/* Locate db for ostname using assumption about naming:
- * e.g. lc1-OST0000 corresponds to filesystem_lc1.
- * Verify against OST_INFO hash for that database.
- */
-static lmt_db_t
-_ost_to_db (char *ostname)
-{
-    char *p = strchr (ostname, '-');
-    int fslen = p ? p - ostname : strlen (ostname);
-    lmt_db_t db = _finddb (ostname, fslen);
-
     if (!db) {
         if (lmt_conf_get_db_debug ())
-            msg ("%s: no database", ostname);
-        return NULL;
-    }
-    if (lmt_db_lookup (db, "ost", ostname) < 0) {
-        if (lmt_conf_get_db_debug ())
-            msg ("%s: no entry in %s OST_INFO", ostname, lmt_db_fsname (db));
-        return NULL;
-    }
-    return db;
-}
-
-/* Locate db for ostname using assumption about naming:
- * e.g. lc1-MDT0000 corresponds to filesystem_lc1.
- * Verify against MDS_INFO hash for that database.
- */
-static lmt_db_t
-_mdt_to_db (char *mdtname)
-{
-    char *p = strchr (mdtname, '-');
-    int fslen = p ? p - mdtname : strlen (mdtname);
-    lmt_db_t db = _finddb (mdtname, fslen);
-
-    if (!db) {
-        if (lmt_conf_get_db_debug ())
-            msg ("%s: no database", mdtname);
-        return NULL;
-    }
-    if (lmt_db_lookup (db, "mdt", mdtname) < 0) {
-        if (lmt_conf_get_db_debug ())
-            msg ("%s: no entry in %s MDS_INFO", mdtname, lmt_db_fsname (db));
-        return NULL;
+            msg ("%s: no database", name);
     }
     return db;
 }
@@ -178,7 +138,6 @@ _mdt_to_db (char *mdtname)
 /**
  ** Handlers for incoming strings.
  **/
-
 
 /* Helper for lmt_db_insert_ost_v2 () */
 static void
@@ -195,7 +154,7 @@ _insert_ostinfo (char *ossname, float pct_cpu, float pct_mem, char *s)
                                    &inodes_free, &inodes_total) < 0) {
         goto done;
     }
-    if (!(db = _ost_to_db (ostname)))
+    if (!(db = _svc_to_db (ostname)))
         goto done;
     if (lmt_db_insert_ost_data (db, ostname, read_bytes, write_bytes,
                                 kbytes_free, kbytes_total - kbytes_free,
@@ -203,12 +162,7 @@ _insert_ostinfo (char *ossname, float pct_cpu, float pct_mem, char *s)
         _trigger_db_reconnect ();
         goto done;
     }
-    if (lmt_db_lookup (db, "oss", ossname) < 0) {
-        if (lmt_conf_get_db_debug ())
-            msg ("%s: no entry in %s OSS_INFO", ossname, lmt_db_fsname (db));
-        goto done;
-    }
-    if (lmt_db_insert_oss_data (db, ossname, pct_cpu, pct_mem) < 0) {
+    if (lmt_db_insert_oss_data (db, 0, ossname, pct_cpu, pct_mem) < 0) {
         _trigger_db_reconnect ();
         goto done;
     }
@@ -250,8 +204,6 @@ _insert_mds_ops (lmt_db_t db, char *mdtname, char *s)
 
     if (lmt_mdt_decode_v1_mdops (s, &opname, &samples, &sum, &sumsquares) < 0)
         goto done;
-    if (lmt_db_lookup (db, "op", opname) < 0)
-        goto done;
     if (lmt_db_insert_mds_ops_data (db, mdtname, opname,
                                     samples, sum, sumsquares) < 0) {
         _trigger_db_reconnect ();
@@ -276,7 +228,7 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s)
     if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free, &inodes_total,
                                    &kbytes_free, &kbytes_total, &mdops) < 0)
         goto done;
-    if (!(db = _mdt_to_db (mdtname)))
+    if (!(db = _svc_to_db (mdtname)))
         goto done;
     if (lmt_db_insert_mds_data (db, mdtname, pct_cpu,
                                 kbytes_free, kbytes_total - kbytes_free,
@@ -335,16 +287,8 @@ lmt_db_insert_router_v1 (char *s)
         goto done;
     itr = list_iterator_create (dbs);
     while ((db = list_next (itr))) {
-        if (lmt_db_lookup (db, "router", rtrname) < 0) {
-            if (lmt_conf_get_db_debug ())
-                msg ("router %s is not found in ROUTER_INFO of %s db",
-                     rtrname, lmt_db_fsname (db));
-            continue;
-        }
-        if (lmt_db_insert_router_data (db, rtrname, bytes, pct_cpu) < 0) {
+        if (lmt_db_insert_router_data (db, rtrname, bytes, pct_cpu) < 0)
             _trigger_db_reconnect ();
-            continue;
-        }
     }
     list_iterator_destroy (itr);        
 done:
@@ -374,7 +318,7 @@ lmt_db_insert_mds_v2 (char *s)
                            &inodes_free, &inodes_total,
                            &kbytes_free, &kbytes_total, &mdops) < 0)
         goto done;
-    if (!(db = _mdt_to_db (mdtname)))
+    if (!(db = _svc_to_db (mdtname)))
         goto done;
     if (lmt_db_insert_mds_data (db, mdtname, pct_cpu,
                                 kbytes_free, kbytes_total - kbytes_free,
@@ -403,6 +347,7 @@ lmt_db_insert_oss_v1 (char *s)
     lmt_db_t db;
     char *ossname = NULL;
     float pct_cpu, pct_mem;
+    int firstfail;
     int inserts = 0;
 
     if (_init_db_ifneeded () < 0)
@@ -411,16 +356,16 @@ lmt_db_insert_oss_v1 (char *s)
         goto done;
     itr = list_iterator_create (dbs);
     while ((db = list_next (itr))) {
-        if (lmt_db_lookup (db, "oss", ossname) < 0)
+        if (lmt_db_lookup (db, "oss", ossname, &firstfail) < 0) /* peek */
             continue; 
-        if (lmt_db_insert_oss_data (db, ossname, pct_cpu, pct_mem) < 0) {
+        if (lmt_db_insert_oss_data (db, 1, ossname, pct_cpu, pct_mem) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
         inserts++;
     }
     if (inserts == 0) {
-        if (lmt_conf_get_db_debug ())
+        if (lmt_conf_get_db_debug () && firstfail)
             msg ("%s: no entry in any OSS_INFO", ossname);
         goto done;
     }
@@ -448,7 +393,7 @@ lmt_db_insert_ost_v1 (char *s)
                            &inodes_free, &inodes_total) < 0) {
         goto done;
     }
-    if (!(db = _ost_to_db (ostname)))
+    if (!(db = _svc_to_db (ostname)))
         goto done;
     if (lmt_db_insert_ost_data (db, ostname, read_bytes, write_bytes,
                                 kbytes_free, kbytes_total - kbytes_free,

@@ -220,61 +220,46 @@ done:
 }
 
 static int
-_lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
-{
-    int keysize = strlen (svctype) + strlen (name) + 2;
-    char *key = xmalloc (keysize);
-    int retval = -1;
-    svcid_t *s;
-
-    snprintf (key, keysize, "%s_%s", svctype, name);
-    if (!(s = hash_find (db->idhash, key)))
-        goto done;
-    retval = 0;
-    if (idp)
-        *idp = s->id;
-done:
-    free (key);
-    return retval;
-}
-
-static int
-_lookup_idhash_neg (lmt_db_t db, char *svctype, char *name)
+_lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp,
+                int *firstfailp)
 {
     int keysize = strlen (svctype) + strlen (name) + 3;
     char *key = xmalloc (keysize);
     int retval = -1;
     svcid_t *s;
 
-    snprintf (key, keysize, "!%s_%s", svctype, name);
+    snprintf (key, keysize, "%s_%s", svctype, name);
     if ((s = hash_find (db->idhash, key))) {
         retval = 0;
+        if (idp)
+            *idp = s->id;
         free (key);
+    /* insert a 'negative hash entry' on first lookup failure */
     } else {
-        s = xmalloc (sizeof (svcid_t));
-        memset (s, 0, sizeof (svcid_t));
-        s->key = key;
-        s->id = 0;
-        (void)hash_insert (db->idhash, s->key, s);
+        snprintf (key, keysize, "!%s_%s", svctype, name);
+        if ((s = hash_find (db->idhash, key))) {
+            free (key);
+            if (firstfailp)
+                *firstfailp = 0;
+        } else {
+            s = xmalloc (sizeof (svcid_t));
+            memset (s, 0, sizeof (svcid_t));
+            s->key = key;
+            s->id = 0;
+            (void)hash_insert (db->idhash, s->key, s);
+            if (firstfailp)
+                *firstfailp = 1;
+        } 
     }
-
     return retval;
 }
 
 int
-lmt_db_lookup (lmt_db_t db, char *svctype, char *name)
+lmt_db_lookup (lmt_db_t db, char *svctype, char *name, int *firstfailp)
 {
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
-    return _lookup_idhash (db, svctype, name, NULL);
-}
-
-int
-lmt_db_lookup_neg (lmt_db_t db, char *svctype, char *name)
-{
-    assert (db->magic == LMT_DBHANDLE_MAGIC);
-        
-    return _lookup_idhash_neg (db, svctype, name);
+    return _lookup_idhash (db, svctype, name, NULL, firstfailp);
 }
 
 /* private arg structure for _mapfun () */
@@ -318,6 +303,7 @@ lmt_db_server_map (lmt_db_t db, char *svctype, lmt_db_map_f mf, void *arg)
 
 /**
  ** Database insert functions
+ ** -1 return will cause disconnect/reconnect.
  **/
 
 static void
@@ -357,10 +343,18 @@ _update_timestamp (lmt_db_t db)
     memset (param, 0, sizeof (param));
     _param_init_int (&param[0], MYSQL_TYPE_LONGLONG, &timestamp);
 
-    if (mysql_stmt_bind_param (db->ins_timestamp_info, param))
+    if (mysql_stmt_bind_param (db->ins_timestamp_info, param)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error binding params for insert into %s TIMESTAMP_INFO: %s",
+                lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
-    if (mysql_stmt_execute (db->ins_timestamp_info))
+    }
+    if (mysql_stmt_execute (db->ins_timestamp_info)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error executing insert into %s TIMESTAMP_INFO: %s",
+                 lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
+    }
     db->timestamp = timestamp;
     db->timestamp_id = (uint64_t)mysql_insert_id (db->conn);
     retval = 0;
@@ -375,6 +369,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
 {
     MYSQL_BIND param[7];
     uint64_t mds_id;
+    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -387,8 +382,10 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
-    if (_lookup_idhash(db, "mdt", mdtname, &mds_id) < 0) {
-        /* potentially an expected failure - see lmtdb.c */
+    if (_lookup_idhash(db, "mdt", mdtname, &mds_id, &firstlog) < 0) {
+        if (lmt_conf_get_db_debug () && firstlog)
+            msg ("%s: no entry in %s MDS_INFO", mdtname, lmt_db_fsname (db));
+        retval = 0; /* avoid reconnect */
         goto done;
     }
     if (_update_timestamp (db) < 0)
@@ -413,8 +410,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
     }
     if (mysql_stmt_execute (db->ins_mds_data)) {
         if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
-            /* expected failure if previous insert was delayed */
-            retval = 0;
+            retval = 0; /* expected failure if previous insert was delayed */
             goto done;
         }
         if (lmt_conf_get_db_debug ())
@@ -422,8 +418,6 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                  lmt_db_fsname (db), mysql_error (db->conn));
         goto done;
     }
-    //if (mysql_stmt_affected_rows (db->mds_data) != 1)
-    //    goto done;
     retval = 0;
 done:
     return retval;
@@ -435,6 +429,7 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
 {
     MYSQL_BIND param[6];
     uint64_t mds_id, op_id;
+    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -445,14 +440,17 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
-    if (_lookup_idhash (db, "mdt", mdtname, &mds_id) < 0) {
-        /* potentially an expected failure - see lmtdb.c */
+    if (_lookup_idhash (db, "mdt", mdtname, &mds_id, &firstlog) < 0) {
+        if (lmt_conf_get_db_debug () && firstlog)
+            msg ("%s: no entry in %s MDT_INFO", opname, lmt_db_fsname (db));
+        retval = 0; /* avoid a reconnect */
         goto done;
     }
-    if (_lookup_idhash (db, "op", opname, &op_id) < 0) {
-        if (lmt_conf_get_db_debug ())
-            msg ("operation %s not found for %s MDS_OPS_DATA",
-                  opname, lmt_db_fsname (db));
+    if (_lookup_idhash (db, "op", opname, &op_id, &firstlog) < 0) {
+        if (lmt_conf_get_db_debug () && firstlog)
+            msg ("%s: no entry in %s OPERATION_INFO", opname,
+                 lmt_db_fsname (db));
+        retval = 0; /* avoid a reconnect */
         goto done;
     }
     //if (_update_timestamp (db) < 0)
@@ -489,11 +487,12 @@ done:
 }
 
 int
-lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
-                        float pct_memory)
+lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
+                        float pct_cpu, float pct_memory)
 {
     MYSQL_BIND param[4];
     uint64_t oss_id;
+    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -504,9 +503,12 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_oss_data) == 4);
-    if (_lookup_idhash (db, "oss", name, &oss_id) < 0)
-        /* potentially an expected failure - see lmtdb.c */
+    if (_lookup_idhash (db, "oss", ossname, &oss_id, &firstlog) < 0) {
+        if (lmt_conf_get_db_debug () && firstlog && !quiet_noexist)
+            msg ("%s: no entry in %s OSS_INFO", ossname, lmt_db_fsname (db));
+        retval = 0; /* avoid a reconnect */
         goto done;
+    }
     if (_update_timestamp (db) < 0)
         goto done;
 
@@ -524,8 +526,7 @@ lmt_db_insert_oss_data (lmt_db_t db, char *name, float pct_cpu,
     }
     if (mysql_stmt_execute (db->ins_oss_data)) {
         if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
-            /* expected failure if previous insert was delayed */
-            retval = 0;
+            retval = 0; /* expected failure if previous insert was delayed */
             goto done;
         }
         if (lmt_conf_get_db_debug ())
@@ -539,13 +540,14 @@ done:
 }
 
 int
-lmt_db_insert_ost_data (lmt_db_t db, char *name,
+lmt_db_insert_ost_data (lmt_db_t db, char *ostname,
                         uint64_t read_bytes, uint64_t write_bytes,
                         uint64_t kbytes_free, uint64_t kbytes_used,
                         uint64_t inodes_free, uint64_t inodes_used)
 {
     MYSQL_BIND param[8];
     uint64_t ost_id;
+    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -556,8 +558,10 @@ lmt_db_insert_ost_data (lmt_db_t db, char *name,
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_ost_data) == 8);
-    if (_lookup_idhash (db, "ost", name, &ost_id) < 0) {
-        /* potentially an expected failure - see lmtdb.c */
+    if (_lookup_idhash (db, "ost", ostname, &ost_id, &firstlog) < 0) {
+        if (lmt_conf_get_db_debug () && firstlog)
+            msg ("%s: no entry in %s OST_INFO", ostname, lmt_db_fsname (db));
+        retval = 0; /* avoid a reconnect */
         goto done;
     }
     if (_update_timestamp (db) < 0)
@@ -596,11 +600,12 @@ done:
 }
 
 int
-lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
+lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
                            float pct_cpu)
 {
     MYSQL_BIND param[4];
     uint64_t router_id;
+    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -611,8 +616,10 @@ lmt_db_insert_router_data (lmt_db_t db, char *name, uint64_t bytes,
         goto done;
     }
     assert (mysql_stmt_param_count (db->ins_router_data) == 4);
-    if (_lookup_idhash (db, "router", name, &router_id) < 0) {
-        /* potentially an expected failure - see lmtdb.c */
+    if (_lookup_idhash (db, "router", rtrname, &router_id, &firstlog) < 0) {
+        if (lmt_conf_get_db_debug () && firstlog)
+            msg ("%s: no entry in %s ROUTER_INFO", rtrname, lmt_db_fsname (db));
+        retval = 0; /* avoid a reconnect */
         goto done;
     }
     if (_update_timestamp (db) < 0)
