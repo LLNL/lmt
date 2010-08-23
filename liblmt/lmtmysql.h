@@ -51,6 +51,8 @@ char *lmt_db_fsname (lmt_db_t db);
 
 int lmt_db_lookup (lmt_db_t db, char *svctype, char *name);
 
+int lmt_db_lookup_neg (lmt_db_t db, char *svctype, char *name);
+
 typedef int (*lmt_db_map_f) (const char *key, void *arg);
 
 int lmt_db_server_map (lmt_db_t db, char *svctype, lmt_db_map_f mf, void *arg);

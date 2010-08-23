@@ -61,7 +61,7 @@ typedef struct {
  * and relevance to monitoring goals.  Preserve this list for legacy support.
  */
 static const char *optab[] = {
-    "open",
+    "open",                     // 0
     "close",
     "mknod",
     "link",
@@ -70,7 +70,7 @@ static const char *optab[] = {
     "rmdir",
     "rename",
     "getxattr",
-    "setxattr",
+    "setxattr",                 // 10
     "iocontrol",
     "get_info",
     "set_info_async",
@@ -80,7 +80,7 @@ static const char *optab[] = {
     "precleanup",
     "cleanup",
     "process_config",
-    "postrecov",
+    "postrecov",                // 20
     "add_conn",
     "del_conn",
     "connect",
@@ -90,7 +90,7 @@ static const char *optab[] = {
     "statfs_async",
     "packmd",
     "unpackmd",
-    "checkmd",
+    "checkmd",                  // 30
     "preallocate",
     "precreate",
     "create",
@@ -100,7 +100,7 @@ static const char *optab[] = {
     "getattr",
 	"getattr_async",
 	"brw",
-	"brw_async",
+	"brw_async",                // 40
 	"prep_async_page",
 	"reget_short_lock",
 	"release_short_lock",
@@ -110,7 +110,7 @@ static const char *optab[] = {
 	"set_async_flags",
 	"teardown_async_page",
 	"merge_lvb",
-	"adjust_kms",
+	"adjust_kms",               // 50
 	"punch",
 	"sync",
 	"migrate",
@@ -120,7 +120,7 @@ static const char *optab[] = {
 	"commitrw",
     "enqueue",
 	"match",
-	"change_cbdata",
+	"change_cbdata",            // 60
 	"cancel",
 	"cancel_unused",
 	"join_lru",
@@ -130,7 +130,7 @@ static const char *optab[] = {
 	"llog_init",
 	"llog_finish",
 	"pin",
-	"unpin",
+	"unpin",                    // 70
 	"import_event",
 	"notify",
 	"health_check",
@@ -140,7 +140,7 @@ static const char *optab[] = {
 	"ping",
 	"register_page_removal_cb",
 	"unregister_page_removal_cb",
-	"register_lock_cancel_cb",
+	"register_lock_cancel_cb",  // 80
 	"unregister_lock_cancel_cb",
 };
 const int optablen = sizeof (optab) / sizeof(optab[0]);
@@ -441,23 +441,23 @@ done:
  ** Legacy
  **/
 
-int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **namep,
+int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **mdtnamep,
                        float *pct_cpup, float *pct_memp,
                        uint64_t *inodes_freep, uint64_t *inodes_totalp,
                        uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                        List *mdopsp)
 {
-    int i = 0, retval = -1;
-    char *name = xmalloc (strlen(s) + 1);
-    char *cpy = NULL;
     char *mdsname = xmalloc (strlen(s) + 1);
-    float pct_mem, pct_cpu;
+    char *mdtname = xmalloc (strlen(s) + 1);
     List mdops = list_create ((ListDelF)free);
+    int i = 0, retval = -1;
+    char *cpy = NULL;
+    float pct_mem, pct_cpu;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
 
     if (sscanf (s, "%*f;%[^;];%[^;];%f;%f;%"
-                PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";", mdsname, name,
+                PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";", mdsname, mdtname,
                 &pct_cpu, &pct_mem, &inodes_free, &inodes_total,
                 &kbytes_free, &kbytes_total) != 8) {
         if (lmt_conf_get_proto_debug ())
@@ -487,7 +487,7 @@ int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **namep,
         goto done;
     }
     *mdsnamep = mdsname;
-    *namep = name;
+    *mdtnamep = mdtname;
     *pct_cpup = pct_cpu;
     *pct_memp = pct_mem;
     *inodes_freep = inodes_free;
@@ -499,7 +499,7 @@ int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **namep,
 done:
     if (retval < 0) {
         free (mdsname);
-        free (name);
+        free (mdtname);
         list_destroy (mdops);
     }
     return retval;

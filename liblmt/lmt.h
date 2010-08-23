@@ -26,12 +26,12 @@
 #define LMT_UPDATE_INTERVAL     5   /* in seconds */
 
 /* lmtdb.c */
-int lmt_db_insert_ost_v2 (char *s);
-int lmt_db_insert_mdt_v1 (char *s);
-int lmt_db_insert_router_v1 (char *s);
-int lmt_db_insert_mds_v2 (char *s); // legacy
-int lmt_db_insert_oss_v1 (char *s); // legacy
-int lmt_db_insert_ost_v1 (char *s); // legacy
+void lmt_db_insert_ost_v2 (char *s);
+void lmt_db_insert_mdt_v1 (char *s);
+void lmt_db_insert_router_v1 (char *s);
+void lmt_db_insert_mds_v2 (char *s); // legacy
+void lmt_db_insert_oss_v1 (char *s); // legacy
+void lmt_db_insert_ost_v1 (char *s); // legacy
 
 /* ost.c */
 int lmt_ost_string_v2 (pctx_t ctx, char *s, int len);

@@ -189,16 +189,16 @@ done:
 }
 
 int
-lmt_ost_decode_v2 (const char *s, char **namep, float *pct_cpup,
+lmt_ost_decode_v2 (const char *s, char **ossnamep, float *pct_cpup,
                    float *pct_memp, List *ostinfop)
 {
     int retval = -1;
-    char *name =  xmalloc (strlen(s) + 1);
+    char *ossname =  xmalloc (strlen(s) + 1);
     char *cpy = NULL;
     float pct_mem, pct_cpu;
     List ostinfo = list_create ((ListDelF)free);
 
-    if (sscanf (s, "%*f;%[^;];%f;%f;", name, &pct_cpu, &pct_mem) != 3) {
+    if (sscanf (s, "%*f;%[^;];%f;%f;", ossname, &pct_cpu, &pct_mem) != 3) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_ost_v2: parse error: oss component");
         goto done;
@@ -215,40 +215,40 @@ lmt_ost_decode_v2 (const char *s, char **namep, float *pct_cpup,
             msg ("lmt_ost_v2: parse error: string not exhausted");
         goto done;
     }
-    *namep = name;
+    *ossnamep = ossname;
     *pct_cpup = pct_cpu;
     *pct_memp = pct_mem;
     *ostinfop = ostinfo;
     retval = 0;
 done:
     if (retval < 0) {
-        free (name);
+        free (ossname);
         list_destroy (ostinfo);
     }
     return retval;
 }
 
 int
-lmt_ost_decode_v2_ostinfo (const char *s, char **namep,
+lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
                            uint64_t *read_bytesp, uint64_t *write_bytesp,
                            uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                            uint64_t *inodes_freep, uint64_t *inodes_totalp)
 {
     int retval = -1;
-    char *name = xmalloc (strlen (s) + 1);;
+    char *ostname = xmalloc (strlen (s) + 1);;
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
 
     if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                ";%"PRIu64, name, &inodes_free,
+                ";%"PRIu64, ostname, &inodes_free,
                 &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
                 &write_bytes) != 7) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_ost_v2: parse error: ostinfo");
         goto done;
     }
-    *namep = name;
+    *ostnamep = ostname;
     *read_bytesp = read_bytes;
     *write_bytesp = write_bytes;
     *kbytes_freep = kbytes_free;
@@ -258,7 +258,7 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **namep,
     retval = 0;
 done:
     if (retval < 0)
-        free (name);
+        free (ostname);
     return retval;
 }
 
@@ -267,25 +267,25 @@ done:
  **/
 
 int
-lmt_oss_decode_v1 (const char *s, char **namep, float *pct_cpup,
+lmt_oss_decode_v1 (const char *s, char **ossnamep, float *pct_cpup,
                    float *pct_memp)
 {
     int retval = -1;
-    char *name = xmalloc (strlen(s) + 1);
+    char *ossname = xmalloc (strlen(s) + 1);
     float pct_mem, pct_cpu;
 
-    if (sscanf (s, "%*f;%[^;];%f;%f", name, &pct_cpu, &pct_mem) != 3) {
+    if (sscanf (s, "%*f;%[^;];%f;%f", ossname, &pct_cpu, &pct_mem) != 3) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_oss_v1: parse error");
         goto done;
     }
-    *namep = name;
+    *ossnamep = ossname;
     *pct_cpup = pct_cpu;
     *pct_memp = pct_mem;
     retval = 0;
 done:
     if (retval < 0)
-        free (name);
+        free (ossname);
     return retval;
 }
 
@@ -293,22 +293,22 @@ done:
  * cerebro monitor module, since it gets a callback every time a metric
  * arrives, but it doesn't work when iterating over the cerebro server's
  * stored metric values since the values are stored by hostname and therefore
- * overwrite each other.  That was the major reason for having a single
- * lmt_oss metric that embeds multiple ost values.
+ * overwrite each other.  That was the major reason in lmt-3.0 for introducing
+ * lmt_oss_v2, a single oss+ost metric that embeds multiple ost values.
  *
  * Therefore, a caveat of continuing to support ost_v1 is that new tools
  * that iterate over the cerebro server metric values, as opposed to mysql
- * stored values, don't get all the data.
+ * stored values, don't see all the OST data.
  */
 
 int
-lmt_ost_decode_v1 (const char *s, char **ossnamep, char **namep,
+lmt_ost_decode_v1 (const char *s, char **ossnamep, char **ostnamep,
                    uint64_t *read_bytesp, uint64_t *write_bytesp,
                    uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                    uint64_t *inodes_freep, uint64_t *inodes_totalp)
 {
     int retval = -1;
-    char *name = xmalloc (strlen (s) + 1);
+    char *ostname = xmalloc (strlen (s) + 1);
     char *ossname = xmalloc (strlen (s) + 1);
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
@@ -316,14 +316,14 @@ lmt_ost_decode_v1 (const char *s, char **ossnamep, char **namep,
 
     if (sscanf (s, "%*f;%[^;];%[^;];%"PRIu64";%"PRIu64";%"PRIu64
                 ";%"PRIu64";%"PRIu64";%"PRIu64,
-                ossname, name, &inodes_free, &inodes_total,
+                ossname, ostname, &inodes_free, &inodes_total,
                 &kbytes_free, &kbytes_total, &read_bytes, &write_bytes) != 8) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_ost_v1: parse error");
         goto done;
     }
     *ossnamep = ossname;
-    *namep = name;
+    *ostnamep = ostname;
     *read_bytesp = read_bytes;
     *write_bytesp = write_bytes;
     *kbytes_freep = kbytes_free;
@@ -334,7 +334,7 @@ lmt_ost_decode_v1 (const char *s, char **ossnamep, char **namep,
     retval = 0;
 done:
     if (retval < 0) {
-        free (name);
+        free (ostname);
         free (ossname);
     }
     return retval;

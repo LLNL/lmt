@@ -174,8 +174,7 @@ lmt_cbr_get_metrics (char *names, List *rlp)
         goto done;
     if (!(rl = list_create ((ListDelF)_destroy_cmetric))) 
         goto done;
-    if (!(itr = list_iterator_create (nl)))
-        goto done;
+    itr = list_iterator_create (nl);
     while ((name = list_next (itr))) {
         if (_get_metric_data (ch, name, rl) < 0)
             goto done;

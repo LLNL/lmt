@@ -86,7 +86,6 @@ _metric_update (const char *nodename,
 {
     char *s = metric_value;
     float vers;
-    int result = 0;
 
     if (metric_value_type != CEREBRO_DATA_VALUE_TYPE_STRING) {
         msg ("%s: %s: incorrect metric_type: %d", nodename, metric_name,
@@ -99,19 +98,18 @@ _metric_update (const char *nodename,
     }
     /* current metrics */
     if (!strcmp (metric_name, "lmt_ost") && vers == 2) {
-        result = lmt_db_insert_ost_v2 (s);
+        lmt_db_insert_ost_v2 (s);
     } else if (!strcmp (metric_name, "lmt_mdt") && vers == 1) {
-        result = lmt_db_insert_mdt_v1 (s);
+        lmt_db_insert_mdt_v1 (s);
     } else if (!strcmp (metric_name, "lmt_router") && vers == 1) {
-        result = lmt_db_insert_router_v1 (s);
-
+        lmt_db_insert_router_v1 (s);
     /* legacy metrics */
     } else if (!strcmp (metric_name, "lmt_mds") && vers == 2) {
-        result = lmt_db_insert_mds_v2 (s);
+        lmt_db_insert_mds_v2 (s);
     } else if (!strcmp (metric_name, "lmt_oss") && vers == 1) {
-        result = lmt_db_insert_oss_v1 (s);
+        lmt_db_insert_oss_v1 (s);
     } else if (!strcmp (metric_name, "lmt_ost") && vers == 1) {
-        result = lmt_db_insert_ost_v1 (s);
+        lmt_db_insert_ost_v1 (s);
     } else
         msg ("%s: %s_v%d: unknown metric", nodename, metric_name, (int)vers);
 done:

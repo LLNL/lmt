@@ -54,13 +54,12 @@
 #include "lmtcerebro.h"
 #include "lmtconf.h"
 
-#define OPTIONS "vc:i"
+#define OPTIONS "vc:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
     {"verbose",         no_argument,        0, 'v'},
     {"config-file",     required_argument,  0, 'c'},
-    {"insert-db",       no_argument,        0, 'i'},
     {0, 0, 0, 0},
 };
 #else
@@ -83,7 +82,7 @@ struct lmt_fs_struct {
 };
 typedef struct lmt_fs_struct *lmt_fs_t;
 
-lmt_fs_t read_cerebro_data (int insert);
+lmt_fs_t read_cerebro_data (void);
 lmt_fs_t read_mysql_data ();
 void _lmtfs_destroy (lmt_fs_t f);
 lmt_fs_t _lmtfs_create (void);
@@ -92,7 +91,7 @@ void analyze (lmt_fs_t fdb, lmt_fs_t fcrb);
 static void
 usage()
 {
-    fprintf (stderr, "Usage: lmtdiagnose [-i] [-v] [-c lmt.conf]\n");
+    fprintf (stderr, "Usage: lmtdiagnose [-v] [-c lmt.conf]\n");
     exit (1);
 }
 
@@ -102,7 +101,6 @@ main (int argc, char *argv[])
     lmt_fs_t fdb, fcrb;
     int c;
     char *conffile = NULL;
-    int insert = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -115,9 +113,6 @@ main (int argc, char *argv[])
             case 'c':   /* --config-file FILE */
                 conffile = optarg;
                 break;
-            case 'i':   /* --insert-db */
-                insert = 1;
-                break;
             default:
                 usage ();
         }
@@ -125,14 +120,14 @@ main (int argc, char *argv[])
     if (optind < argc)
         usage();
 
-    if (lmt_conf_init (insert ? 0 : 1, conffile) < 0)
+    if (lmt_conf_init (1, conffile) < 0)
         exit (1);
     lmt_conf_set_db_debug (1);
     lmt_conf_set_cbr_debug (1);
     lmt_conf_set_proto_debug (1);
 
     fdb = read_mysql_data ();
-    fcrb = read_cerebro_data (insert);
+    fcrb = read_cerebro_data ();
 
     analyze (fdb, fcrb);
 
@@ -371,7 +366,7 @@ done:
 }
 
 lmt_fs_t
-read_cerebro_data (int insert)
+read_cerebro_data (void)
 {
     lmt_fs_t f = _lmtfs_create ();
 #ifdef HAVE_CEREBRO
@@ -398,41 +393,21 @@ read_cerebro_data (int insert)
             msg ("error parsing metric version");
             continue; 
         }
-        if (insert) {
-            /* modifies database! */
-            if (!strcmp (name, "lmt_ost") && vers == 2) {
-                err = lmt_db_insert_ost_v2 (val);
-            } else if (!strcmp (name, "lmt_mdt") && vers == 1) {
-                err = lmt_db_insert_mdt_v1 (val);
-            } else if (!strcmp (name, "lmt_router") && vers == 1) {
-                err = lmt_db_insert_router_v1 (val);
-            } else if (!strcmp (name, "lmt_mds") && vers == 2) {
-                err = lmt_db_insert_mds_v2 (val);
-            } else if (!strcmp (name, "lmt_oss") && vers == 1) {
-                err = lmt_db_insert_oss_v1 (val);
-            } else if (!strcmp (name, "lmt_ost") && vers == 1) {
-                err = lmt_db_insert_ost_v1 (val);
-            } else {
-                msg ("%s_v%d: unknown metric", name, (int)vers);
-                continue;
-            }
-        } else {
-            if (!strcmp (name, "lmt_ost") && vers == 2)
-                err = _parse_ost_v2 (val, f);
-            else if (!strcmp (name, "lmt_mdt") && vers == 1)
-                err = _parse_mdt_v1 (val, f);
-            else if (!strcmp (name, "lmt_router") && vers == 1)
-                err = _parse_router_v1 (val, f);
-            else if (!strcmp (name, "lmt_mds") && vers == 2)
-                err = _parse_mds_v2 (val, f);
-            else if (!strcmp (name, "lmt_oss") && vers == 1)
-                err = _parse_oss_v1 (val, f);
-            else if (!strcmp (name, "lmt_ost") && vers == 1)
-                err = _parse_ost_v1 (val, f);
-            else {
-                msg ("%s_v%d: unknown metric", name, (int)vers);
-                continue;
-            }
+        if (!strcmp (name, "lmt_ost") && vers == 2)
+            err = _parse_ost_v2 (val, f);
+        else if (!strcmp (name, "lmt_mdt") && vers == 1)
+            err = _parse_mdt_v1 (val, f);
+        else if (!strcmp (name, "lmt_router") && vers == 1)
+            err = _parse_router_v1 (val, f);
+        else if (!strcmp (name, "lmt_mds") && vers == 2)
+            err = _parse_mds_v2 (val, f);
+        else if (!strcmp (name, "lmt_oss") && vers == 1)
+            err = _parse_oss_v1 (val, f);
+        else if (!strcmp (name, "lmt_ost") && vers == 1)
+            err = _parse_ost_v1 (val, f);
+        else {
+            msg ("%s_v%d: unknown metric", name, (int)vers);
+            continue;
         }
     }
     list_iterator_destroy (itr);

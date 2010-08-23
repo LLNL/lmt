@@ -222,23 +222,42 @@ done:
 static int
 _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
 {
-    char key[128];
-    int n, retval = -1;
+    int keysize = strlen (svctype) + strlen (name) + 2;
+    char *key = xmalloc (keysize);
+    int retval = -1;
     svcid_t *s;
 
-    n = snprintf (key, sizeof(key), "%s_%s", svctype, name);
-    if (n >= sizeof (key)) {
-        errno = E2BIG;
+    snprintf (key, keysize, "%s_%s", svctype, name);
+    if (!(s = hash_find (db->idhash, key)))
         goto done;
-    }
-    if (!(s = hash_find (db->idhash, key))) {
-        errno = ESRCH;
-        goto done;
-    }
     retval = 0;
     if (idp)
         *idp = s->id;
 done:
+    free (key);
+    return retval;
+}
+
+static int
+_lookup_idhash_neg (lmt_db_t db, char *svctype, char *name)
+{
+    int keysize = strlen (svctype) + strlen (name) + 3;
+    char *key = xmalloc (keysize);
+    int retval = -1;
+    svcid_t *s;
+
+    snprintf (key, keysize, "!%s_%s", svctype, name);
+    if ((s = hash_find (db->idhash, key))) {
+        retval = 0;
+        free (key);
+    } else {
+        s = xmalloc (sizeof (svcid_t));
+        memset (s, 0, sizeof (svcid_t));
+        s->key = key;
+        s->id = 0;
+        (void)hash_insert (db->idhash, s->key, s);
+    }
+
     return retval;
 }
 
@@ -248,6 +267,14 @@ lmt_db_lookup (lmt_db_t db, char *svctype, char *name)
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
     return _lookup_idhash (db, svctype, name, NULL);
+}
+
+int
+lmt_db_lookup_neg (lmt_db_t db, char *svctype, char *name)
+{
+    assert (db->magic == LMT_DBHANDLE_MAGIC);
+        
+    return _lookup_idhash_neg (db, svctype, name);
 }
 
 /* private arg structure for _mapfun () */
