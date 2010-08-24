@@ -26,6 +26,20 @@ BuildRequires: lua-devel
 %description
 Lustre Monitoring Tool
 
+%package server
+Summary: Lustre Monitoring Tools Server
+Group: Applications/System
+Requires: cerebro >= 1.3, mysql-server >= 4.1.20, perl-DBI
+%description server
+Lustre Monitoring Tools (LMT) Server
+
+%package server-agent
+Summary: Lustre Monitoring Tools Server Agent
+Group: Applications/System
+Requires: cerebro >= 1.3
+%description server-agent
+Lustre Monitoring Tools (LMT) Server Agent
+
 %prep
 %setup
 
@@ -41,8 +55,13 @@ make install DESTDIR=$RPM_BUILD_ROOT
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%defattr(-,root,root)
-%{_libdir}/cerebro/*
-%{_sbindir}/*
 %dir %{_sysconfdir}/lmt
 %config(noreplace) %{_sysconfdir}/lmt/lmt.conf
+
+%files server
+%defattr(-,root,root)
+%{_libdir}/cerebro/cerebro_monitor_lmt*
+%{_sbindir}/*
+
+%files server-agent
+%{_libdir}/cerebro/cerebro_metric_lmt*
