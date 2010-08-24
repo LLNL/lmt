@@ -1,0 +1,20 @@
+     lc1:    1/1mdt,   96/96ost,  16/16rtr,  2343/2343cli
+    GB/s:   0.000rd,    0.000wr                                      0.000tot
+   MDOPS:       0cr,        0un,      0mk                                0tot
+    IOPS:       0rd,        0wr,      0cr,     0un,     0mk              0tot
+  Inodes:    4096m total,          42m used,       4040m free
+   Space:     400t total,         400t used,          0t free
+_____________________________________________________________________________
+ OST     Rd     Wr  Rops  Wops  Loc State    Cli RPCq  Wmin Wcur Wmax
+_____________________________________________________________________________
+   0  0.000  0.000  0000  0000    N   Run   2343  104    10    2 1000
+   8  0.000  0.000  0000  0000    F Recov   2342    0    20    2 1000
+  10  0.000  0.000  0000  0000    N   Run   2343    0    20 1000    0
+   1  0.000  0.000  0000  0000    N   Run   2343  104    10    2 1000
+   9  0.000  0.000  0000  0000    F Recov   2342    0    20    2 1000
+  11  0.000  0.000  0000  0000    N   Run   2343    0    20 1000    0
+
+Notes:
+One file system at a time
+optional: reads ldev.conf or database for config
+Adaptive timeout stuff?

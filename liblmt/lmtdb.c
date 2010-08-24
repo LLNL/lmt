@@ -58,7 +58,7 @@
  *   should be a dynamic mapping in OST_DATA to support failover.  As a
  *   result, during failover, b/w will be attributed to the wrong OSS.
  *
- * . Although there OSS_DATA and OST_DATA are separate tables, MDS and MDT
+ * . Although OSS_DATA and OST_DATA are separate tables, MDS and MDT
  *   data are combined in MDS_DATA forcing MDS data to be replicated across
  *   databases when there are multiple targets per MDS, and makes failover
  *   hard to represent.

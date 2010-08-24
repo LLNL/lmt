@@ -234,7 +234,10 @@ _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp,
         if (idp)
             *idp = s->id;
         free (key);
-    /* insert a 'negative hash entry' on first lookup failure */
+    /* Insert a 'negative idhash entry' on first lookup failure.
+     * This is to reduce log noise - test the 'firstfail' flag
+     * and emit only one log message per unknown server.
+     */
     } else {
         snprintf (key, keysize, "!%s_%s", svctype, name);
         if ((s = hash_find (db->idhash, key))) {
@@ -303,7 +306,7 @@ lmt_db_server_map (lmt_db_t db, char *svctype, lmt_db_map_f mf, void *arg)
 
 /**
  ** Database insert functions
- ** -1 return will cause disconnect/reconnect.
+ ** -1 return will cause disconnect/reconnect in lmtdb.c.
  **/
 
 static void
@@ -327,7 +330,6 @@ _update_timestamp (lmt_db_t db)
         errno = EPERM;
         goto done;
     }
-    assert (mysql_stmt_param_count (db->ins_timestamp_info) == 1);
     /* N.B. Round timestamp down to nearest multiple of LMT_UPDATE_INTERVAL,
      * seconds and don't insert a new entry if <= the last timestamp inserted.
      * This keeps the number of rows in TIMESTAMP_INFO in check.
@@ -341,6 +343,7 @@ _update_timestamp (lmt_db_t db)
         goto done;
     }
     memset (param, 0, sizeof (param));
+    assert (mysql_stmt_param_count (db->ins_timestamp_info) == 1);
     _param_init_int (&param[0], MYSQL_TYPE_LONGLONG, &timestamp);
 
     if (mysql_stmt_bind_param (db->ins_timestamp_info, param)) {
@@ -381,7 +384,6 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                  lmt_db_fsname (db));
         goto done;
     }
-    assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
     if (_lookup_idhash(db, "mdt", mdtname, &mds_id, &firstlog) < 0) {
         if (lmt_conf_get_db_debug () && firstlog)
             msg ("%s: no entry in %s MDS_INFO", mdtname, lmt_db_fsname (db));
@@ -392,6 +394,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
         goto done;
 
     memset (param, 0, sizeof (param));
+    assert (mysql_stmt_param_count (db->ins_mds_data) == 7);
     /* FIXME: we have type LONG and LONGLONG both pointing to uint64_t */
     _param_init_int (&param[0], MYSQL_TYPE_LONG, &mds_id);
     _param_init_int (&param[1], MYSQL_TYPE_LONG, &db->timestamp_id);
@@ -439,7 +442,6 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
                  lmt_db_fsname (db));
         goto done;
     }
-    assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
     if (_lookup_idhash (db, "mdt", mdtname, &mds_id, &firstlog) < 0) {
         if (lmt_conf_get_db_debug () && firstlog)
             msg ("%s: no entry in %s MDT_INFO", opname, lmt_db_fsname (db));
@@ -457,6 +459,7 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     //    goto done;
 
     memset (param, 0, sizeof (param));
+    assert (mysql_stmt_param_count (db->ins_mds_ops_data) == 6);
     _param_init_int (&param[0], MYSQL_TYPE_LONG, &mds_id);
     _param_init_int (&param[1], MYSQL_TYPE_LONG, &op_id);
     _param_init_int (&param[2], MYSQL_TYPE_LONG, &db->timestamp_id);
@@ -472,8 +475,7 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     }
     if (mysql_stmt_execute (db->ins_mds_ops_data)) {
         if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
-            /* expected failure if previous insert was delayed */
-            retval = 0;
+            retval = 0; /* expected failure if previous insert was delayed */
             goto done;
         }
         if (lmt_conf_get_db_debug ())
@@ -502,7 +504,6 @@ lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
                  lmt_db_fsname (db));
         goto done;
     }
-    assert (mysql_stmt_param_count (db->ins_oss_data) == 4);
     if (_lookup_idhash (db, "oss", ossname, &oss_id, &firstlog) < 0) {
         if (lmt_conf_get_db_debug () && firstlog && !quiet_noexist)
             msg ("%s: no entry in %s OSS_INFO", ossname, lmt_db_fsname (db));
@@ -513,6 +514,7 @@ lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
         goto done;
 
     memset (param, 0, sizeof (param));
+    assert (mysql_stmt_param_count (db->ins_oss_data) == 4);
     _param_init_int (&param[0], MYSQL_TYPE_LONG, &oss_id);
     _param_init_int (&param[1], MYSQL_TYPE_LONG, &db->timestamp_id);
     _param_init_int (&param[2], MYSQL_TYPE_FLOAT, &pct_cpu);
@@ -557,7 +559,6 @@ lmt_db_insert_ost_data (lmt_db_t db, char *ostname,
                  lmt_db_fsname (db));
         goto done;
     }
-    assert (mysql_stmt_param_count (db->ins_ost_data) == 8);
     if (_lookup_idhash (db, "ost", ostname, &ost_id, &firstlog) < 0) {
         if (lmt_conf_get_db_debug () && firstlog)
             msg ("%s: no entry in %s OST_INFO", ostname, lmt_db_fsname (db));
@@ -568,6 +569,7 @@ lmt_db_insert_ost_data (lmt_db_t db, char *ostname,
         goto done;
 
     memset (param, 0, sizeof (param));
+    assert (mysql_stmt_param_count (db->ins_ost_data) == 8);
     _param_init_int (&param[0], MYSQL_TYPE_LONG, &ost_id);
     _param_init_int (&param[1], MYSQL_TYPE_LONG, &db->timestamp_id);
     _param_init_int (&param[2], MYSQL_TYPE_LONGLONG, &read_bytes);
@@ -585,8 +587,7 @@ lmt_db_insert_ost_data (lmt_db_t db, char *ostname,
     }
     if (mysql_stmt_execute (db->ins_ost_data)) {
         if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
-            /* expected failure if previous insert was delayed */
-            retval = 0;
+            retval = 0; /* expected failure if previous insert was delayed */
             goto done;
         }
         if (lmt_conf_get_db_debug ())
@@ -615,7 +616,6 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
                  lmt_db_fsname (db));
         goto done;
     }
-    assert (mysql_stmt_param_count (db->ins_router_data) == 4);
     if (_lookup_idhash (db, "router", rtrname, &router_id, &firstlog) < 0) {
         if (lmt_conf_get_db_debug () && firstlog)
             msg ("%s: no entry in %s ROUTER_INFO", rtrname, lmt_db_fsname (db));
@@ -626,6 +626,7 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
         goto done;
 
     memset (param, 0, sizeof (param));
+    assert (mysql_stmt_param_count (db->ins_router_data) == 4);
     _param_init_int (&param[0], MYSQL_TYPE_LONG, &router_id);
     _param_init_int (&param[1], MYSQL_TYPE_LONG, &db->timestamp_id);
     _param_init_int (&param[2], MYSQL_TYPE_LONGLONG, &bytes);
@@ -639,8 +640,7 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
     }
     if (mysql_stmt_execute (db->ins_router_data)) {
         if (mysql_errno (db->conn) == ER_DUP_ENTRY) {
-            /* expected failure if previous insert was delayed */
-            retval = 0;
+            retval = 0; /* expected failure if previous insert was delayed */
             goto done;
         }
         if (lmt_conf_get_db_debug ())
