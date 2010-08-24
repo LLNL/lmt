@@ -39,8 +39,9 @@ host_triplet = @host@
 target_triplet = @target@
 sbin_PROGRAMS = tproc$(EXEEXT) tlustre$(EXEEXT) otop$(EXEEXT) \
 	lmtmetric$(EXEEXT) lmtdiagnose$(EXEEXT)
+@MYSQL_TRUE@am__append_1 = $(top_builddir)/liblmtdb/liblmtdb.la
 subdir = utils
-DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
+DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_cerebro.m4 \
 	$(top_srcdir)/config/x_ac_check_cond_lib.m4 \
@@ -62,14 +63,15 @@ lmtdiagnose_OBJECTS = $(am_lmtdiagnose_OBJECTS)
 am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
-lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_1)
+@MYSQL_TRUE@am__DEPENDENCIES_2 = $(top_builddir)/liblmtdb/liblmtdb.la
+lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
 lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
 lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_otop_OBJECTS = otop.$(OBJEXT)
 otop_OBJECTS = $(am_otop_OBJECTS)
-am__DEPENDENCIES_2 =
-otop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
+am__DEPENDENCIES_3 =
+otop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_3)
 am_tlustre_OBJECTS = tlustre.$(OBJEXT)
 tlustre_OBJECTS = $(am_tlustre_OBJECTS)
 tlustre_DEPENDENCIES = $(am__DEPENDENCIES_1)
@@ -240,7 +242,7 @@ target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
-AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt
+AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt -I../liblmtdb
 common_ldadd = \
 	$(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
@@ -255,7 +257,7 @@ otop_LDADD = $(common_ldadd) $(LIBCURSES)
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
 lmtdiagnose_SOURCES = lmtdiagnose.c
-lmtdiagnose_LDADD = $(common_ldadd)
+lmtdiagnose_LDADD = $(common_ldadd) $(am__append_1)
 all: all-am
 
 .SUFFIXES:

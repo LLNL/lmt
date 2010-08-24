@@ -37,11 +37,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@MYSQL_TRUE@am__append_1 = \
-@MYSQL_TRUE@	lmtmysql.c \
-@MYSQL_TRUE@	lmtdb.c
-
-@CEREBRO_TRUE@am__append_2 = \
+@CEREBRO_TRUE@am__append_1 = \
 @CEREBRO_TRUE@	lmtcerebro.c
 
 subdir = liblmt
@@ -61,14 +57,12 @@ CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
-liblmt_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
-am__liblmt_la_SOURCES_DIST = ost.c mdt.c router.c util.c lmtconf.c \
-	lmtmysql.c lmtdb.c lmtcerebro.c
-@MYSQL_TRUE@am__objects_1 = lmtmysql.lo lmtdb.lo
-@CEREBRO_TRUE@am__objects_2 = lmtcerebro.lo
-am_liblmt_la_OBJECTS = ost.lo mdt.lo router.lo util.lo lmtconf.lo \
-	$(am__objects_1) $(am__objects_2)
+liblmt_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+am__liblmt_la_SOURCES_DIST = ost.c mdt.c osc.c router.c util.c \
+	lmtconf.c lmtcerebro.c
+@CEREBRO_TRUE@am__objects_1 = lmtcerebro.lo
+am_liblmt_la_OBJECTS = ost.lo mdt.lo osc.lo router.lo util.lo \
+	lmtconf.lo $(am__objects_1)
 liblmt_la_OBJECTS = $(am_liblmt_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
@@ -232,11 +226,11 @@ target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
-AM_CPPFLAGS = -I../libproc -I../liblsd $(MYSQL_CFLAGS)
+AM_CPPFLAGS = -I../libproc -I../liblsd
 noinst_LTLIBRARIES = liblmt.la
-liblmt_la_SOURCES = ost.c mdt.c router.c util.c lmtconf.c \
-	$(am__append_1) $(am__append_2)
-liblmt_la_LIBADD = $(MYSQL_LIBS) $(CEREBRO_LIBS) $(LIBLUA)
+liblmt_la_SOURCES = ost.c mdt.c osc.c router.c util.c lmtconf.c \
+	$(am__append_1)
+liblmt_la_LIBADD = $(CEREBRO_LIBS) $(LIBLUA)
 all: all-am
 
 .SUFFIXES:
@@ -290,9 +284,8 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtcerebro.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtconf.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdb.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmysql.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mdt.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/osc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ost.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/router.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util.Plo@am__quote@

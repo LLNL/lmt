@@ -1,6 +1,6 @@
 AM_CFLAGS = @GCCWARN@
 
-AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt
+AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt -I../liblmtdb
 
 sbin_PROGRAMS = tproc tlustre otop lmtmetric lmtdiagnose
 
@@ -23,3 +23,6 @@ lmtmetric_LDADD = $(common_ldadd)
 
 lmtdiagnose_SOURCES = lmtdiagnose.c
 lmtdiagnose_LDADD = $(common_ldadd)
+if MYSQL
+lmtdiagnose_LDADD += $(top_builddir)/liblmtdb/liblmtdb.la
+endif

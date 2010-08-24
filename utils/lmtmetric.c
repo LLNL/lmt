@@ -46,8 +46,11 @@
 
 #include "list.h"
 #include "hash.h"
+#include "error.h"
 
 #include "proc.h"
+
+#include "lmtconf.h"
 #include "lmt.h"
 
 #define OPTIONS "m:r:t:"
@@ -68,7 +71,7 @@ usage()
 {
     fprintf (stderr,
 "Usage: lmtmetric [OPTIONS]\n"
-"   -m,--metric NAME            select ost|mdt|router [no default]\n"
+"   -m,--metric NAME            select ost|mdt|osc|router [no default]\n"
 "   -r,--proc-root DIR          select proc root [/proc]\n"
 "   -t,--update-period SECS     [2s]\n"
     );
@@ -84,6 +87,9 @@ main (int argc, char *argv[])
     char *metric = NULL;
     unsigned long update_period = 2;
     int c, n = 0;
+
+    err_init (argv[0]);
+    lmt_conf_init (0, NULL);
 
     optind = 0;
     opterr = 0;
@@ -107,19 +113,19 @@ main (int argc, char *argv[])
     if (!metric)
         usage();
     if (strcmp (metric, "ost") && strcmp (metric, "mdt")
-                               && strcmp (metric, "router"))
+      && strcmp (metric, "osc") && strcmp (metric, "router"))
         usage();
 
-    if (!(ctx = proc_create (proc_root))) {
-        perror ("proc_create");
-        exit (1);
-    }
+    if (!(ctx = proc_create (proc_root)))
+        err_exit ("proc_create");
 
     while (1) {
         if (!strcmp (metric, "ost"))
             n = lmt_ost_string_v2 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "mdt"))
             n = lmt_mdt_string_v1 (ctx, buf, sizeof (buf));
+        else if (!strcmp (metric, "osc"))
+            n = lmt_osc_string_v1 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "router"))
             n = lmt_router_string_v1 (ctx, buf, sizeof (buf));
         if (n < 0)

@@ -42,6 +42,7 @@
 
 #include "ost.h"
 #include "mdt.h"
+#include "osc.h"
 #include "router.h"
 #include "util.h"
 #include "lmtconf.h"
@@ -87,6 +88,40 @@ const char *mdt_v1_str =
     "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
     "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;0;0;0;0;0;0;0;0;0;"
     "0;0;0;0;0;217;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0";
+const char *osc_v1_str =
+    "1;tycho-mds1;"
+    "lc1-OST0042_UUID;FULL;lc1-OST005b_UUID;FULL;lc1-OST0015_UUID;FULL;"
+    "lc1-OST0043_UUID;FULL;lc1-OST0044_UUID;FULL;lc1-OST005a_UUID;FULL;"
+    "lc1-OST0046_UUID;FULL;lc1-OST0014_UUID;FULL;lc1-OST0047_UUID;FULL;"
+    "lc1-OST005f_UUID;FULL;lc1-OST0016_UUID;FULL;lc1-OST002e_UUID;FULL;"
+    "lc1-OST0059_UUID;FULL;lc1-OST0045_UUID;FULL;lc1-OST005e_UUID;FULL;"
+    "lc1-OST0011_UUID;FULL;lc1-OST005c_UUID;FULL;lc1-OST002a_UUID;FULL;"
+    "lc1-OST005d_UUID;FULL;lc1-OST0058_UUID;FULL;lc1-OST0010_UUID;FULL;"
+    "lc1-OST0012_UUID;FULL;lc1-OST002f_UUID;FULL;lc1-OST002b_UUID;FULL;"
+    "lc1-OST0040_UUID;FULL;lc1-OST0041_UUID;FULL;lc1-OST002c_UUID;FULL;"
+    "lc1-OST002d_UUID;FULL;lc1-OST0029_UUID;FULL;lc1-OST0028_UUID;FULL;"
+    "lc1-OST0013_UUID;FULL;lc1-OST0017_UUID;FULL;lc1-OST003c_UUID;FULL;"
+    "lc1-OST003b_UUID;FULL;lc1-OST003a_UUID;FULL;lc1-OST0053_UUID;FULL;"
+    "lc1-OST000d_UUID;FULL;lc1-OST003e_UUID;FULL;lc1-OST0052_UUID;FULL;"
+    "lc1-OST000e_UUID;FULL;lc1-OST003f_UUID;FULL;lc1-OST0057_UUID;FULL;"
+    "lc1-OST000c_UUID;FULL;lc1-OST0026_UUID;FULL;lc1-OST0051_UUID;FULL;"
+    "lc1-OST0009_UUID;FULL;lc1-OST0022_UUID;FULL;lc1-OST003d_UUID;FULL;"
+    "lc1-OST0055_UUID;FULL;lc1-OST0056_UUID;FULL;lc1-OST0054_UUID;FULL;"
+    "lc1-OST000a_UUID;FULL;lc1-OST0023_UUID;FULL;lc1-OST0050_UUID;FULL;"
+    "lc1-OST0027_UUID;FULL;lc1-OST0008_UUID;FULL;lc1-OST0038_UUID;FULL;"
+    "lc1-OST0024_UUID;FULL;lc1-OST0025_UUID;FULL;lc1-OST0039_UUID;FULL;"
+    "lc1-OST0020_UUID;FULL;lc1-OST0021_UUID;FULL;lc1-OST000b_UUID;FULL;"
+    "lc1-OST000f_UUID;FULL;lc1-OST0032_UUID;FULL;lc1-OST004a_UUID;FULL;"
+    "lc1-OST0033_UUID;FULL;lc1-OST0036_UUID;FULL;lc1-OST0006_UUID;FULL;"
+    "lc1-OST004b_UUID;FULL;lc1-OST004f_UUID;FULL;lc1-OST0034_UUID;FULL;"
+    "lc1-OST0037_UUID;FULL;lc1-OST0035_UUID;FULL;lc1-OST0001_UUID;FULL;"
+    "lc1-OST0049_UUID;FULL;lc1-OST001e_UUID;FULL;lc1-OST001a_UUID;FULL;"
+    "lc1-OST0005_UUID;FULL;lc1-OST004e_UUID;FULL;lc1-OST004c_UUID;FULL;"
+    "lc1-OST004d_UUID;FULL;lc1-OST0002_UUID;FULL;lc1-OST001b_UUID;FULL;"
+    "lc1-OST0004_UUID;FULL;lc1-OST001f_UUID;FULL;lc1-OST0031_UUID;FULL;"
+    "lc1-OST0048_UUID;FULL;lc1-OST0030_UUID;FULL;lc1-OST001c_UUID;FULL;"
+    "lc1-OST0019_UUID;FULL;lc1-OST001d_UUID;FULL;lc1-OST0000_UUID;FULL;"
+    "lc1-OST0003_UUID;FULL;lc1-OST0018_UUID;FULL;lc1-OST0007_UUID;FULL";
 
 void parse_utils (void);
 void parse_current (void);
@@ -109,6 +144,37 @@ main (int argc, char *argv[])
     parse_current_long ();
     exit (0);
 }
+
+int
+_parse_osc_v1 (const char *s)
+{
+    int retval = -1;
+    char *mdsname = NULL;
+    char *ostname, *state;
+    List oscinfo = NULL;
+    ListIterator itr = NULL;
+    char *s2;
+
+    if (lmt_osc_decode_v1 (s, &mdsname, &oscinfo) < 0)
+        goto done;
+    itr = list_iterator_create (oscinfo);
+    while ((s2 = list_next (itr))) {
+        if (lmt_osc_decode_v1_oscinfo (s2, &ostname, &state) < 0)
+            goto done;
+        free (ostname);
+        free (state);
+    }
+    retval = 0;
+done:
+    if (mdsname)
+        free (mdsname);
+    if (itr)
+        list_iterator_destroy (itr);
+    if (oscinfo)
+        list_destroy (oscinfo);
+    return retval;
+}
+
 
 int
 _parse_ost_v2 (const char *s)
@@ -394,6 +460,8 @@ parse_current (void)
     msg ("mdt_v1: %s", n < 0 ? "FAIL" : "OK");
     n = _parse_ost_v2 (ost_v2_str);
     msg ("ost_v2: %s", n < 0 ? "FAIL" : "OK");
+    n = _parse_osc_v1 (osc_v1_str);
+    msg ("osc_v1: %s", n < 0 ? "FAIL" : "OK");
 }
 
 void

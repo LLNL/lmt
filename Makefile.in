@@ -36,7 +36,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@CEREBRO_TRUE@am__append_1 = cerebro
+@MYSQL_TRUE@am__append_1 = liblmtdb
+@CEREBRO_TRUE@am__append_2 = cerebro
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/config/config.h.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
@@ -69,7 +70,7 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	uninstall-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = liblsd libproc liblmt utils test etc cerebro
+DIST_SUBDIRS = liblsd libproc liblmt liblmtdb utils test etc cerebro
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -226,7 +227,8 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-SUBDIRS = liblsd libproc liblmt utils test etc $(am__append_1)
+SUBDIRS = liblsd libproc liblmt $(am__append_1) utils test etc \
+	$(am__append_2)
 all: all-recursive
 
 .SUFFIXES:

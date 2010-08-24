@@ -23341,7 +23341,7 @@ _ACEOF
 ##
 # Epilogue
 ##
-                                                                                                              ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf"
+                                                                                                                        ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -23938,6 +23938,7 @@ do
   "liblsd/Makefile" ) CONFIG_FILES="$CONFIG_FILES liblsd/Makefile" ;;
   "libproc/Makefile" ) CONFIG_FILES="$CONFIG_FILES libproc/Makefile" ;;
   "liblmt/Makefile" ) CONFIG_FILES="$CONFIG_FILES liblmt/Makefile" ;;
+  "liblmtdb/Makefile" ) CONFIG_FILES="$CONFIG_FILES liblmtdb/Makefile" ;;
   "utils/Makefile" ) CONFIG_FILES="$CONFIG_FILES utils/Makefile" ;;
   "cerebro/Makefile" ) CONFIG_FILES="$CONFIG_FILES cerebro/Makefile" ;;
   "cerebro/metric/Makefile" ) CONFIG_FILES="$CONFIG_FILES cerebro/metric/Makefile" ;;

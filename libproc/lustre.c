@@ -40,6 +40,7 @@
 
 #define PROC_FS_LUSTRE_MDT_DIR          "fs/lustre/mds"
 #define PROC_FS_LUSTRE_OST_DIR          "fs/lustre/obdfilter"
+#define PROC_FS_LUSTRE_OSC_DIR          "fs/lustre/osc"
 
 #define PROC_FS_LUSTRE_MDT_FILESFREE    "fs/lustre/mds/%s/filesfree"
 #define PROC_FS_LUSTRE_MDT_FILESTOTAL   "fs/lustre/mds/%s/filestotal"
@@ -54,8 +55,12 @@
 #define PROC_FS_LUSTRE_MDT_UUID         "fs/lustre/mds/%s/uuid"
 #define PROC_FS_LUSTRE_OST_UUID         "fs/lustre/obdfilter/%s/uuid"
 
+#define PROC_FS_LUSTRE_OSC_OST_SERVER_UUID  "fs/lustre/osc/%s/ost_server_uuid"
+
 #define PROC_FS_LUSTRE_MDT_STATS        "fs/lustre/mds/%s/stats"
 #define PROC_FS_LUSTRE_OST_STATS        "fs/lustre/obdfilter/%s/stats"
+
+#define PROC_FS_LUSTRE_OSC_STATE        "fs/lustre/osc/%s/state"
 
 #define PROC_SYS_LNET_ROUTES            "sys/lnet/routes"
 #define PROC_SYS_LNET_STATS             "sys/lnet/stats"
@@ -148,7 +153,7 @@ proc_lustre_kbytes (pctx_t ctx, char *name, uint64_t *fp, uint64_t *tp)
         tmplt = PROC_FS_LUSTRE_OST_KBYTESTOTAL;
     } else if (strstr (name, "-MDT")) {
         tmplf = PROC_FS_LUSTRE_MDT_KBYTESFREE;
-        tmplt = PROC_FS_LUSTRE_OST_KBYTESTOTAL;
+        tmplt = PROC_FS_LUSTRE_MDT_KBYTESTOTAL;
     } else {
         errno = EINVAL;
         goto done;
@@ -194,6 +199,29 @@ proc_lustre_uuid (pctx_t ctx, char *name, char **uuidp)
     return ret;
 }
 
+int
+proc_lustre_oscinfo (pctx_t ctx, char *name, char **uuidp, char **statep)
+{
+    int ret;
+    char s1[32], s2[32];
+
+    if ((ret = proc_openf (ctx, PROC_FS_LUSTRE_OSC_OST_SERVER_UUID, name)) < 0)
+        goto done;
+    if (proc_scanf (ctx, NULL, "%31s %31s", s1, s2) != 2) {
+        errno = EIO;
+        ret = -1;
+    }
+    proc_close (ctx);
+done:
+    if (ret == 0) {
+        if (!(*uuidp = strdup (s1)))
+            msg_exit ("out of memory");
+        if (!(*statep = strdup (s2)))
+            msg_exit ("out of memory");
+    }
+    return ret;
+}
+
 static int
 _subdirlist (pctx_t ctx, const char *path, List *lp)
 {
@@ -204,8 +232,11 @@ _subdirlist (pctx_t ctx, const char *path, List *lp)
     errno = 0;
     if ((ret = proc_open (ctx, path)) < 0)
         goto done;
-    while ((ret = proc_readdir (ctx, PROC_READDIR_NOFILE, &name)) >= 0)
+    while ((ret = proc_readdir (ctx, PROC_READDIR_NOFILE, &name)) >= 0) {
+        if (strstr (name, "-osc-")) /* ignore client-instantiated osc's */
+            continue;               /*  e.g. lc1-OST0005-osc-ffff81007f018c00 */
         list_append (l, name);
+    }
     if (ret < 0 && errno == 0) /* treat EOF as success */
         ret = 0;
     proc_close (ctx);
@@ -227,6 +258,12 @@ int
 proc_lustre_mdtlist (pctx_t ctx, List *lp)
 { 
     return _subdirlist (ctx, PROC_FS_LUSTRE_MDT_DIR, lp);
+}
+
+int
+proc_lustre_osclist (pctx_t ctx, List *lp)
+{
+    return _subdirlist (ctx, PROC_FS_LUSTRE_OSC_DIR, lp);
 }
 
 static void

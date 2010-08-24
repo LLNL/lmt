@@ -77,6 +77,7 @@ AC_CONFIG_FILES( \
   liblsd/Makefile \
   libproc/Makefile \
   liblmt/Makefile \
+  liblmtdb/Makefile \
   utils/Makefile \
   cerebro/Makefile \
   cerebro/metric/Makefile \

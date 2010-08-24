@@ -61,7 +61,8 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(modulelibdir)"
 modulelibLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(modulelib_LTLIBRARIES)
-am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
+am__DEPENDENCIES_1 = $(top_builddir)/liblmtdb/liblmtdb.la \
+	$(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
 cerebro_monitor_lmt_mysql_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
@@ -231,11 +232,13 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = \
+	-I$(top_builddir)/liblmtdb \
 	-I$(top_builddir)/liblmt \
 	-I$(top_builddir)/libproc \
 	-I$(top_builddir)/liblsd
 
 common_libadd = \
+        $(top_builddir)/liblmtdb/liblmtdb.la \
         $(top_builddir)/liblmt/liblmt.la \
         $(top_builddir)/libproc/libproc.la \
         $(top_builddir)/liblsd/liblsd.la

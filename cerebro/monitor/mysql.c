@@ -46,6 +46,8 @@
 #include "lmt.h"
 #include "lmtconf.h"
 
+#include "lmtdb.h"
+
 #define MONITOR_NAME            "lmt_mysql"
 #define METRIC_NAMES            "lmt_mdt,lmt_ost,lmt_router"
 #define LEGACY_METRIC_NAMES     "lmt_oss,lmt_mds"

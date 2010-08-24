@@ -50,9 +50,12 @@
 #include "ost.h"
 #include "mdt.h"
 #include "router.h"
-#include "lmtmysql.h"
+
 #include "lmtcerebro.h"
 #include "lmtconf.h"
+
+#include "lmtmysql.h"
+#include "lmtdb.h"
 
 #define OPTIONS "vc:"
 #if HAVE_GETOPT_LONG

@@ -48,7 +48,7 @@
 #include "lmtconf.h"
 #include "util.h"
 
-#define METRIC_NAME         "lmt_router"
+#define METRIC_NAME         "lmt_osc"
 #define METRIC_FLAGS        (CEREBRO_METRIC_MODULE_FLAGS_SEND_ON_PERIOD)
 
 static int
@@ -68,7 +68,7 @@ _get_metric_value (unsigned int *metric_value_type,
     pctx_t ctx = proc_create ("/proc");
     char *buf = xmalloc (CEREBRO_MAX_DATA_STRING_LEN);
 
-    if (lmt_router_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0) {
+    if (lmt_osc_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0) {
         free (buf);
         goto done; 
     }

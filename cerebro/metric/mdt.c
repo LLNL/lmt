@@ -40,7 +40,10 @@
 #include <cerebro/cerebro_metric_module.h>
 
 #include "list.h"
+#include "error.h"
+
 #include "proc.h"
+
 #include "lmt.h"
 #include "lmtconf.h"
 #include "util.h"
@@ -49,25 +52,32 @@
 #define METRIC_FLAGS        (CEREBRO_METRIC_MODULE_FLAGS_SEND_ON_PERIOD)
 
 static int
+_setup (void)
+{
+    err_init (METRIC_NAME);
+    err_set_dest ("cerebro");
+    lmt_conf_init (0, NULL);
+    return 0;
+}
+
+static int
 _get_metric_value (unsigned int *metric_value_type,
                    unsigned int *metric_value_len,
                    void **metric_value)
 {
     pctx_t ctx = proc_create ("/proc");
     char *buf = xmalloc (CEREBRO_MAX_DATA_STRING_LEN);
-    int retval = -1;
 
-    if (lmt_mdt_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0)
+    if (lmt_mdt_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0) {
+        free (buf);
         goto done; 
+    }
     *metric_value_type = CEREBRO_DATA_VALUE_TYPE_STRING;
     *metric_value_len = strlen (buf) + 1;
     *metric_value = buf;
-    retval = 0;
 done:
     proc_destroy (ctx);
-    if (retval < 0)
-        free (buf);
-    return retval;
+    return 0;
 }
 
 static int
@@ -112,13 +122,6 @@ _get_metric_name (void)
 static int
 _cleanup (void)
 {
-    return 0;
-}
-
-static int
-_setup (void)
-{
-    lmt_conf_init (0, NULL);
     return 0;
 }
 

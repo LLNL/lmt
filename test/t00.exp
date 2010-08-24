@@ -21,6 +21,7 @@ tparse: ost_v1: OK
 tparse: mds_v2: OK
 tparse: mdt_v1: OK
 tparse: ost_v2: OK
+tparse: osc_v1: OK
 tparse: lmt_mdt_v1: parse error: string not exhausted
 tparse: mdt_v1(truncated): FAIL
 tparse: lmt_ost_v2: parse error: string not exhausted

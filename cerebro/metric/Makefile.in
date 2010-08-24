@@ -68,6 +68,10 @@ cerebro_metric_lmt_mdt_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_cerebro_metric_lmt_mdt_la_OBJECTS = mdt.lo
 cerebro_metric_lmt_mdt_la_OBJECTS =  \
 	$(am_cerebro_metric_lmt_mdt_la_OBJECTS)
+cerebro_metric_lmt_osc_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
+am_cerebro_metric_lmt_osc_la_OBJECTS = osc.lo
+cerebro_metric_lmt_osc_la_OBJECTS =  \
+	$(am_cerebro_metric_lmt_osc_la_OBJECTS)
 cerebro_metric_lmt_ost_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_cerebro_metric_lmt_ost_la_OBJECTS = ost.lo
 cerebro_metric_lmt_ost_la_OBJECTS =  \
@@ -88,9 +92,11 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(cerebro_metric_lmt_mdt_la_SOURCES) \
+	$(cerebro_metric_lmt_osc_la_SOURCES) \
 	$(cerebro_metric_lmt_ost_la_SOURCES) \
 	$(cerebro_metric_lmt_router_la_SOURCES)
 DIST_SOURCES = $(cerebro_metric_lmt_mdt_la_SOURCES) \
+	$(cerebro_metric_lmt_osc_la_SOURCES) \
 	$(cerebro_metric_lmt_ost_la_SOURCES) \
 	$(cerebro_metric_lmt_router_la_SOURCES)
 ETAGS = etags
@@ -257,6 +263,7 @@ modulelibdir = $(libdir)/cerebro
 modulelib_LTLIBRARIES = \
 	cerebro_metric_lmt_ost.la \
 	cerebro_metric_lmt_mdt.la \
+	cerebro_metric_lmt_osc.la \
 	cerebro_metric_lmt_router.la
 
 cerebro_metric_lmt_ost_la_SOURCES = ost.c
@@ -265,6 +272,9 @@ cerebro_metric_lmt_ost_la_LIBADD = $(common_libadd)
 cerebro_metric_lmt_mdt_la_SOURCES = mdt.c
 cerebro_metric_lmt_mdt_la_LDFLAGS = $(module_ldflags)
 cerebro_metric_lmt_mdt_la_LIBADD = $(common_libadd)
+cerebro_metric_lmt_osc_la_SOURCES = osc.c
+cerebro_metric_lmt_osc_la_LDFLAGS = $(module_ldflags)
+cerebro_metric_lmt_osc_la_LIBADD = $(common_libadd)
 cerebro_metric_lmt_router_la_SOURCES = router.c
 cerebro_metric_lmt_router_la_LDFLAGS = $(module_ldflags)
 cerebro_metric_lmt_router_la_LIBADD = $(common_libadd)
@@ -330,6 +340,8 @@ clean-modulelibLTLIBRARIES:
 	done
 cerebro_metric_lmt_mdt.la: $(cerebro_metric_lmt_mdt_la_OBJECTS) $(cerebro_metric_lmt_mdt_la_DEPENDENCIES) 
 	$(LINK) -rpath $(modulelibdir) $(cerebro_metric_lmt_mdt_la_LDFLAGS) $(cerebro_metric_lmt_mdt_la_OBJECTS) $(cerebro_metric_lmt_mdt_la_LIBADD) $(LIBS)
+cerebro_metric_lmt_osc.la: $(cerebro_metric_lmt_osc_la_OBJECTS) $(cerebro_metric_lmt_osc_la_DEPENDENCIES) 
+	$(LINK) -rpath $(modulelibdir) $(cerebro_metric_lmt_osc_la_LDFLAGS) $(cerebro_metric_lmt_osc_la_OBJECTS) $(cerebro_metric_lmt_osc_la_LIBADD) $(LIBS)
 cerebro_metric_lmt_ost.la: $(cerebro_metric_lmt_ost_la_OBJECTS) $(cerebro_metric_lmt_ost_la_DEPENDENCIES) 
 	$(LINK) -rpath $(modulelibdir) $(cerebro_metric_lmt_ost_la_LDFLAGS) $(cerebro_metric_lmt_ost_la_OBJECTS) $(cerebro_metric_lmt_ost_la_LIBADD) $(LIBS)
 cerebro_metric_lmt_router.la: $(cerebro_metric_lmt_router_la_OBJECTS) $(cerebro_metric_lmt_router_la_DEPENDENCIES) 
@@ -342,6 +354,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mdt.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/osc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ost.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/router.Plo@am__quote@
 
