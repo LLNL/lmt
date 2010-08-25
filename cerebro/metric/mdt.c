@@ -48,7 +48,7 @@
 #include "lmtconf.h"
 #include "util.h"
 
-#define METRIC_NAME         "lmt_mds"
+#define METRIC_NAME         "lmt_mdt"
 #define METRIC_FLAGS        (CEREBRO_METRIC_MODULE_FLAGS_SEND_ON_PERIOD)
 
 static int

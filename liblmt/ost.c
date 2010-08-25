@@ -126,7 +126,7 @@ _get_oststring (pctx_t ctx, char *name, char *s, int len)
         goto done;
     }
     n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                  ";%"PRIu64";%"PRIu64, uuid, filesfree, filestotal,
+                  ";%"PRIu64";%"PRIu64";", uuid, filesfree, filestotal,
                   kbytesfree, kbytestotal, read_bytes, write_bytes);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
