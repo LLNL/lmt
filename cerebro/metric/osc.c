@@ -67,17 +67,19 @@ _get_metric_value (unsigned int *metric_value_type,
 {
     pctx_t ctx = proc_create ("/proc");
     char *buf = xmalloc (CEREBRO_MAX_DATA_STRING_LEN);
+    int retval = -1;
 
-    if (lmt_osc_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0) {
-        free (buf);
+    if (lmt_osc_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0)
         goto done; 
-    }
     *metric_value_type = CEREBRO_DATA_VALUE_TYPE_STRING;
     *metric_value_len = strlen (buf) + 1;
     *metric_value = buf;
+    retval = 0;
 done:
     proc_destroy (ctx);
-    return 0;
+    if (retval != 0)
+        free (buf);
+    return retval;  /* 0 indicates metric_value is valid */
 }
 
 static int

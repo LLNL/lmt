@@ -69,27 +69,17 @@ static cmetric_t
 _create_cmetric (char *name, char *nodename, unsigned int time,
                  unsigned int type, unsigned int size, void *value)
 {
-    cmetric_t c;
-
-    if (!(c = malloc (sizeof (*c))))
-        goto nomem;
+    cmetric_t c = xmalloc (sizeof (*c));
     memset (c, 0, sizeof (*c));
-    if (!(c->name = strdup (name)))
-        goto nomem;
-    if (!(c->nodename = strdup (nodename)))
-        goto nomem;
+    c->name = xstrdup (name);
+    c->nodename = xstrdup (nodename);
     c->time = time;
     c->type = type;
     c->size = size;
-    if (!(c->value = malloc (size)))
-        goto nomem;
+    c->value = xmalloc (size);
     memcpy (c->value, value, size);
+
     return c;
-nomem:
-    if (c)
-        _destroy_cmetric (c);
-    errno = ENOMEM;
-    return NULL;
 }
 
 char *
@@ -138,8 +128,7 @@ _get_metric_data (cerebro_t ch, char *name, List rl)
                    cerebro_strerror (cerebro_nodelist_iterator_errnum (nitr)));
             goto done;
         }
-        if (!(c = _create_cmetric (name, nodename, time, type, size, value)))
-            goto done;
+        c = _create_cmetric (name, nodename, time, type, size, value);
         if (!(list_append (rl, c))) {
             _destroy_cmetric (c);
             goto done;
@@ -170,10 +159,8 @@ lmt_cbr_get_metrics (char *names, List *rlp)
 
     if (!(ch = cerebro_handle_create()))
         goto done;
-    if (!(nl = list_tok (names, ",")))
-        goto done;
-    if (!(rl = list_create ((ListDelF)_destroy_cmetric))) 
-        goto done;
+    nl = list_tok (names, ",");
+    rl = list_create ((ListDelF)_destroy_cmetric);
     itr = list_iterator_create (nl);
     while ((name = list_next (itr))) {
         if (_get_metric_data (ch, name, rl) < 0)

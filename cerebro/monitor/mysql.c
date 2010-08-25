@@ -115,7 +115,7 @@ _metric_update (const char *nodename,
     } else
         msg ("%s: %s_v%d: unknown metric", nodename, metric_name, (int)vers);
 done:
-    return 0; 
+    return 0;  /* no advantage to ever returning an error here */
 }
 
 struct cerebro_monitor_module_info monitor_module_info = {

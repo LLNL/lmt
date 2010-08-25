@@ -214,6 +214,7 @@ proc_lustre_oscinfo (pctx_t ctx, char *name, char **uuidp, char **statep)
     proc_close (ctx);
 done:
     if (ret == 0) {
+        _trim_uuid (s1);
         if (!(*uuidp = strdup (s1)))
             msg_exit ("out of memory");
         if (!(*statep = strdup (s2)))

@@ -2,7 +2,7 @@ AM_CFLAGS = @GCCWARN@
 
 AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt -I../liblmtdb
 
-sbin_PROGRAMS = tproc tlustre otop lmtmetric lmtdiagnose
+sbin_PROGRAMS = tproc tlustre otop lmtmetric lmtdiagnose ltop
 
 common_ldadd = \
 	$(top_builddir)/liblmt/liblmt.la \
@@ -17,6 +17,9 @@ tlustre_LDADD = $(common_ldadd)
 
 otop_SOURCES = otop.c
 otop_LDADD = $(common_ldadd) $(LIBCURSES)
+
+ltop_SOURCES = ltop.c
+ltop_LDADD = $(common_ldadd) $(LIBCURSES)
 
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
