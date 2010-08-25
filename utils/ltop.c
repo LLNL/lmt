@@ -57,8 +57,16 @@
 #include "lmtconf.h"
 
 typedef struct {
-    char *name;
-    char *oscstate;
+    uint64_t val[2];
+    time_t time[2];
+    int valid; /* count of valid samples [0,1,2] */
+} sample_t;
+
+typedef struct {
+    char name[5];       /* last 4 chars of OST name, e.g. lc1-OST0001 */
+    char oscstate[2];   /* 1 char OSC state (translated by lmt_osc metric) */
+    sample_t rbytes;
+    sample_t wbytes;
 } oststat_t;
 
 static void _sigint_handler (int arg);
@@ -158,14 +166,14 @@ _update_display (void)
 
     /* Display the header */
     attron (A_REVERSE);
-    mvprintw (x++, 0, "%-80s", "OST  State");
+    mvprintw (x++, 0, "%-80s", "OST  S");
     attroff(A_REVERSE);
 
     /* Display the list of ost's */
     if (ost_data) {
         itr = list_iterator_create (ost_data);
         while ((o = list_next (itr))) {
-            mvprintw (x++, 0, "%8s %s", o->name, o->oscstate);
+            mvprintw (x++, 0, "%s %s", o->name, o->oscstate);
         }
     }
 
@@ -179,16 +187,26 @@ _update_display (void)
 static int
 _match_oststat (oststat_t *o, char *name)
 {
-    return (strcmp (o->name, name) == 0);
+    char *p = strstr (name, "-OST");
+
+    return (strcmp (o->name, p ? p + 4 : name) == 0);
+}
+
+static int
+_cmp_oststat (oststat_t *o1, oststat_t *o2)
+{
+    return strcmp (o1->name, o2->name);
 }
 
 static oststat_t *
 _create_oststat (char *name, char *state)
 {
     oststat_t *o = xmalloc (sizeof (*o));
+    char *ostx = strstr (name, "-OST");
 
-    o->name = xstrdup (name);
-    o->oscstate = xstrdup (state);
+    memset (o, 0, sizeof (*o));
+    strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
+    strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
 
     return o;
 }
@@ -196,8 +214,6 @@ _create_oststat (char *name, char *state)
 static void
 _destroy_oststat (oststat_t *o)
 {
-    free (o->oscstate);
-    free (o->name);
     free (o);
 }
 
@@ -213,21 +229,35 @@ _fsmatch (char *name)
 }
 
 static void
-_update_osc (char *name, char *oscstate)
+_update_osc (char *name, char *state)
 {
     oststat_t *o;
 
     if (!ost_data)
         ost_data = list_create ((ListDelF)_destroy_oststat);
     if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, name))) {
-        o = _create_oststat (name, oscstate);
+        o = _create_oststat (name, state);
         list_append (ost_data, o);
     } else {
-        free (o->oscstate);
-        o->oscstate = strdup (oscstate);
+        strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
     }
 }
 
+static void
+_update_ost (char *name, uint64_t read_bytes, uint64_t write_bytes)
+{
+    oststat_t *o;
+
+    if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, name)))
+        return;
+    /* update ost state */
+}
+
+/* We get the definitive list of OST's from the MDS's osc view, which should
+ * be constructed from the MDS logs, which in turn comes from the MGS.
+ * The lmt_osc metric also provides the OST state from the MDS point of view,
+ * a useful thing to know.
+ */
 static int
 _poll_osc (void)
 {
@@ -269,10 +299,62 @@ done:
                                       
 }
 
+static int
+_poll_ost (void)
+{
+    int retval = -1;
+    cmetric_t c;
+    List ostinfo, l = NULL;
+    char *s, *val, *ossname, *ostname;
+    float pct_cpu, pct_mem;
+    uint64_t read_bytes, write_bytes;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+    ListIterator itr, oitr;
+    float vers;
+
+    if (lmt_cbr_get_metrics ("lmt_ost", &l) < 0)
+        goto done;
+    itr = list_iterator_create (l);
+    while ((c = list_next (itr))) {
+        if (!(val = lmt_cbr_get_val (c)))
+            continue;
+        if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
+            continue; 
+        if (lmt_ost_decode_v2 (val, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
+            continue;
+        free (ossname);
+        oitr = list_iterator_create (ostinfo);
+        while ((s = list_next (oitr))) {
+            if (lmt_ost_decode_v2_ostinfo (s, &ostname,
+                                           &read_bytes, &write_bytes,
+                                           &kbytes_free, &kbytes_total,
+                                           &inodes_free, &inodes_total) == 0) {
+                if (_fsmatch (ostname))
+                    _update_ost (ostname, read_bytes, write_bytes);
+                free (ostname);
+            }
+        }
+        list_iterator_destroy (oitr);
+        list_destroy (ostinfo);
+    }
+    list_iterator_destroy (itr);
+    list_destroy (l);
+    retval = 0;
+done: 
+    return retval;
+}
+
+
 static void
 _poll_cerebro (void)
 {
-    _poll_osc ();
+    if (_poll_osc () < 0)
+        err_exit ("could not get cerebro lmt_osc metric");
+    if (_poll_ost () < 0)
+        err_exit ("could not get cerebro lmt_ost metric");
+
+    list_sort (ost_data, (ListCmpF)_cmp_oststat);
 }
 
 /*

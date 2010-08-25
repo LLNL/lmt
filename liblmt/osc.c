@@ -63,6 +63,31 @@ _get_oscstring (pctx_t ctx, char *name, char *s, int len)
             err ("error reading lustre %s uuid from proc", name);
         goto done;
     }
+
+    /* translate state to 1 char representation documented in ltop(1) */
+    if (!strcmp (state, "CLOSED"))
+        strcpy (state, "C");
+    else if (!strcmp (state, "NEW"))
+        strcpy (state, "N");
+    else if (!strcmp (state, "DISCONN"))
+        strcpy (state, "D");
+    else if (!strcmp (state, "CONNECTING"))
+        strcpy (state, "c");
+    else if (!strcmp (state, "REPLAY"))
+        strcpy (state, "r");
+    else if (!strcmp (state, "REPLAY_LOCKS"))
+        strcpy (state, "l");
+    else if (!strcmp (state, "REPLAY_WAIT"))
+        strcpy (state, "w");
+    else if (!strcmp (state, "RECOVER"))
+        strcpy (state, "R");
+    else if (!strcmp (state, "FULL"))
+        strcpy (state, "F");
+    else if (!strcmp (state, "EVICTED")) 
+        strcpy (state, "E");
+    else
+        strcpy (state, "?");    /* <UNKNOWN> or ?? */
+
     n = snprintf (s, len, "%s;%s;", uuid, state);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())

@@ -96,6 +96,12 @@ lmt_cbr_get_name (cmetric_t c)
     return c->name;
 }
 
+time_t
+lmt_cbr_get_time (cmetric_t c)
+{
+    return (time_t)c->time;
+}
+
 static int
 _get_metric_data (cerebro_t ch, char *name, List rl)
 {
