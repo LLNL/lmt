@@ -164,7 +164,7 @@ lmt_ost_string_v2 (pctx_t ctx, char *s, int len)
         goto done;
     if (_get_mem_usage (ctx, &mempct) < 0)
         goto done;
-    n = snprintf (s, len, "2;%s;%f;%f",
+    n = snprintf (s, len, "2;%s;%f;%f;",
                   uts.nodename,
                   cpupct,
                   mempct);
