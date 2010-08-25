@@ -69,6 +69,13 @@ typedef struct {
     sample_t wbytes;
 } oststat_t;
 
+typedef struct {
+    double minodes_free;   /* mds */
+    double minodes_total;
+    double tbytes_free;   /* sum of ost's */
+    double tbytes_total;
+} summary_t;
+
 static void _sigint_handler (int arg);
 static void _poll_cerebro (void);
 static void _update_display (void);
@@ -88,6 +95,7 @@ static const struct option longopts[] = {
 static int exit_flag = 0;
 static int sample_period = 2; /* seconds */
 static List ost_data = NULL;
+static summary_t summary;
 static char *fs = NULL;
 
 static void
@@ -162,6 +170,14 @@ _update_display (void)
     clear ();
 
     mvprintw (x++, 0, "Filesystem: %s", fs);
+    mvprintw (x++, 0, "    Inodes: %12.3fm total, %12.3fm used, %12.3fm free",
+              summary.minodes_total,
+              summary.minodes_total - summary.minodes_free,
+              summary.minodes_free);
+    mvprintw (x++, 0, "     Space: %12.3ft total, %12.3ft used, %12.3ft free",
+              summary.tbytes_total,
+              summary.tbytes_total - summary.tbytes_free,
+              summary.tbytes_free);
     x++;
 
     /* Display the header */
@@ -244,13 +260,19 @@ _update_osc (char *name, char *state)
 }
 
 static void
-_update_ost (char *name, uint64_t read_bytes, uint64_t write_bytes)
+_update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes)
 {
     oststat_t *o;
 
     if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, name)))
         return;
     /* update ost state */
+}
+
+static void
+_update_mdt (char *name, time_t t, uint64_t inodes_free, uint64_t inodes_total,
+             uint64_t kbytes_free, uint64_t kbytes_total, List mdops)
+{
 }
 
 /* We get the definitive list of OST's from the MDS's osc view, which should
@@ -265,7 +287,7 @@ _poll_osc (void)
     cmetric_t c;
     List oscinfo, l = NULL;
     char *s, *val, *mdsname, *oscname, *oscstate;
-    ListIterator itr, oitr;
+    ListIterator itr, itr2;
     float vers;
 
     if (lmt_cbr_get_metrics ("lmt_osc", &l) < 0)
@@ -279,8 +301,8 @@ _poll_osc (void)
         if (lmt_osc_decode_v1 (val, &mdsname, &oscinfo) < 0)
             continue;
         free (mdsname);
-        oitr = list_iterator_create (oscinfo);
-        while ((s = list_next (oitr))) {
+        itr2 = list_iterator_create (oscinfo);
+        while ((s = list_next (itr2))) {
             if (lmt_osc_decode_v1_oscinfo (s, &oscname, &oscstate) == 0) {
                 if (_fsmatch (oscname))
                     _update_osc (oscname, oscstate);
@@ -288,7 +310,7 @@ _poll_osc (void)
                 free (oscstate);
             }
         }
-        list_iterator_destroy (oitr);
+        list_iterator_destroy (itr2);
         list_destroy (oscinfo);
     }
     list_iterator_destroy (itr);
@@ -296,7 +318,6 @@ _poll_osc (void)
     retval = 0;
 done: 
     return retval;
-                                      
 }
 
 static int
@@ -310,8 +331,10 @@ _poll_ost (void)
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
-    ListIterator itr, oitr;
+    uint64_t sum_kbytes_free = 0, sum_kbytes_total = 0;
+    ListIterator itr, itr2;
     float vers;
+    time_t t;
 
     if (lmt_cbr_get_metrics ("lmt_ost", &l) < 0)
         goto done;
@@ -319,32 +342,91 @@ _poll_ost (void)
     while ((c = list_next (itr))) {
         if (!(val = lmt_cbr_get_val (c)))
             continue;
-        if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
+        if (sscanf (val, "%f;", &vers) != 1 || vers != 2)
             continue; 
+        t = lmt_cbr_get_time (c);
         if (lmt_ost_decode_v2 (val, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
             continue;
         free (ossname);
-        oitr = list_iterator_create (ostinfo);
-        while ((s = list_next (oitr))) {
+        itr2 = list_iterator_create (ostinfo);
+        while ((s = list_next (itr2))) {
             if (lmt_ost_decode_v2_ostinfo (s, &ostname,
                                            &read_bytes, &write_bytes,
                                            &kbytes_free, &kbytes_total,
                                            &inodes_free, &inodes_total) == 0) {
-                if (_fsmatch (ostname))
-                    _update_ost (ostname, read_bytes, write_bytes);
+                if (_fsmatch (ostname)) {
+                    _update_ost (ostname, t, read_bytes, write_bytes);
+                    sum_kbytes_free += kbytes_free;
+                    sum_kbytes_total += kbytes_total;
+                }
                 free (ostname);
             }
         }
-        list_iterator_destroy (oitr);
+        list_iterator_destroy (itr2);
         list_destroy (ostinfo);
     }
     list_iterator_destroy (itr);
     list_destroy (l);
+    summary.tbytes_free = (double)sum_kbytes_free / (1024.0*1024*1024);
+    summary.tbytes_total = (double)sum_kbytes_total / (1024.0*1024*1024);
     retval = 0;
 done: 
     return retval;
 }
 
+static int
+_poll_mdt (void)
+{
+    int retval = -1;
+    cmetric_t c;
+    List mdops, mdtinfo, l = NULL;
+    char *s, *val, *mdsname, *mdtname;
+    float pct_cpu, pct_mem;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+    uint64_t sum_inodes_free = 0, sum_inodes_total = 0;
+    ListIterator itr, itr2;
+    float vers;
+    time_t t;
+
+    if (lmt_cbr_get_metrics ("lmt_mdt", &l) < 0)
+        goto done;
+    itr = list_iterator_create (l);
+    while ((c = list_next (itr))) {
+        if (!(val = lmt_cbr_get_val (c)))
+            continue;
+        if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
+            continue; 
+        t = lmt_cbr_get_time (c);
+        if (lmt_mdt_decode_v1 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+            continue;
+        free (mdsname);
+        itr2 = list_iterator_create (mdtinfo);
+        while ((s = list_next (itr2))) {
+            if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
+                                           &inodes_total, &kbytes_free,
+                                           &kbytes_total, &mdops) == 0) {
+                if (_fsmatch (mdtname)) {
+                    _update_mdt (mdtname, t, inodes_free, inodes_total,
+                                 kbytes_free, kbytes_total, mdops);
+                    sum_inodes_free += inodes_free;
+                    sum_inodes_total += inodes_total;
+                }
+                free (mdtname);
+                list_destroy (mdops);
+            }
+        }
+        list_iterator_destroy (itr2);
+        list_destroy (mdtinfo);
+    }
+    list_iterator_destroy (itr);
+    list_destroy (l);
+    summary.minodes_free = (double)sum_inodes_free / (1024.0*1024);
+    summary.minodes_total = (double)sum_inodes_total / (1024.0*1024);
+    retval = 0;
+done: 
+    return retval;
+}
 
 static void
 _poll_cerebro (void)
@@ -353,6 +435,8 @@ _poll_cerebro (void)
         err_exit ("could not get cerebro lmt_osc metric");
     if (_poll_ost () < 0)
         err_exit ("could not get cerebro lmt_ost metric");
+    if (_poll_mdt () < 0)
+        err_exit ("could not get cerebro lmt_mdt metric");
 
     list_sort (ost_data, (ListCmpF)_cmp_oststat);
 }
