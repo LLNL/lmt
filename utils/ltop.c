@@ -79,6 +79,9 @@ typedef struct {
     double tbytes_total;
     double rmbps;
     double wmbps;
+    sample_t create;
+    sample_t open;
+    sample_t unlink;
 } summary_t;
 
 static void _sigint_handler (int arg);
@@ -143,6 +146,8 @@ main (int argc, char *argv[])
 
     ost_data = list_create ((ListDelF)_destroy_oststat);
 
+    memset (&summary, 0, sizeof (summary));
+
     _poll_cerebro ();
 
     if (list_count (ost_data) == 0)
@@ -205,16 +210,35 @@ _sample_to_mbps (sample_t *sp, char *s, int len, double *valp)
     if (sp->valid == 2 && (now - sp->time[1]) > STALE_THRESH_SEC)
         _sample_init (sp);
     if (sp->valid == 2) {
-        val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]) * 1E6;
+        val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
         if (s)
-            snprintf (s, len, "%8.3f", val);
+            snprintf (s, len, "%7.2f", val);
         if (valp)
             *valp = val;
     } else {
         if (s)
-            snprintf (s, len, "%8s", "********");
+            snprintf (s, len, "%7s", "***");
         if (valp)
             *valp = 0.0;
+    }
+    return s;
+}
+
+static char *
+_sample_to_oprate (sample_t *sp, char *s, int len)
+{
+    time_t now = time (NULL);
+    double val;
+
+    if (sp->valid == 2 && (now - sp->time[1]) > STALE_THRESH_SEC)
+        _sample_init (sp);
+    if (sp->valid == 2) {
+        val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]);
+        if (s)
+            snprintf (s, len, "%6lu", (unsigned long)val);
+    } else {
+        if (s)
+            snprintf (s, len, "%6s", "***");
     }
     return s;
 }
@@ -225,7 +249,8 @@ _update_display (void)
     ListIterator itr;
     oststat_t *o;
     int x = 0;
-    char rmbps[9], wmbps[9];
+    char rmbps[8], wmbps[8];
+    char creates[7], opens[7], unlinks[7];
 
     clear ();
 
@@ -238,14 +263,17 @@ _update_display (void)
               summary.tbytes_total,
               summary.tbytes_total - summary.tbytes_free,
               summary.tbytes_free);
-    mvprintw (x++, 0, " I/O Bytes: %12.3fg read,  %12.3fg write",
+    mvprintw (x++, 0, "   Bytes/s: %12.3fg read,  %12.3fg write",
               summary.rmbps / 1024,
               summary.wmbps / 1024);
-    x++;
+    mvprintw (x++, 0, "     Ops/s: %6s create, %6s open, %6s unlink",
+              _sample_to_oprate (&summary.create, creates, sizeof (creates)),
+              _sample_to_oprate (&summary.open, opens, sizeof (opens)),
+              _sample_to_oprate (&summary.unlink, unlinks, sizeof (unlinks)));
 
     /* Display the header */
     attron (A_REVERSE);
-    mvprintw (x++, 0, "%-80s", "OST  S  Rd-MB/s  Wr-MB/s");
+    mvprintw (x++, 0, "%-80s", "OST  S Rd-MB/s Wr-MB/s");
     attroff(A_REVERSE);
 
     /* Display the list of ost's */
@@ -359,6 +387,24 @@ static void
 _update_mdt (char *name, time_t t, uint64_t inodes_free, uint64_t inodes_total,
              uint64_t kbytes_free, uint64_t kbytes_total, List mdops)
 {
+    char *opname, *s;
+    ListIterator itr;
+    uint64_t samples, sum, sumsquares;
+
+    itr = list_iterator_create (mdops);
+    while ((s = list_next (itr))) {
+        if (lmt_mdt_decode_v1_mdops (s, &opname,
+                                &samples, &sum, &sumsquares) == 0) {
+            if (!strcmp (opname, "create"))
+                _sample_update (&summary.create, (double)samples, t);
+            else if (!strcmp (opname, "open"))
+                _sample_update (&summary.open, (double)samples, t);
+            else if (!strcmp (opname, "unlink"))
+                _sample_update (&summary.unlink, (double)samples, t);
+            free (opname);
+        }
+    }
+    list_iterator_destroy (itr);
 }
 
 /* We get the definitive list of OST's from the MDS's osc view, which should
