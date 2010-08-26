@@ -39,6 +39,7 @@
 #include <getopt.h>
 #endif
 #include <libgen.h>
+#include <time.h>
 
 #include "list.h"
 #include "hash.h"
@@ -57,7 +58,7 @@
 #include "lmtconf.h"
 
 typedef struct {
-    uint64_t val[2];
+    double val[2];
     time_t time[2];
     int valid; /* count of valid samples [0,1,2] */
 } sample_t;
@@ -69,16 +70,21 @@ typedef struct {
     sample_t wbytes;
 } oststat_t;
 
+#define STALE_THRESH_SEC    30
+
 typedef struct {
     double minodes_free;   /* mds */
     double minodes_total;
     double tbytes_free;   /* sum of ost's */
     double tbytes_total;
+    double rmbps;
+    double wmbps;
 } summary_t;
 
 static void _sigint_handler (int arg);
 static void _poll_cerebro (void);
 static void _update_display (void);
+static void _destroy_oststat (oststat_t *o);
 
 #define OPTIONS "f:c:"
 #if HAVE_GETOPT_LONG
@@ -135,8 +141,13 @@ main (int argc, char *argv[])
     if (lmt_conf_init (1, conffile) < 0)
         exit (1);
 
+    ost_data = list_create ((ListDelF)_destroy_oststat);
+
     _poll_cerebro ();
-#if 1
+
+    if (list_count (ost_data) == 0)
+        msg_exit ("no data found for file system `%s'", fs);
+
     signal (SIGINT, _sigint_handler);
     /* FIXME: handle SIGTSTP, SIGCONT */
     /* FIXME: handle SIGWINCH */
@@ -149,7 +160,9 @@ main (int argc, char *argv[])
         _poll_cerebro ();
     }
     endwin ();
-#endif
+
+    list_destroy (ost_data);
+
     msg ("Goodbye");
     exit (0);
 }
@@ -161,11 +174,58 @@ _sigint_handler (int arg)
 }
 
 static void
+_sample_init (sample_t *sp)
+{
+    sp->valid = 0;
+}
+
+static void
+_sample_update (sample_t *sp, double val, time_t t)
+{
+    if (sp->valid == 0) {
+        sp->time[1] = t;
+        sp->val[1] = val;
+        sp->valid++;
+    } else if (sp->time[1] < t) {
+        sp->time[0] = sp->time[1];
+        sp->val[0] = sp->val[1];
+        sp->time[1] = t;
+        sp->val[1] = val;
+        if (sp->valid < 2)
+            sp->valid++;
+    }
+}
+
+static char *
+_sample_to_mbps (sample_t *sp, char *s, int len, double *valp)
+{
+    time_t now = time (NULL);
+    double val;
+
+    if (sp->valid == 2 && (now - sp->time[1]) > STALE_THRESH_SEC)
+        _sample_init (sp);
+    if (sp->valid == 2) {
+        val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]) * 1E6;
+        if (s)
+            snprintf (s, len, "%8.3f", val);
+        if (valp)
+            *valp = val;
+    } else {
+        if (s)
+            snprintf (s, len, "%8s", "********");
+        if (valp)
+            *valp = 0.0;
+    }
+    return s;
+}
+
+static void
 _update_display (void)
 {
     ListIterator itr;
     oststat_t *o;
     int x = 0;
+    char rmbps[9], wmbps[9];
 
     clear ();
 
@@ -178,22 +238,47 @@ _update_display (void)
               summary.tbytes_total,
               summary.tbytes_total - summary.tbytes_free,
               summary.tbytes_free);
+    mvprintw (x++, 0, " I/O Bytes: %12.3fg read,  %12.3fg write",
+              summary.rmbps / 1024,
+              summary.wmbps / 1024);
     x++;
 
     /* Display the header */
     attron (A_REVERSE);
-    mvprintw (x++, 0, "%-80s", "OST  S");
+    mvprintw (x++, 0, "%-80s", "OST  S  Rd-MB/s  Wr-MB/s");
     attroff(A_REVERSE);
 
     /* Display the list of ost's */
     if (ost_data) {
         itr = list_iterator_create (ost_data);
         while ((o = list_next (itr))) {
-            mvprintw (x++, 0, "%s %s", o->name, o->oscstate);
+            mvprintw (x++, 0, "%s %s %s %s", o->name, o->oscstate,
+                      _sample_to_mbps (&o->rbytes, rmbps, sizeof (rmbps), NULL),
+                      _sample_to_mbps (&o->wbytes, wmbps, sizeof (wmbps), NULL));
         }
     }
 
     refresh ();
+}
+
+static void
+_update_ost_summary (void)
+{
+    ListIterator itr;
+    double totr = 0, totw = 0;
+    double r, w;
+    oststat_t *o;
+
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr))) {
+        _sample_to_mbps (&o->rbytes, NULL, 0, &r);
+        totr += r;
+        _sample_to_mbps (&o->wbytes, NULL, 0, &w);    
+        totw += w;
+    }
+    list_iterator_destroy (itr);        
+    summary.rmbps = totr;
+    summary.wmbps = totw;
 }
 
 /**
@@ -223,6 +308,8 @@ _create_oststat (char *name, char *state)
     memset (o, 0, sizeof (*o));
     strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
     strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
+    _sample_init (&o->rbytes);
+    _sample_init (&o->wbytes);
 
     return o;
 }
@@ -249,8 +336,6 @@ _update_osc (char *name, char *state)
 {
     oststat_t *o;
 
-    if (!ost_data)
-        ost_data = list_create ((ListDelF)_destroy_oststat);
     if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, name))) {
         o = _create_oststat (name, state);
         list_append (ost_data, o);
@@ -266,7 +351,8 @@ _update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes)
 
     if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, name)))
         return;
-    /* update ost state */
+    _sample_update (&o->rbytes, (double)read_bytes, t);
+    _sample_update (&o->wbytes, (double)write_bytes, t);
 }
 
 static void
@@ -435,6 +521,7 @@ _poll_cerebro (void)
         err_exit ("could not get cerebro lmt_osc metric");
     if (_poll_ost () < 0)
         err_exit ("could not get cerebro lmt_ost metric");
+    _update_ost_summary ();
     if (_poll_mdt () < 0)
         err_exit ("could not get cerebro lmt_mdt metric");
 
