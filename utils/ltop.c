@@ -79,9 +79,17 @@ typedef struct {
     double tbytes_total;
     double rmbps;
     double wmbps;
-    sample_t create;
     sample_t open;
+    sample_t close;
+    sample_t getattr;
+    sample_t setattr;
+    sample_t link;
     sample_t unlink;
+    sample_t mkdir;
+    sample_t rmdir;
+    sample_t statfs;
+    sample_t rename;
+    sample_t getxattr;
 } summary_t;
 
 static void _sigint_handler (int arg);
@@ -243,6 +251,30 @@ _sample_to_oprate (sample_t *sp, char *s, int len)
     return s;
 }
 
+/*
+open                      3540978306  x
+close                     1586981559  x
+mknod                     1240936     x
+link                      548245      x
+unlink                    97883464    x
+mkdir                     6713854     x
+rmdir                     2500567     x
+rename                    6881862
+getxattr                  27506606
+process_config            2
+connect                   36360
+reconnect                 225597
+disconnect                36815
+statfs                    12974447
+create                    4562
+destroy                   3178
+setattr                   325717789   x
+getattr                   1999990210  x
+llog_init                 288
+notify                    1441
+quotactl                  17013
+*/
+
 static void
 _update_display (void)
 {
@@ -250,7 +282,9 @@ _update_display (void)
     oststat_t *o;
     int x = 0;
     char rmbps[8], wmbps[8];
-    char creates[7], opens[7], unlinks[7];
+    char op[7], cl[7], gattr[7], sattr[7];
+    char li[7], ul[7], mkd[7], rmd[7];
+    char sfs[7], ren[7], gxattr[7];
 
     clear ();
 
@@ -266,10 +300,20 @@ _update_display (void)
     mvprintw (x++, 0, "   Bytes/s: %12.3fg read,  %12.3fg write",
               summary.rmbps / 1024,
               summary.wmbps / 1024);
-    mvprintw (x++, 0, "     Ops/s: %6s create, %6s open, %6s unlink",
-              _sample_to_oprate (&summary.create, creates, sizeof (creates)),
-              _sample_to_oprate (&summary.open, opens, sizeof (opens)),
-              _sample_to_oprate (&summary.unlink, unlinks, sizeof (unlinks)));
+    mvprintw (x++, 0, "   MDops/s: %6s open,   %6s close,  %6s getattr,  %6s setattr",
+              _sample_to_oprate (&summary.open,    op,    sizeof (op)),
+              _sample_to_oprate (&summary.close,   cl,    sizeof (cl)),
+              _sample_to_oprate (&summary.getattr, gattr, sizeof (gattr)),
+              _sample_to_oprate (&summary.setattr, sattr, sizeof (sattr)));
+    mvprintw (x++, 0, "            %6s link,   %6s unlink, %6s mkdir,    %6s rmdir",
+              _sample_to_oprate (&summary.link,    li,    sizeof (li)),
+              _sample_to_oprate (&summary.unlink,  ul,    sizeof (ul)),
+              _sample_to_oprate (&summary.mkdir,   mkd,   sizeof (mkd)),
+              _sample_to_oprate (&summary.rmdir,   rmd,   sizeof (rmd)));
+    mvprintw (x++, 0, "            %6s statfs, %6s rename, %6s getxattr",
+              _sample_to_oprate (&summary.statfs,  sfs,    sizeof (sfs)),
+              _sample_to_oprate (&summary.rename,  ren,    sizeof (ren)),
+              _sample_to_oprate (&summary.getxattr,gxattr,sizeof (gxattr)));
 
     /* Display the header */
     attron (A_REVERSE);
@@ -395,12 +439,28 @@ _update_mdt (char *name, time_t t, uint64_t inodes_free, uint64_t inodes_total,
     while ((s = list_next (itr))) {
         if (lmt_mdt_decode_v1_mdops (s, &opname,
                                 &samples, &sum, &sumsquares) == 0) {
-            if (!strcmp (opname, "create"))
-                _sample_update (&summary.create, (double)samples, t);
-            else if (!strcmp (opname, "open"))
+            if (!strcmp (opname, "open"))
                 _sample_update (&summary.open, (double)samples, t);
+            else if (!strcmp (opname, "close"))
+                _sample_update (&summary.close, (double)samples, t);
+            else if (!strcmp (opname, "getattr"))
+                _sample_update (&summary.getattr, (double)samples, t);
+            else if (!strcmp (opname, "setattr"))
+                _sample_update (&summary.setattr, (double)samples, t);
+            else if (!strcmp (opname, "link"))
+                _sample_update (&summary.link, (double)samples, t);
             else if (!strcmp (opname, "unlink"))
                 _sample_update (&summary.unlink, (double)samples, t);
+            else if (!strcmp (opname, "mkdir"))
+                _sample_update (&summary.mkdir, (double)samples, t);
+            else if (!strcmp (opname, "rmdir"))
+                _sample_update (&summary.rmdir, (double)samples, t);
+            else if (!strcmp (opname, "statfs"))
+                _sample_update (&summary.statfs, (double)samples, t);
+            else if (!strcmp (opname, "rename"))
+                _sample_update (&summary.rename, (double)samples, t);
+            else if (!strcmp (opname, "getxattr"))
+                _sample_update (&summary.getxattr, (double)samples, t);
             free (opname);
         }
     }
