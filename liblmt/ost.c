@@ -97,12 +97,13 @@ _get_mem_usage (pctx_t ctx, double *fp)
 }
 
 static int
-_get_oststring (pctx_t ctx, char *name, char *s, int len)
+_get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
 {
     char *uuid = NULL;
     uint64_t filesfree, filestotal;
     uint64_t kbytesfree, kbytestotal;
     uint64_t read_bytes, write_bytes;
+    uint64_t num_exports;
     int n, retval = -1;
 
     if (proc_lustre_uuid (ctx, name, &uuid) < 0) {
@@ -125,9 +126,15 @@ _get_oststring (pctx_t ctx, char *name, char *s, int len)
             err ("error reading lustre %s rwbytes stats from proc", name);
         goto done;
     }
+    if (proc_lustre_num_exports (ctx, name, &num_exports) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading lustre %s num_exports stats from proc", name);
+        goto done;
+    }
     n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                  ";%"PRIu64";%"PRIu64";", uuid, filesfree, filestotal,
-                  kbytesfree, kbytestotal, read_bytes, write_bytes);
+                  ";%"PRIu64";%"PRIu64";%"PRIu64";",
+                  uuid, filesfree, filestotal, kbytesfree, kbytestotal,
+                  read_bytes, write_bytes, num_exports);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
             msg ("string overflow");
@@ -176,7 +183,7 @@ lmt_ost_string_v2 (pctx_t ctx, char *s, int len)
     itr = list_iterator_create (ostlist);
     while ((name = list_next (itr))) {
         used = strlen (s);
-        if (_get_oststring (ctx, name, s + used, len - used) < 0)
+        if (_get_oststring_v2 (ctx, name, s + used, len - used) < 0)
             goto done;
     }
     retval = 0;
@@ -208,7 +215,7 @@ lmt_ost_decode_v2 (const char *s, char **ossnamep, float *pct_cpup,
             msg ("lmt_ost_v2: parse error: skipping oss component");
         goto done;
     }
-    while ((cpy = strskipcpy (&s, 7, ';')))
+    while ((cpy = strskipcpy (&s, 8, ';')))
         list_append (ostinfo, cpy);
     if (strlen (s) > 0) {
         if (lmt_conf_get_proto_debug ())
@@ -232,18 +239,20 @@ int
 lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
                            uint64_t *read_bytesp, uint64_t *write_bytesp,
                            uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
-                           uint64_t *inodes_freep, uint64_t *inodes_totalp)
+                           uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                           uint64_t *num_exportsp)
 {
     int retval = -1;
     char *ostname = xmalloc (strlen (s) + 1);;
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
+    uint64_t num_exports;
 
     if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                ";%"PRIu64, ostname, &inodes_free,
+                ";%"PRIu64";%"PRIu64, ostname, &inodes_free,
                 &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
-                &write_bytes) != 7) {
+                &write_bytes, &num_exports) != 8) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_ost_v2: parse error: ostinfo");
         goto done;
@@ -255,6 +264,7 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
     *kbytes_totalp = kbytes_total;
     *inodes_freep = inodes_free;
     *inodes_totalp = inodes_total;
+    *num_exportsp = num_exports;
     retval = 0;
 done:
     if (retval < 0)

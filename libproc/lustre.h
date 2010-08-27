@@ -35,6 +35,7 @@ int proc_lustre_uuid (pctx_t ctx, char *name, char **uuidp);
 
 int proc_lustre_oscinfo (pctx_t ctx, char *name, char **uuidp, char **statep);
 
+int proc_lustre_num_exports (pctx_t ctx, char *name, uint64_t *np);
 
 typedef struct {
     char *key;

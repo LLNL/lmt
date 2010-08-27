@@ -68,6 +68,7 @@ typedef struct {
     char oscstate[2];   /* 1 char OSC state (translated by lmt_osc metric) */
     sample_t rbytes;
     sample_t wbytes;
+    int num_exports;
 } oststat_t;
 
 #define STALE_THRESH_SEC    30
@@ -317,14 +318,15 @@ _update_display (void)
 
     /* Display the header */
     attron (A_REVERSE);
-    mvprintw (x++, 0, "%-80s", "OST  S Rd-MB/s Wr-MB/s");
+    mvprintw (x++, 0, "%-80s", "OST  S Exprt Rd-MB/s Wr-MB/s");
     attroff(A_REVERSE);
 
     /* Display the list of ost's */
     if (ost_data) {
         itr = list_iterator_create (ost_data);
         while ((o = list_next (itr))) {
-            mvprintw (x++, 0, "%s %s %s %s", o->name, o->oscstate,
+            mvprintw (x++, 0, "%s %s %5d %s %s", o->name, o->oscstate,
+                      o->num_exports,
                       _sample_to_mbps (&o->rbytes, rmbps, sizeof (rmbps), NULL),
                       _sample_to_mbps (&o->wbytes, wmbps, sizeof (wmbps), NULL));
         }
@@ -417,7 +419,8 @@ _update_osc (char *name, char *state)
 }
 
 static void
-_update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes)
+_update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes,
+             uint64_t num_exports)
 {
     oststat_t *o;
 
@@ -425,6 +428,7 @@ _update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes)
         return;
     _sample_update (&o->rbytes, (double)read_bytes, t);
     _sample_update (&o->wbytes, (double)write_bytes, t);
+    o->num_exports = (int)num_exports;
 }
 
 static void
@@ -523,6 +527,7 @@ _poll_ost (void)
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
+    uint64_t num_exports;
     uint64_t sum_kbytes_free = 0, sum_kbytes_total = 0;
     ListIterator itr, itr2;
     float vers;
@@ -545,9 +550,11 @@ _poll_ost (void)
             if (lmt_ost_decode_v2_ostinfo (s, &ostname,
                                            &read_bytes, &write_bytes,
                                            &kbytes_free, &kbytes_total,
-                                           &inodes_free, &inodes_total) == 0) {
+                                           &inodes_free, &inodes_total,
+                                           &num_exports) == 0) {
                 if (_fsmatch (ostname)) {
-                    _update_ost (ostname, t, read_bytes, write_bytes);
+                    _update_ost (ostname, t, read_bytes, write_bytes,
+                                 num_exports);
                     sum_kbytes_free += kbytes_free;
                     sum_kbytes_total += kbytes_total;
                 }

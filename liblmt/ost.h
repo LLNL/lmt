@@ -28,7 +28,8 @@ int lmt_ost_decode_v2 (const char *s, char **ossnamep,
 int lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
                         uint64_t *read_bytesp, uint64_t *write_bytesp,
                         uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
-                        uint64_t *inodes_freep, uint64_t *inodes_totalp);
+                        uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                        uint64_t *num_exportsp);
 
 /* legacy */
 

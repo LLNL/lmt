@@ -55,12 +55,21 @@
 #define PROC_FS_LUSTRE_MDT_UUID         "fs/lustre/mds/%s/uuid"
 #define PROC_FS_LUSTRE_OST_UUID         "fs/lustre/obdfilter/%s/uuid"
 
-#define PROC_FS_LUSTRE_OSC_OST_SERVER_UUID  "fs/lustre/osc/%s/ost_server_uuid"
+#define PROC_FS_LUSTRE_OSC_OST_SERVER_UUID \
+                                        "fs/lustre/osc/%s/ost_server_uuid"
 
 #define PROC_FS_LUSTRE_MDT_STATS        "fs/lustre/mds/%s/stats"
 #define PROC_FS_LUSTRE_OST_STATS        "fs/lustre/obdfilter/%s/stats"
 
 #define PROC_FS_LUSTRE_OSC_STATE        "fs/lustre/osc/%s/state"
+
+#define PROC_FS_LUSTRE_OST_RECOVERY_STATUS \
+                                        "fs/lustre/obdfilter/%s/recovery_status"
+#define PROC_FS_LUSTRE_MDT_RECOVERY_STATUS \
+                                        "fs/lustre/mds/%s/recovery_status"
+
+#define PROC_FS_LUSTRE_OST_NUM_EXPORTS  "fs/lustre/obdfilter/%s/num_exports"
+#define PROC_FS_LUSTRE_MDT_NUM_EXPORTS  "fs/lustre/mds/%s/num_exports"
 
 #define PROC_SYS_LNET_ROUTES            "sys/lnet/routes"
 #define PROC_SYS_LNET_STATS             "sys/lnet/stats"
@@ -170,6 +179,30 @@ done:
     return ret;
 }
 
+int
+proc_lustre_num_exports (pctx_t ctx, char *name, uint64_t *np)
+{
+    int ret = -1;
+    uint64_t n;
+    char *tmpl;
+
+    if (strstr (name, "-OST")) {
+        tmpl = PROC_FS_LUSTRE_OST_NUM_EXPORTS;
+    } else if (strstr (name, "-MDT")) {
+        tmpl = PROC_FS_LUSTRE_MDT_NUM_EXPORTS;
+    } else {
+        errno = EINVAL;
+        goto done;
+    }
+    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0)
+        goto done;
+done:
+    if (ret == 0)
+        *np = n;
+    return ret;
+}
+
+
 static void
 _trim_uuid (char *s)
 {
@@ -222,6 +255,38 @@ done:
     }
     return ret;
 }
+
+#if 0
+int
+proc_lustre_recovery_status (pctx_t ctx, char *name)
+{
+    int ret;
+
+    if (strstr (name, "-OST"))
+        ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_RECOVERY_STATUS, name);
+    else if (strstr (name, "-MDT"))
+        ret = proc_openf (ctx, PROC_FS_LUSTRE_MDT_RECOVERY_STATUS, name);
+    else {
+        errno = EINVAL;
+        ret = -1;
+    }
+    if (ret < 0)
+        goto done;
+/*
+/proc/fs/lustre/obdfilter/lc1-OST0000 > more recovery_status
+status: COMPLETE
+recovery_start: 1282856372
+recovery_duration: 45
+delayed_clients: 0/127
+completed_clients: 127/127
+replayed_requests: 0
+last_transno: 3483218477340
+*/
+done:
+    return ret;
+}
+#endif
+
 
 static int
 _subdirlist (pctx_t ctx, const char *path, List *lp)
