@@ -105,7 +105,7 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     uint64_t read_bytes, write_bytes;
     uint64_t num_exports;
     hash_t recov_hash = NULL;
-    char *recov_status;
+    shash_t *recov_status;
     int n, retval = -1;
 
     if (proc_lustre_uuid (ctx, name, &uuid) < 0) {
@@ -138,11 +138,15 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
             err ("error reading lustre %s recovery_status from proc", name);
         goto done;
     }
-    recov_status = hash_find (recov_hash, "status:");
+    if (!(recov_status = hash_find (recov_hash, "status:"))) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error parsing lustre %s recovery_status from proc", name);
+        goto done;
+    }
     n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
                   ";%"PRIu64";%"PRIu64";%"PRIu64";%s;",
                   uuid, filesfree, filestotal, kbytesfree, kbytestotal,
-                  read_bytes, write_bytes, num_exports, recov_status);
+                  read_bytes, write_bytes, num_exports, recov_status->val);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
             msg ("string overflow");

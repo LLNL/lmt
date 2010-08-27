@@ -78,6 +78,11 @@ print_stats (pctx_t ctx, List srvlist)
             err_exit ("%s: proc_lustre_hashstats", srv);
         hash_for_each (stats, (hash_arg_f)print_keyval, srv);
         hash_destroy (stats);
+
+        if (proc_lustre_hashrecov (ctx, srv, &stats) < 0)
+            err_exit ("%s: proc_lustre_hashrecov", srv);
+        hash_for_each (stats, (hash_arg_f)print_keyval, srv);
+        hash_destroy (stats);
     }
     list_iterator_destroy (itr);
 }
