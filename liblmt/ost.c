@@ -261,7 +261,7 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
     uint64_t num_exports;
 
     if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                ";%"PRIu64";%"PRIu64"%[^;];", ostname, &inodes_free,
+                ";%"PRIu64";%"PRIu64";%[^;];", ostname, &inodes_free,
                 &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
                 &write_bytes, &num_exports, recov_status) != 9) {
         if (lmt_conf_get_proto_debug ())
