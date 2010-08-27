@@ -256,38 +256,6 @@ done:
     return ret;
 }
 
-#if 0
-int
-proc_lustre_recovery_status (pctx_t ctx, char *name)
-{
-    int ret;
-
-    if (strstr (name, "-OST"))
-        ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_RECOVERY_STATUS, name);
-    else if (strstr (name, "-MDT"))
-        ret = proc_openf (ctx, PROC_FS_LUSTRE_MDT_RECOVERY_STATUS, name);
-    else {
-        errno = EINVAL;
-        ret = -1;
-    }
-    if (ret < 0)
-        goto done;
-/*
-/proc/fs/lustre/obdfilter/lc1-OST0000 > more recovery_status
-status: COMPLETE
-recovery_start: 1282856372
-recovery_duration: 45
-delayed_clients: 0/127
-completed_clients: 127/127
-replayed_requests: 0
-last_transno: 3483218477340
-*/
-done:
-    return ret;
-}
-#endif
-
-
 static int
 _subdirlist (pctx_t ctx, const char *path, List *lp)
 {
@@ -413,6 +381,35 @@ proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp)
         ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_STATS, name);
     else if (strstr (name, "-MDT"))
         ret = proc_openf (ctx, PROC_FS_LUSTRE_MDT_STATS, name);
+    else 
+        errno = EINVAL;
+    if (ret < 0)
+        goto done;
+    h = hash_create (STATS_HASH_SIZE, (hash_key_f)hash_key_string,
+                    (hash_cmp_f)strcmp, (hash_del_f)_destroy_shash);
+    ret = _hash_stats (ctx, h);
+    proc_close (ctx);
+done:
+    if (ret == 0)
+        *hp = h;                           
+    else if (h)
+        hash_destroy (h);
+    return ret;
+}
+
+/* The recovery_status file is in "key <space> value" form like stats
+ * so we borrow _hash_stats ().
+ */
+int
+proc_lustre_hashrecov (pctx_t ctx, char *name, hash_t *hp)
+{
+    hash_t h = NULL;
+    int ret = -1;
+
+    if (strstr (name, "-OST"))
+        ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_RECOVERY_STATUS, name);
+    else if (strstr (name, "-MDT"))
+        ret = proc_openf (ctx, PROC_FS_LUSTRE_MDT_RECOVERY_STATUS, name);
     else 
         errno = EINVAL;
     if (ret < 0)

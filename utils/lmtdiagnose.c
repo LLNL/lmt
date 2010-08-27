@@ -190,6 +190,7 @@ _parse_ost_v2 (const char *s, lmt_fs_t f)
     int retval = -1;
     char *ossname = NULL;
     char *ostname = NULL;
+    char *recov_status = NULL;
     float pct_cpu, pct_mem;
     uint64_t read_bytes, write_bytes;
     uint64_t inodes_free, inodes_total;
@@ -208,8 +209,9 @@ _parse_ost_v2 (const char *s, lmt_fs_t f)
         if (lmt_ost_decode_v2_ostinfo (osi, &ostname, &read_bytes, &write_bytes,
                                        &kbytes_free, &kbytes_total,
                                        &inodes_free, &inodes_total,
-                                       &num_exports) < 0)
+                                       &num_exports, &recov_status) < 0)
             goto done;
+        free (recov_status);
         append_uniq (f->ost, ostname);
     }
     retval = 0;

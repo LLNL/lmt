@@ -68,10 +68,12 @@ typedef struct {
     char oscstate[2];   /* 1 char OSC state (translated by lmt_osc metric) */
     sample_t rbytes;
     sample_t wbytes;
-    int num_exports;
+    sample_t num_exports;
+    char recov_status[12];
+    time_t recov_valid;
 } oststat_t;
 
-#define STALE_THRESH_SEC    30
+#define STALE_THRESH_SEC    12
 
 typedef struct {
     double minodes_free;   /* mds */
@@ -221,12 +223,12 @@ _sample_to_mbps (sample_t *sp, char *s, int len, double *valp)
     if (sp->valid == 2) {
         val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
         if (s)
-            snprintf (s, len, "%7.2f", val);
+            snprintf (s, len, "%*.2f", len - 1, val);
         if (valp)
             *valp = val;
     } else {
         if (s)
-            snprintf (s, len, "%7s", "***");
+            snprintf (s, len, "%*s", len - 1, "***");
         if (valp)
             *valp = 0.0;
     }
@@ -244,11 +246,42 @@ _sample_to_oprate (sample_t *sp, char *s, int len)
     if (sp->valid == 2) {
         val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]);
         if (s)
-            snprintf (s, len, "%6lu", (unsigned long)val);
+            snprintf (s, len, "%*lu", len - 1, (unsigned long)val);
     } else {
         if (s)
-            snprintf (s, len, "%6s", "***");
+            snprintf (s, len, "%*s", len - 1, "***");
     }
+    return s;
+}
+
+static char *
+_sample_to_val (sample_t *sp, char *s, int len)
+{
+    time_t now = time (NULL);
+    double val;
+
+    if (sp->valid >= 1 && (now - sp->time[1]) > STALE_THRESH_SEC)
+        _sample_init (sp);
+    if (sp->valid >= 1) {
+        val = sp->val[1];
+        if (s)
+            snprintf (s, len, "%*lu", len - 1, (unsigned long)val);
+    } else {
+        if (s)
+            snprintf (s, len, "%*s", len - 1, "***");
+    }
+    return s;
+}
+
+static char *
+_recov_to_val (oststat_t *o, char *s, int len)
+{
+    time_t now = time (NULL);
+
+    if ((now - o->recov_valid) > STALE_THRESH_SEC)
+        snprintf (s, len, "%*s", len - 1, "***");
+    else
+        snprintf (s, len, "%*s", len - 1, o->recov_status);
     return s;
 }
 
@@ -260,13 +293,13 @@ link                      548245      x
 unlink                    97883464    x
 mkdir                     6713854     x
 rmdir                     2500567     x
-rename                    6881862
-getxattr                  27506606
+rename                    6881862     x
+getxattr                  27506606    x
 process_config            2
 connect                   36360
 reconnect                 225597
 disconnect                36815
-statfs                    12974447
+statfs                    12974447    x
 create                    4562
 destroy                   3178
 setattr                   325717789   x
@@ -285,7 +318,7 @@ _update_display (void)
     char rmbps[8], wmbps[8];
     char op[7], cl[7], gattr[7], sattr[7];
     char li[7], ul[7], mkd[7], rmd[7];
-    char sfs[7], ren[7], gxattr[7];
+    char sfs[7], ren[7], gxattr[7], nexp[6], rstat[6];
 
     clear ();
 
@@ -318,15 +351,16 @@ _update_display (void)
 
     /* Display the header */
     attron (A_REVERSE);
-    mvprintw (x++, 0, "%-80s", "OST  S Exprt Rd-MB/s Wr-MB/s");
+    mvprintw (x++, 0, "%-80s", "OST  S Exprt Recov Rd-MB/s Wr-MB/s");
     attroff(A_REVERSE);
 
     /* Display the list of ost's */
     if (ost_data) {
         itr = list_iterator_create (ost_data);
         while ((o = list_next (itr))) {
-            mvprintw (x++, 0, "%s %s %5d %s %s", o->name, o->oscstate,
-                      o->num_exports,
+            mvprintw (x++, 0, "%s %s %s %s %s %s", o->name, o->oscstate,
+                      _sample_to_val  (&o->num_exports, nexp, sizeof (nexp)),
+                      _recov_to_val   (o, rstat, sizeof (rstat)),
                       _sample_to_mbps (&o->rbytes, rmbps, sizeof (rmbps), NULL),
                       _sample_to_mbps (&o->wbytes, wmbps, sizeof (wmbps), NULL));
         }
@@ -420,7 +454,7 @@ _update_osc (char *name, char *state)
 
 static void
 _update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes,
-             uint64_t num_exports)
+             uint64_t num_exports, char *recov_status)
 {
     oststat_t *o;
 
@@ -428,7 +462,9 @@ _update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes,
         return;
     _sample_update (&o->rbytes, (double)read_bytes, t);
     _sample_update (&o->wbytes, (double)write_bytes, t);
-    o->num_exports = (int)num_exports;
+    _sample_update (&o->num_exports, (double)num_exports, t);
+    snprintf (o->recov_status, sizeof (o->recov_status), "%s", recov_status);
+    o->recov_valid = t;
 }
 
 static void
@@ -522,7 +558,7 @@ _poll_ost (void)
     int retval = -1;
     cmetric_t c;
     List ostinfo, l = NULL;
-    char *s, *val, *ossname, *ostname;
+    char *s, *val, *ossname, *ostname, *recov_status;
     float pct_cpu, pct_mem;
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
@@ -551,14 +587,15 @@ _poll_ost (void)
                                            &read_bytes, &write_bytes,
                                            &kbytes_free, &kbytes_total,
                                            &inodes_free, &inodes_total,
-                                           &num_exports) == 0) {
+                                           &num_exports, &recov_status) == 0) {
                 if (_fsmatch (ostname)) {
                     _update_ost (ostname, t, read_bytes, write_bytes,
-                                 num_exports);
+                                 num_exports, recov_status);
                     sum_kbytes_free += kbytes_free;
                     sum_kbytes_total += kbytes_total;
                 }
                 free (ostname);
+                free (recov_status);
             }
         }
         list_iterator_destroy (itr2);

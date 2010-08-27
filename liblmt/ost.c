@@ -104,6 +104,8 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     uint64_t kbytesfree, kbytestotal;
     uint64_t read_bytes, write_bytes;
     uint64_t num_exports;
+    hash_t recov_hash = NULL;
+    char *recov_status;
     int n, retval = -1;
 
     if (proc_lustre_uuid (ctx, name, &uuid) < 0) {
@@ -131,10 +133,16 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
             err ("error reading lustre %s num_exports stats from proc", name);
         goto done;
     }
+    if (proc_lustre_hashrecov (ctx, name, &recov_hash) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading lustre %s recovery_status from proc", name);
+        goto done;
+    }
+    recov_status = hash_find (recov_hash, "status:");
     n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                  ";%"PRIu64";%"PRIu64";%"PRIu64";",
+                  ";%"PRIu64";%"PRIu64";%"PRIu64";%s;",
                   uuid, filesfree, filestotal, kbytesfree, kbytestotal,
-                  read_bytes, write_bytes, num_exports);
+                  read_bytes, write_bytes, num_exports, recov_status);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
             msg ("string overflow");
@@ -144,6 +152,8 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
 done:
     if (uuid)
         free (uuid);
+    if (recov_hash)
+        hash_destroy (recov_hash);
     return retval;
 }
 
@@ -215,7 +225,7 @@ lmt_ost_decode_v2 (const char *s, char **ossnamep, float *pct_cpup,
             msg ("lmt_ost_v2: parse error: skipping oss component");
         goto done;
     }
-    while ((cpy = strskipcpy (&s, 8, ';')))
+    while ((cpy = strskipcpy (&s, 9, ';')))
         list_append (ostinfo, cpy);
     if (strlen (s) > 0) {
         if (lmt_conf_get_proto_debug ())
@@ -240,19 +250,20 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
                            uint64_t *read_bytesp, uint64_t *write_bytesp,
                            uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                            uint64_t *inodes_freep, uint64_t *inodes_totalp,
-                           uint64_t *num_exportsp)
+                           uint64_t *num_exportsp, char **recov_statusp)
 {
     int retval = -1;
     char *ostname = xmalloc (strlen (s) + 1);;
+    char *recov_status = xmalloc (strlen (s) + 1);;
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
     uint64_t num_exports;
 
     if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                ";%"PRIu64";%"PRIu64, ostname, &inodes_free,
+                ";%"PRIu64";%"PRIu64"%[^;];", ostname, &inodes_free,
                 &inodes_total, &kbytes_free, &kbytes_total, &read_bytes,
-                &write_bytes, &num_exports) != 8) {
+                &write_bytes, &num_exports, recov_status) != 9) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_ost_v2: parse error: ostinfo");
         goto done;
@@ -265,10 +276,13 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
     *inodes_freep = inodes_free;
     *inodes_totalp = inodes_total;
     *num_exportsp = num_exports;
+    *recov_statusp = recov_status;
     retval = 0;
 done:
-    if (retval < 0)
+    if (retval < 0) {
         free (ostname);
+        free (recov_status);
+    }
     return retval;
 }
 
