@@ -50,8 +50,10 @@ typedef struct {
     char *name;
     uint64_t rb[2];
     uint64_t wb[2];
+    uint64_t iops[2];
     uint64_t rtot;
     uint64_t wtot;
+    uint64_t itot;
     int     valid; /* count of valid samples [0,1,2] */
 } oststat_t;
 
@@ -125,7 +127,9 @@ update_oststats (pctx_t ctx, List oststats)
     while ((o = list_next (itr))) {
         o->rb[0] = o->rb[1];
         o->wb[0] = o->wb[1];
-        if (proc_lustre_rwbytes (ctx, o->name, &o->rb[1], &o->wb[1]) < 0) {
+        o->iops[0] = o->iops[1];
+        if (proc_lustre_rwbytes (ctx, o->name, &o->rb[1], &o->wb[1],
+                                 &o->iops[1]) < 0) {
             if (o->valid > 0)
                 o->valid--;
         } else  {
@@ -135,6 +139,7 @@ update_oststats (pctx_t ctx, List oststats)
         if (o->valid == 2) {
             o->rtot += (o->rb[1] - o->rb[0]);
             o->wtot += (o->wb[1] - o->wb[0]);
+            o->itot += (o->iops[1] - o->iops[0]);
         }
     }
     list_iterator_destroy (itr);

@@ -68,8 +68,7 @@ typedef struct {
     char oscstate[2];   /* 1 char OSC state (translated by lmt_osc metric) */
     sample_t rbytes;
     sample_t wbytes;
-    sample_t riops;
-    sample_t wiops;
+    sample_t iops;
     uint64_t num_exports;
     char recov_status[32];
     time_t ost_metric_timestamp;
@@ -279,7 +278,7 @@ _update_display (void)
     oststat_t *o;
     int x = 0;
     char rmbps[8], wmbps[8];
-    char riops[8], wiops[8];
+    char iops[8];
     char op[7], cl[7], gattr[7], sattr[7];
     char li[7], ul[7], mkd[7], rmd[7];
     char sfs[7], ren[7], gxattr[7], nexp[6];
@@ -338,8 +337,7 @@ _update_display (void)
                       _nexp_to_val (o, nexp, sizeof (nexp)),
                       _sample_to_mbps (&o->rbytes, rmbps, sizeof (rmbps), NULL),
                       _sample_to_mbps (&o->wbytes, wmbps, sizeof (wmbps), NULL),
-                      _sample_to_oprate (&o->riops, riops, sizeof (riops)),
-                      _sample_to_oprate (&o->wiops, wiops, sizeof (wiops)));
+                      _sample_to_oprate (&o->iops, iops, sizeof (iops)));
             }
         }
     }
@@ -396,8 +394,7 @@ _create_oststat (char *name, char *state)
     strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
     _sample_init (&o->rbytes);
     _sample_init (&o->wbytes);
-    _sample_init (&o->riops);
-    _sample_init (&o->wiops);
+    _sample_init (&o->iops);
 
     return o;
 }
@@ -434,7 +431,7 @@ _update_osc (char *name, char *state)
 
 static void
 _update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes,
-             uint64_t num_exports, char *recov_status)
+             uint64_t iops, uint64_t num_exports, char *recov_status)
 {
     oststat_t *o;
 
@@ -444,6 +441,7 @@ _update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes,
         o->ost_metric_timestamp = t;
         _sample_update (&o->rbytes, (double)read_bytes, t);
         _sample_update (&o->wbytes, (double)write_bytes, t);
+        _sample_update (&o->iops, (double)iops, t);
         o->num_exports = num_exports;
         memset (o->recov_status, 0, sizeof (o->recov_status));
         strncpy (o->recov_status, recov_status, sizeof (o->recov_status) - 1);
@@ -552,7 +550,7 @@ _poll_ost (void)
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
-    uint64_t num_exports;
+    uint64_t iops, num_exports;
     uint64_t sum_kbytes_free = 0, sum_kbytes_total = 0;
     ListIterator itr, itr2;
     float vers;
@@ -575,11 +573,11 @@ _poll_ost (void)
             if (lmt_ost_decode_v2_ostinfo (s, &ostname,
                                            &read_bytes, &write_bytes,
                                            &kbytes_free, &kbytes_total,
-                                           &inodes_free, &inodes_total,
+                                           &inodes_free, &inodes_total, &iops,
                                            &num_exports, &recov_status) == 0) {
                 if (_fsmatch (ostname)) {
                     _update_ost (ostname, t, read_bytes, write_bytes,
-                                 num_exports, recov_status);
+                                 iops, num_exports, recov_status);
                     if (now - t <= STALE_THRESH_SEC) {
                         sum_kbytes_free += kbytes_free;
                         sum_kbytes_total += kbytes_total;

@@ -195,7 +195,7 @@ _parse_ost_v2 (const char *s, lmt_fs_t f)
     uint64_t read_bytes, write_bytes;
     uint64_t inodes_free, inodes_total;
     uint64_t kbytes_free, kbytes_total;
-    uint64_t num_exports;
+    uint64_t iops, num_exports;
     List ostinfo = NULL;
     ListIterator itr = NULL;
     char *osi;
@@ -208,7 +208,7 @@ _parse_ost_v2 (const char *s, lmt_fs_t f)
     while ((osi = list_next (itr))) {
         if (lmt_ost_decode_v2_ostinfo (osi, &ostname, &read_bytes, &write_bytes,
                                        &kbytes_free, &kbytes_total,
-                                       &inodes_free, &inodes_total,
+                                       &inodes_free, &inodes_total, &iops,
                                        &num_exports, &recov_status) < 0)
             goto done;
         free (recov_status);

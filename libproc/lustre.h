@@ -50,7 +50,8 @@ int proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp);
 
 int proc_lustre_hashrecov (pctx_t ctx, char *name, hash_t *hp);
 
-int proc_lustre_rwbytes (pctx_t ctx, char *name, uint64_t *rbp, uint64_t *wbp);
+int proc_lustre_rwbytes (pctx_t ctx, char *name,
+                         uint64_t *rbp, uint64_t *wbp, uint64_t *iopsp);
 
 int proc_lustre_lnet_newbytes (pctx_t ctx, uint64_t *valp);
 

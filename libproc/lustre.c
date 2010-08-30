@@ -468,7 +468,8 @@ done:
 }
 
 int
-proc_lustre_rwbytes (pctx_t ctx, char *name, uint64_t *rbp, uint64_t *wbp)
+proc_lustre_rwbytes (pctx_t ctx, char *name, uint64_t *rbp, uint64_t *wbp,
+                     uint64_t *iop)
 {
     int ret = -1;
     hash_t stats = NULL;
@@ -478,9 +479,10 @@ proc_lustre_rwbytes (pctx_t ctx, char *name, uint64_t *rbp, uint64_t *wbp)
     /* If values are zero, token will not be present in proc file, so
      * ignore errors parsing these tokens from proc.
      */
-    *rbp = *wbp = 0;
+    *iop = *rbp = *wbp = 0;
     proc_lustre_parsestat (stats, "read_bytes", NULL, NULL, NULL, rbp, NULL);
     proc_lustre_parsestat (stats, "write_bytes", NULL, NULL, NULL, wbp, NULL);
+    proc_lustre_parsestat (stats, "commitrw", NULL, NULL, NULL, iop, NULL);
     ret = 0;
 done:
     if (stats)
