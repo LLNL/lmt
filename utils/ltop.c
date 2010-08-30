@@ -504,11 +504,13 @@ _poll_osc (void)
     char *s, *val, *mdsname, *oscname, *oscstate;
     ListIterator itr, itr2;
     float vers;
+    time_t t, now = time (NULL);
 
     if (lmt_cbr_get_metrics ("lmt_osc", &l) < 0)
         goto done;
     itr = list_iterator_create (l);
     while ((c = list_next (itr))) {
+        t = lmt_cbr_get_time (c);
         if (!(val = lmt_cbr_get_val (c)))
             continue;
         if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
@@ -519,8 +521,12 @@ _poll_osc (void)
         itr2 = list_iterator_create (oscinfo);
         while ((s = list_next (itr2))) {
             if (lmt_osc_decode_v1_oscinfo (s, &oscname, &oscstate) == 0) {
-                if (_fsmatch (oscname))
-                    _update_osc (oscname, oscstate);
+                if (_fsmatch (oscname)) {
+                    if (now - t > STALE_THRESH_SEC)
+                        _update_osc (oscname, " ");
+                    else
+                        _update_osc (oscname, oscstate);
+                }
                 free (oscname);
                 free (oscstate);
             }
