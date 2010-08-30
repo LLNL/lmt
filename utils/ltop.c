@@ -84,7 +84,6 @@ typedef struct {
 } ostsum_t;
 
 typedef struct {
-    time_t ost_metric_timestamp;
     double minodes_free;   /* mds */
     double minodes_total;
     sample_t open;
@@ -225,9 +224,8 @@ _sample_to_mbps (sample_t *sp, char *s, int len, double *valp)
     time_t now = time (NULL);
     double val;
 
-    if (sp->valid == 2 && (now - sp->time[1]) > STALE_THRESH_SEC)
-        _sample_init (sp);
-    if (sp->valid == 2) {
+    if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
+                       && (now - sp->time[0]) <= STALE_THRESH_SEC) {
         val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
         if (s)
             snprintf (s, len, "%*.2f", len - 1, val);
@@ -248,9 +246,8 @@ _sample_to_oprate (sample_t *sp, char *s, int len)
     time_t now = time (NULL);
     double val;
 
-    if (sp->valid == 2 && (now - sp->time[1]) > STALE_THRESH_SEC)
-        _sample_init (sp);
-    if (sp->valid == 2) {
+    if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
+                       && (now - sp->time[0]) <= STALE_THRESH_SEC) {
         val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]);
         snprintf (s, len, "%*lu", len - 1, (unsigned long)val);
     } else {
@@ -278,7 +275,7 @@ _update_display (void)
     oststat_t *o;
     int x = 0;
     char rmbps[8], wmbps[8];
-    char iops[8];
+    char iops[7];
     char op[7], cl[7], gattr[7], sattr[7];
     char li[7], ul[7], mkd[7], rmd[7];
     char sfs[7], ren[7], gxattr[7], nexp[6];
@@ -315,7 +312,7 @@ _update_display (void)
 
     /* Display the header */
     attron (A_REVERSE);
-    mvprintw (x++, 0, "%-80s", "OST  S   Exp   rMB/s   wMB/s   rIOPS   wIOPS");
+    mvprintw (x++, 0, "%-80s", "OST  S   Exp   rMB/s   wMB/s   IOPS");
     attroff(A_REVERSE);
 
     /* Display the list of ost's */
