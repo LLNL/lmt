@@ -71,7 +71,7 @@ typedef struct {
     sample_t riops;
     sample_t wiops;
     uint64_t num_exports;
-    char recov_status[12];
+    char recov_status[32];
     time_t ost_metric_timestamp;
 } oststat_t;
 
@@ -396,6 +396,8 @@ _create_oststat (char *name, char *state)
     strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
     _sample_init (&o->rbytes);
     _sample_init (&o->wbytes);
+    _sample_init (&o->riops);
+    _sample_init (&o->wiops);
 
     return o;
 }
