@@ -99,9 +99,10 @@ typedef struct {
     sample_t getxattr;
 } mdtsum_t;
 
-static void _sigint_handler (int arg);
 static void _poll_cerebro (void);
-static void _update_display (void);
+static void _update_display (WINDOW *win);
+static void _update_display_ost (WINDOW *win, int ostcount, int minost,
+                                 int selost);
 static void _destroy_oststat (oststat_t *o);
 
 #define OPTIONS "f:c:"
@@ -116,7 +117,6 @@ static const struct option longopts[] = {
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
 
-static int exit_flag = 0;
 static int sample_period = 2; /* seconds */
 static List ost_data = NULL;
 static ostsum_t ostsum;
@@ -135,6 +135,8 @@ main (int argc, char *argv[])
 {
     int c;
     char *conffile = NULL;
+    WINDOW *win, *ostwin;
+    int ostcount, selost = 0, minost = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -167,34 +169,95 @@ main (int argc, char *argv[])
 
     _poll_cerebro ();
 
-    if (list_count (ost_data) == 0)
+    if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
 
-    signal (SIGINT, _sigint_handler);
-    /* FIXME: handle SIGTSTP, SIGCONT */
     /* FIXME: handle SIGWINCH */
-    /* FIXME: set raw, nonblocking input mode and handle single-char cmds */
-    initscr ();
-    curs_set (0);
-    while (!exit_flag) {
-        _update_display ();
-        sleep (sample_period);
+
+    if (!(win = initscr ()))
+        err_exit ("error initializing parent window");
+    //if (wresize (win, ostcount + 8, 80) == ERR)
+    //   err_exit ("error resizing parent window");
+    if (!(ostwin = newwin (ostcount, 80, 8, 0)))
+        err_exit ("error initializing subwindow");
+
+    /* Keys will not be echoed, tty control sequences aren't handled by tty
+     * driver, getch () times out and returns ERR after sample_period seconds,
+     * multi-char keypad/arrow keys are handled.
+     */
+    raw ();
+    //cbreak ();
+    noecho ();
+    timeout (sample_period * 1000);
+    keypad (win, TRUE);
+    curs_set (0);                   /* make cursor invisible */
+
+    while (!isendwin ()) {
+        _update_display (win);
+        _update_display_ost (ostwin, ostcount, minost, selost);
+        switch (getch ()) {
+            case 'q':
+            case 0x03: /* ctrl-c */
+                delwin (win);
+                endwin ();
+                break;
+#if 0
+            case KEY_HOME:
+                selost = 0;
+                break;
+            case KEY_UP:
+            case 'k':   /* vi */
+                selost--;
+                if (selost < 0)
+                    selost = 0;
+                if (selost < minost)
+                    minost = selost;
+                break;
+            case KEY_DOWN:
+            case 'j':   /* vi */
+                selost++;
+                if (selost > ostcount)
+                    selost = ostcount;
+                if (selost > minost + LINES - 8)
+                    minost += (LINES - 8);
+                break;
+#endif
+            case KEY_NPAGE:
+            case 0x04: /* vi - ctrl-d */
+                if (minost + LINES - 8 <= ostcount)
+                    minost += (LINES - 8);
+                break;
+            case KEY_PPAGE:
+            case 0x15: /* vi - ctrl-u */
+                minost -= (LINES - 8);
+                if (minost < 0)
+                    minost = 0;
+                break;
+            case KEY_LEFT:
+            case KEY_RIGHT:
+                break;
+            case ERR:   /* timeout */
+                break;
+        }
         _poll_cerebro ();
+        ostcount = list_count (ost_data);
     }
-    endwin ();
 
     list_destroy (ost_data);
 
-    msg ("Goodbye");
+    msg ("Goodbye: lines = %d", LINES);
     exit (0);
 }
 
-static void
-_sigint_handler (int arg)
+static char
+_propeller (void)
 {
-    exit_flag = 1;    
-}
+    const char p[] = { '|', '/', '-', '\\' };
+    static int i = 0;
 
+    return p[i++ % sizeof (p)];
+}
+ 
 static void
 _sample_init (sample_t *sp)
 {
@@ -269,77 +332,104 @@ _nexp_to_val (oststat_t *o, char *s, int len)
 }
 
 static void
-_update_display (void)
+_update_display (WINDOW *win)
+{
+    int x = 0;
+    char op[7], cl[7], gattr[7], sattr[7];
+    char li[7], ul[7], mkd[7], rmd[7];
+    char sfs[7], ren[7], gxattr[7];
+
+    wclear (win);
+
+    mvwprintw (win, x, 0, "Filesystem: %s", fs);
+    mvwprintw (win, x++, 78, "%c", _propeller ());
+    mvwprintw (win, x++, 0,
+               "    Inodes: %12.3fm total, %12.3fm used, %12.3fm free",
+               mdtsum.minodes_total,
+               mdtsum.minodes_total - mdtsum.minodes_free,
+               mdtsum.minodes_free);
+    mvwprintw (win, x++, 0,
+               "     Space: %12.3ft total, %12.3ft used, %12.3ft free",
+               ostsum.tbytes_total,
+               ostsum.tbytes_total - ostsum.tbytes_free,
+               ostsum.tbytes_free);
+    mvwprintw (win, x++, 0,
+               "   Bytes/s: %12.3fg read,  %12.3fg write",
+               ostsum.rmbps / 1024,
+               ostsum.wmbps / 1024);
+    mvwprintw (win, x++, 0,
+               "   MDops/s: %6s open,   %6s close,  %6s getattr,  %6s setattr",
+               _sample_to_oprate (&mdtsum.open,    op,    sizeof (op)),
+               _sample_to_oprate (&mdtsum.close,   cl,    sizeof (cl)),
+               _sample_to_oprate (&mdtsum.getattr, gattr, sizeof (gattr)),
+               _sample_to_oprate (&mdtsum.setattr, sattr, sizeof (sattr)));
+    mvwprintw (win, x++, 0,
+               "            %6s link,   %6s unlink, %6s mkdir,    %6s rmdir",
+               _sample_to_oprate (&mdtsum.link,    li,    sizeof (li)),
+               _sample_to_oprate (&mdtsum.unlink,  ul,    sizeof (ul)),
+               _sample_to_oprate (&mdtsum.mkdir,   mkd,   sizeof (mkd)),
+               _sample_to_oprate (&mdtsum.rmdir,   rmd,   sizeof (rmd)));
+    mvwprintw (win, x++, 0, "            %6s statfs, %6s rename, %6s getxattr",
+               _sample_to_oprate (&mdtsum.statfs,  sfs,    sizeof (sfs)),
+               _sample_to_oprate (&mdtsum.rename,  ren,    sizeof (ren)),
+               _sample_to_oprate (&mdtsum.getxattr,gxattr,sizeof (gxattr)));
+
+    wattron (win, A_REVERSE);
+    mvwprintw (win, x++, 0,
+               "%-80s", "OST  S   Exp   rMB/s   wMB/s   IOPS");
+    wattroff(win, A_REVERSE);
+
+    wrefresh (win);
+}
+
+static void
+_update_display_ost (WINDOW *win, int ostcount, int minost, int selost)
 {
     ListIterator itr;
     oststat_t *o;
     int x = 0;
-    char rmbps[8], wmbps[8];
-    char iops[7];
-    char op[7], cl[7], gattr[7], sattr[7];
-    char li[7], ul[7], mkd[7], rmd[7];
-    char sfs[7], ren[7], gxattr[7], nexp[6];
+    char rmbps[8], wmbps[8], iops[7], nexp[6];
     time_t now = time (NULL);
+    int skipost = minost;
 
-    clear ();
+    wclear (win);
 
-    mvprintw (x++, 0, "Filesystem: %s", fs);
-    mvprintw (x++, 0, "    Inodes: %12.3fm total, %12.3fm used, %12.3fm free",
-              mdtsum.minodes_total,
-              mdtsum.minodes_total - mdtsum.minodes_free,
-              mdtsum.minodes_free);
-    mvprintw (x++, 0, "     Space: %12.3ft total, %12.3ft used, %12.3ft free",
-              ostsum.tbytes_total,
-              ostsum.tbytes_total - ostsum.tbytes_free,
-              ostsum.tbytes_free);
-    mvprintw (x++, 0, "   Bytes/s: %12.3fg read,  %12.3fg write",
-              ostsum.rmbps / 1024,
-              ostsum.wmbps / 1024);
-    mvprintw (x++, 0, "   MDops/s: %6s open,   %6s close,  %6s getattr,  %6s setattr",
-              _sample_to_oprate (&mdtsum.open,    op,    sizeof (op)),
-              _sample_to_oprate (&mdtsum.close,   cl,    sizeof (cl)),
-              _sample_to_oprate (&mdtsum.getattr, gattr, sizeof (gattr)),
-              _sample_to_oprate (&mdtsum.setattr, sattr, sizeof (sattr)));
-    mvprintw (x++, 0, "            %6s link,   %6s unlink, %6s mkdir,    %6s rmdir",
-              _sample_to_oprate (&mdtsum.link,    li,    sizeof (li)),
-              _sample_to_oprate (&mdtsum.unlink,  ul,    sizeof (ul)),
-              _sample_to_oprate (&mdtsum.mkdir,   mkd,   sizeof (mkd)),
-              _sample_to_oprate (&mdtsum.rmdir,   rmd,   sizeof (rmd)));
-    mvprintw (x++, 0, "            %6s statfs, %6s rename, %6s getxattr",
-              _sample_to_oprate (&mdtsum.statfs,  sfs,    sizeof (sfs)),
-              _sample_to_oprate (&mdtsum.rename,  ren,    sizeof (ren)),
-              _sample_to_oprate (&mdtsum.getxattr,gxattr,sizeof (gxattr)));
-
-    /* Display the header */
-    attron (A_REVERSE);
-    mvprintw (x++, 0, "%-80s", "OST  S   Exp   rMB/s   wMB/s   IOPS");
-    attroff(A_REVERSE);
-
-    /* Display the list of ost's */
     if (ost_data) {
         itr = list_iterator_create (ost_data);
         while ((o = list_next (itr))) {
+            if (skipost-- > 0)
+                continue;
+            if (selost - 1 == x + minost)
+                wattron (win, A_REVERSE);
             /* available info is expired */
             if ((now - o->ost_metric_timestamp) > STALE_THRESH_SEC) {
-                mvprintw (x++, 0, "%s %s", o->name, o->oscstate);
+                mvwprintw (win, x, 0, "%s %s", o->name, o->oscstate);
 
             /* ost is in recovery - display recovery stats */
             } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
-                mvprintw (x++, 0, "%s %s   %s", o->name, o->oscstate,
-                          o->recov_status);
+                mvwprintw (win, x, 0, "%s %s   %s", o->name, o->oscstate,
+                           o->recov_status);
 
             /* ost is in normal state */
             } else {
-                mvprintw (x++, 0, "%s %s %s %s %s %s", o->name, o->oscstate,
+                mvwprintw (win, x, 0, "%s %s %s %s %s %s", o->name,
+                      o->oscstate,
                       _nexp_to_val (o, nexp, sizeof (nexp)),
                       _sample_to_mbps (&o->rbytes, rmbps, sizeof (rmbps), NULL),
                       _sample_to_mbps (&o->wbytes, wmbps, sizeof (wmbps), NULL),
                       _sample_to_oprate (&o->iops, iops, sizeof (iops)));
             }
+            if (selost -1 == x + minost)
+                wattroff(win, A_REVERSE);
+            x++;
         }
     }
 
-    refresh ();
+    //scrollok (win, TRUE);
+    //if (selost > LINES - 8)
+     //   wscrl (win, (selost / ((LINES - 8)) * (LINES - 8)));
+
+    wrefresh (win);
 }
 
 static void
