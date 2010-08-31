@@ -225,7 +225,7 @@ _sample_to_mbps (sample_t *sp, char *s, int len, double *valp)
     double val;
 
     if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
-                       && (now - sp->time[0]) <= STALE_THRESH_SEC) {
+            && (now - sp->time[0]) <= STALE_THRESH_SEC + LMT_UPDATE_INTERVAL) {
         val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
         if (s)
             snprintf (s, len, "%*.2f", len - 1, val);
@@ -247,7 +247,7 @@ _sample_to_oprate (sample_t *sp, char *s, int len)
     double val;
 
     if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
-                       && (now - sp->time[0]) <= STALE_THRESH_SEC) {
+           && (now - sp->time[0]) <= STALE_THRESH_SEC + LMT_UPDATE_INTERVAL) {
         val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]);
         snprintf (s, len, "%*lu", len - 1, (unsigned long)val);
     } else {
