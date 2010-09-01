@@ -331,7 +331,7 @@ done:
  * arrives, but it doesn't work when iterating over the cerebro server's
  * stored metric values since the values are stored by hostname and therefore
  * overwrite each other.  That was the major reason in lmt-3.0 for introducing
- * lmt_oss_v2, a single oss+ost metric that embeds multiple ost values.
+ * lmt_ost_v2, a single oss+ost metric that embeds multiple ost values.
  *
  * Therefore, a caveat of continuing to support ost_v1 is that new tools
  * that iterate over the cerebro server metric values, as opposed to mysql

@@ -96,6 +96,12 @@ lmt_cbr_get_name (cmetric_t c)
     return c->name;
 }
 
+char *
+lmt_cbr_get_nodename (cmetric_t c)
+{
+    return c->nodename;
+}
+
 time_t
 lmt_cbr_get_time (cmetric_t c)
 {

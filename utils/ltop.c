@@ -23,8 +23,9 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-/* otop.c - simple top-like OST bandwidth display */
-
+#if HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
@@ -162,6 +163,12 @@ main (int argc, char *argv[])
     if (lmt_conf_init (1, conffile) < 0)
         exit (1);
 
+    /* Populate the list of OST's for this file system using the OSC data,
+     * which indirectly reflects the MGS configuration.  Caveat: if the MDS
+     * has not reported in to cerebro since cerebrod was rebooted, we won't
+     * see the file system.  Just abort in that case.
+     */
+
     ost_data = list_create ((ListDelF)_destroy_oststat);
 
     memset (&mdtsum, 0, sizeof (mdtsum));
@@ -191,7 +198,7 @@ main (int argc, char *argv[])
         _update_display (win);
         _update_display_ost (ostwin, ostcount, minost, selost);
         switch (getch ()) {
-            case KEY_DC:            /* Delete key - turn off highlighting */
+            case KEY_DC:            /* Delete - turn off highlighting */
                 selost = -1;
                 break;
             case 'q':               /* q|Ctrl-C - quit */
@@ -199,30 +206,27 @@ main (int argc, char *argv[])
                 delwin (win);
                 endwin ();
                 break;
-            case KEY_HOME:          /* Home key - display origin (FIXME) */
-                minost = 0;
-                break;
-            case KEY_UP:            /* UpArrow key - move highlight up */
+            case KEY_UP:            /* UpArrow|k - move highlight up */
             case 'k':   /* vi */
                 if (selost > 0)
                     selost--;
                 if (selost >= minost)
                     break;
                 /* fall thru */
-            case KEY_PPAGE:         /* PageUp key|Ctrl-U - previous page */
+            case KEY_PPAGE:         /* PageUp|Ctrl-U - previous page */
             case 0x15:
                 minost -= (LINES - 8);
                 if (minost < 0)
                     minost = 0;
                 break;
-            case KEY_DOWN:          /* DnArrow key - move highlight down */
+            case KEY_DOWN:          /* DnArrow|j - move highlight down */
             case 'j':   /* vi */
                 if (selost < ostcount - 1)
                     selost++;
                 if (selost - minost < LINES - 8)
                     break;
                  /* fall thru */
-            case KEY_NPAGE:         /* PageDn key|Ctrl-D - next page */
+            case KEY_NPAGE:         /* PageDn|Ctrl-D - next page */
             case 0x04:
                 if (minost + LINES - 8 <= ostcount)
                     minost += (LINES - 8);
@@ -236,7 +240,7 @@ main (int argc, char *argv[])
 
     list_destroy (ost_data);
 
-    msg ("Goodbye: lines = %d", LINES);
+    msg ("Goodbye");
     exit (0);
 }
 
@@ -273,7 +277,7 @@ _sample_update (sample_t *sp, double val, time_t t)
 }
 
 static char *
-_sample_to_mbps (sample_t *sp, char *s, int len, double *valp)
+_sample_to_smbps (sample_t *sp, char *s, int len)
 {
     time_t now = time (NULL);
     double val;
@@ -281,18 +285,27 @@ _sample_to_mbps (sample_t *sp, char *s, int len, double *valp)
     if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
             && (now - sp->time[0]) <= STALE_THRESH_SEC + LMT_UPDATE_INTERVAL) {
         val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
-        if (s)
-            snprintf (s, len, "%*.2f", len - 1, val);
-        if (valp)
-            *valp = val;
-    } else {
-        if (s)
-            snprintf (s, len, "%*s", len - 1, "***");
-        if (valp)
-            *valp = 0.0;
-    }
+        snprintf (s, len, "%*.2f", len - 1, val);
+    } else
+        snprintf (s, len, "%*s", len - 1, "***");
     return s;
 }
+
+static double
+_sample_to_fmbps (sample_t *sp, double *valp)
+{
+    time_t now = time (NULL);
+    double val;
+
+    if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
+            && (now - sp->time[0]) <= STALE_THRESH_SEC + LMT_UPDATE_INTERVAL)
+        val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
+    else
+        val = 0.0;
+    *valp = val;
+    return val;
+}
+
 
 static char *
 _sample_to_oprate (sample_t *sp, char *s, int len)
@@ -404,8 +417,8 @@ _update_display_ost (WINDOW *win, int ostcount, int minost, int selost)
                 mvwprintw (win, x, 0, "%s %s %s %s %s %s", o->name,
                       o->oscstate,
                       _nexp_to_val (o, nexp, sizeof (nexp)),
-                      _sample_to_mbps (&o->rbytes, rmbps, sizeof (rmbps), NULL),
-                      _sample_to_mbps (&o->wbytes, wmbps, sizeof (wmbps), NULL),
+                      _sample_to_smbps (&o->rbytes, rmbps, sizeof (rmbps)),
+                      _sample_to_smbps (&o->wbytes, wmbps, sizeof (wmbps)),
                       _sample_to_oprate (&o->iops, iops, sizeof (iops)));
             }
             if (selost == x + minost)
@@ -428,9 +441,9 @@ _update_ostsum (void)
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
-        _sample_to_mbps (&o->rbytes, NULL, 0, &r);
+        _sample_to_fmbps (&o->rbytes, &r);
         totr += r;
-        _sample_to_mbps (&o->wbytes, NULL, 0, &w);    
+        _sample_to_fmbps (&o->wbytes, &w);    
         totw += w;
     }
     list_iterator_destroy (itr);        
