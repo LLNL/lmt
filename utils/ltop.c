@@ -136,7 +136,7 @@ main (int argc, char *argv[])
     int c;
     char *conffile = NULL;
     WINDOW *win, *ostwin;
-    int ostcount, selost = 0, minost = 0;
+    int ostcount, selost = -1, minost = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -172,69 +172,60 @@ main (int argc, char *argv[])
     if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
 
-    /* FIXME: handle SIGWINCH */
-
     if (!(win = initscr ()))
         err_exit ("error initializing parent window");
-    //if (wresize (win, ostcount + 8, 80) == ERR)
-    //   err_exit ("error resizing parent window");
     if (!(ostwin = newwin (ostcount, 80, 8, 0)))
         err_exit ("error initializing subwindow");
 
     /* Keys will not be echoed, tty control sequences aren't handled by tty
      * driver, getch () times out and returns ERR after sample_period seconds,
-     * multi-char keypad/arrow keys are handled.
+     * multi-char keypad/arrow keys are handled.  Make cursor invisible.
      */
     raw ();
-    //cbreak ();
     noecho ();
     timeout (sample_period * 1000);
     keypad (win, TRUE);
-    curs_set (0);                   /* make cursor invisible */
+    curs_set (0);
 
     while (!isendwin ()) {
         _update_display (win);
         _update_display_ost (ostwin, ostcount, minost, selost);
         switch (getch ()) {
-            case 'q':
-            case 0x03: /* ctrl-c */
+            case KEY_DC:            /* Delete key - turn off highlighting */
+                selost = -1;
+                break;
+            case 'q':               /* q|Ctrl-C - quit */
+            case 0x03:
                 delwin (win);
                 endwin ();
                 break;
-#if 0
-            case KEY_HOME:
-                selost = 0;
+            case KEY_HOME:          /* Home key - display origin (FIXME) */
+                minost = 0;
                 break;
-            case KEY_UP:
+            case KEY_UP:            /* UpArrow key - move highlight up */
             case 'k':   /* vi */
-                selost--;
-                if (selost < 0)
-                    selost = 0;
-                if (selost < minost)
-                    minost = selost;
-                break;
-            case KEY_DOWN:
-            case 'j':   /* vi */
-                selost++;
-                if (selost > ostcount)
-                    selost = ostcount;
-                if (selost > minost + LINES - 8)
-                    minost += (LINES - 8);
-                break;
-#endif
-            case KEY_NPAGE:
-            case 0x04: /* vi - ctrl-d */
-                if (minost + LINES - 8 <= ostcount)
-                    minost += (LINES - 8);
-                break;
-            case KEY_PPAGE:
-            case 0x15: /* vi - ctrl-u */
+                if (selost > 0)
+                    selost--;
+                if (selost >= minost)
+                    break;
+                /* fall thru */
+            case KEY_PPAGE:         /* PageUp key|Ctrl-U - previous page */
+            case 0x15:
                 minost -= (LINES - 8);
                 if (minost < 0)
                     minost = 0;
                 break;
-            case KEY_LEFT:
-            case KEY_RIGHT:
+            case KEY_DOWN:          /* DnArrow key - move highlight down */
+            case 'j':   /* vi */
+                if (selost < ostcount - 1)
+                    selost++;
+                if (selost - minost < LINES - 8)
+                    break;
+                 /* fall thru */
+            case KEY_NPAGE:         /* PageDn key|Ctrl-D - next page */
+            case 0x04:
+                if (minost + LINES - 8 <= ostcount)
+                    minost += (LINES - 8);
                 break;
             case ERR:   /* timeout */
                 break;
@@ -399,17 +390,15 @@ _update_display_ost (WINDOW *win, int ostcount, int minost, int selost)
         while ((o = list_next (itr))) {
             if (skipost-- > 0)
                 continue;
-            if (selost - 1 == x + minost)
+            if (selost == x + minost)
                 wattron (win, A_REVERSE);
             /* available info is expired */
             if ((now - o->ost_metric_timestamp) > STALE_THRESH_SEC) {
                 mvwprintw (win, x, 0, "%s %s", o->name, o->oscstate);
-
             /* ost is in recovery - display recovery stats */
             } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
                 mvwprintw (win, x, 0, "%s %s   %s", o->name, o->oscstate,
                            o->recov_status);
-
             /* ost is in normal state */
             } else {
                 mvwprintw (win, x, 0, "%s %s %s %s %s %s", o->name,
@@ -419,15 +408,12 @@ _update_display_ost (WINDOW *win, int ostcount, int minost, int selost)
                       _sample_to_mbps (&o->wbytes, wmbps, sizeof (wmbps), NULL),
                       _sample_to_oprate (&o->iops, iops, sizeof (iops)));
             }
-            if (selost -1 == x + minost)
+            if (selost == x + minost)
                 wattroff(win, A_REVERSE);
             x++;
         }
+        list_iterator_destroy (itr);
     }
-
-    //scrollok (win, TRUE);
-    //if (selost > LINES - 8)
-     //   wscrl (win, (selost / ((LINES - 8)) * (LINES - 8)));
 
     wrefresh (win);
 }
