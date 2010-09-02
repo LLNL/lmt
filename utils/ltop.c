@@ -41,6 +41,7 @@
 #endif
 #include <libgen.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "list.h"
 #include "hash.h"
@@ -58,6 +59,10 @@
 #include "lmtcerebro.h"
 #include "lmtconf.h"
 
+#ifndef MAXHOSTNAMELEN
+#define MAXHOSTNAMELEN 64
+#endif
+
 typedef struct {
     double val[2];
     time_t time[2];
@@ -73,6 +78,7 @@ typedef struct {
     uint64_t num_exports;
     char recov_status[32];
     time_t ost_metric_timestamp;
+    char ossname[MAXHOSTNAMELEN];
 } oststat_t;
 
 #define STALE_THRESH_SEC    12
@@ -123,6 +129,7 @@ static List ost_data = NULL;
 static ostsum_t ostsum;
 static mdtsum_t mdtsum;
 static char *fs = NULL;
+static int sort_ost = 1;
 
 static void
 usage (void)
@@ -230,6 +237,12 @@ main (int argc, char *argv[])
             case 0x04:
                 if (minost + LINES - 8 <= ostcount)
                     minost += (LINES - 8);
+                break;
+            case 'O':
+                sort_ost = 0;
+                break;
+            case 'o':
+                sort_ost = 1;
                 break;
             case ERR:   /* timeout */
                 break;
@@ -380,7 +393,7 @@ _update_display (WINDOW *win)
 
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
-               "%-80s", "OST  S   Exp   rMB/s   wMB/s   IOPS");
+               "%-80s", "OST  S        OSS   Exp   rMB/s   wMB/s   IOPS");
     wattroff(win, A_REVERSE);
 
     wrefresh (win);
@@ -414,8 +427,9 @@ _update_display_ost (WINDOW *win, int ostcount, int minost, int selost)
                            o->recov_status);
             /* ost is in normal state */
             } else {
-                mvwprintw (win, x, 0, "%s %s %s %s %s %s", o->name,
+                mvwprintw (win, x, 0, "%s %s %10.10s %s %s %s %s", o->name,
                       o->oscstate,
+                      o->ossname,
                       _nexp_to_val (o, nexp, sizeof (nexp)),
                       _sample_to_smbps (&o->rbytes, rmbps, sizeof (rmbps)),
                       _sample_to_smbps (&o->wbytes, wmbps, sizeof (wmbps)),
@@ -469,6 +483,35 @@ _cmp_oststat (oststat_t *o1, oststat_t *o2)
     return strcmp (o1->name, o2->name);
 }
 
+static char *
+_numerical_suffix (char *s, unsigned long *np)
+{
+    char *p = s + strlen (s);
+
+    while (p > s && isdigit (*(p - 1)))
+        p--;
+    if (*p)
+        *np = strtoul (p, NULL, 10);
+    return p;
+}
+
+
+static int
+_cmp_oststat2 (oststat_t *o1, oststat_t *o2)
+{
+    unsigned long n1, n2;
+    char *p1 = _numerical_suffix (o1->ossname, &n1);
+    char *p2 = _numerical_suffix (o2->ossname, &n2);
+
+    if (*p1 && *p2
+            && (p1 - o1->ossname) == (p2 - o2->ossname)
+            && !strncmp (o1->ossname, o2->ossname, p1 - o1->ossname)) {
+        return (n1 < n2 ? -1 
+              : n1 > n2 ? 1 : 0);
+    }
+    return strcmp (o1->ossname, o2->ossname);
+}
+
 static oststat_t *
 _create_oststat (char *name, char *state)
 {
@@ -516,12 +559,13 @@ _update_osc (char *name, char *state)
 }
 
 static void
-_update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes,
-             uint64_t iops, uint64_t num_exports, char *recov_status)
+_update_ost (char *ostname, char *ossname, time_t t,
+             uint64_t read_bytes, uint64_t write_bytes, uint64_t iops,
+             uint64_t num_exports, char *recov_status)
 {
     oststat_t *o;
 
-    if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, name)))
+    if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, ostname)))
         return;
     if (o->ost_metric_timestamp < t) {
         o->ost_metric_timestamp = t;
@@ -529,8 +573,8 @@ _update_ost (char *name, time_t t, uint64_t read_bytes, uint64_t write_bytes,
         _sample_update (&o->wbytes, (double)write_bytes, t);
         _sample_update (&o->iops, (double)iops, t);
         o->num_exports = num_exports;
-        memset (o->recov_status, 0, sizeof (o->recov_status));
-        strncpy (o->recov_status, recov_status, sizeof (o->recov_status) - 1);
+        snprintf (o->recov_status, sizeof(o->recov_status), "%s", recov_status);
+        snprintf (o->ossname, sizeof (o->ossname), "%s", ossname);
     }
 }
 
@@ -653,7 +697,6 @@ _poll_ost (void)
         t = lmt_cbr_get_time (c);
         if (lmt_ost_decode_v2 (val, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
             continue;
-        free (ossname);
         itr2 = list_iterator_create (ostinfo);
         while ((s = list_next (itr2))) {
             if (lmt_ost_decode_v2_ostinfo (s, &ostname,
@@ -662,7 +705,7 @@ _poll_ost (void)
                                            &inodes_free, &inodes_total, &iops,
                                            &num_exports, &recov_status) == 0) {
                 if (_fsmatch (ostname)) {
-                    _update_ost (ostname, t, read_bytes, write_bytes,
+                    _update_ost (ostname, ossname, t, read_bytes, write_bytes,
                                  iops, num_exports, recov_status);
                     if (now - t <= STALE_THRESH_SEC) {
                         sum_kbytes_free += kbytes_free;
@@ -675,6 +718,7 @@ _poll_ost (void)
         }
         list_iterator_destroy (itr2);
         list_destroy (ostinfo);
+        free (ossname);
     }
     list_iterator_destroy (itr);
     list_destroy (l);
@@ -749,8 +793,11 @@ _poll_cerebro (void)
     _update_ostsum ();
     if (_poll_mdt () < 0)
         err_exit ("could not get cerebro lmt_mdt metric");
-
-    list_sort (ost_data, (ListCmpF)_cmp_oststat);
+    
+    if (sort_ost)
+        list_sort (ost_data, (ListCmpF)_cmp_oststat);
+    else /* sort by oss */
+        list_sort (ost_data, (ListCmpF)_cmp_oststat2);
 }
 
 /*
