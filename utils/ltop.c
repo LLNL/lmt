@@ -196,16 +196,15 @@ main (int argc, char *argv[])
     if (ostcount == 0 || list_count (mdt_data) == 0)
         msg_exit ("no data found for file system `%s'", fs);
 
-    if (!(topwin = initscr ()))
-        err_exit ("error initializing parent window");
-    if (!(ostwin = newwin (ostcount, 80, TOPWIN_LINES, 0)))
-        err_exit ("error initializing subwindow");
-
     /* Curses-fu:  keys will not be echoed, tty control sequences aren't
      * handled by tty driver, getch () times out and returns ERR after
      * sample_period seconds, multi-char keypad/arrow keys are handled.
      * Make cursor invisible.
      */
+    if (!(topwin = initscr ()))
+        err_exit ("error initializing parent window");
+    if (!(ostwin = newwin (ostcount, 80, TOPWIN_LINES, 0)))
+        err_exit ("error initializing subwindow");
     raw ();
     noecho ();
     timeout (sample_period * 1000);
@@ -295,16 +294,6 @@ main (int argc, char *argv[])
     msg ("Goodbye");
     exit (0);
 }
-
-/*
-Filesystem: lc1
-    Inodes:      442.011m total,       47.103m used,      394.908m free  100%
-     Space:      172.188t total,       14.477t used,      157.711t free  100%
-   Bytes/s:        0.091g read,         0.263g write
-   MDops/s:      0 open,        2 close,       0 getattr,       0 setattr
-                 0 link,        0 unlink,      0 mkdir,         0 rmdir
-                 1 statfs,      0 rename,      0 getxattr
-*/
 
 /* Update the top (summary) window of the display.
  * Sum data rate and free space over all OST's.
@@ -442,24 +431,6 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     wrefresh (win);
 }
 
-/*  Used for list_find_first () of OST by target name, e.g. fs-OSTxxxx.
- */
-static int
-_match_oststat (oststat_t *o, char *name)
-{
-    char *p = strstr (name, "-OST");
-
-    return (strcmp (o->name, p ? p + 4 : name) == 0);
-}
-
-/*  Used for list_find_first () of OST by oss name.
- */
-static int
-_match_oststat2 (oststat_t *o, char *name)
-{
-    return (strcmp (o->ossname, name) == 0);
-}
-
 /*  Used for list_find_first () of MDT by target name, e.g. fs-MDTxxxx.
  */
 static int
@@ -517,6 +488,24 @@ _destroy_mdtstat (mdtstat_t *m)
     free (m);
 }
 
+/*  Used for list_find_first () of OST by target name, e.g. fs-OSTxxxx.
+ */
+static int
+_match_oststat (oststat_t *o, char *name)
+{
+    char *p = strstr (name, "-OST");
+
+    return (strcmp (o->name, p ? p + 4 : name) == 0);
+}
+
+/*  Used for list_find_first () of OST by oss name.
+ */
+static int
+_match_oststat2 (oststat_t *o, char *name)
+{
+    return (strcmp (o->ossname, name) == 0);
+}
+
 /* Helper for _cmp_ostatst2 ()
  */
 static char *
@@ -531,9 +520,8 @@ _numerical_suffix (char *s, unsigned long *np)
     return p;
 }
 
-/* Used for list_sort () of OST list, where sorting order is determined
- * by ossname.  Use a modified alpha-numeric sort which takes into account
- * numerical hostname suffixes, if any.
+/* Used for list_sort () of OST list by ossname.
+ * Like strcmp, but handle variable-width (unpadded) numerical suffixes, if any.
  */
 static int
 _cmp_oststat2 (oststat_t *o1, oststat_t *o2)
@@ -551,9 +539,8 @@ _cmp_oststat2 (oststat_t *o1, oststat_t *o2)
     return strcmp (o1->ossname, o2->ossname);
 }
 
-/* Used for list_sort () of OST list, where sorting order is determined
- * by ostname.  The name is presumed to consist of fixed with hex which
- * sorts alpha-numerically.
+/* Used for list_sort () of OST list by ostname.
+ * Fixed width hex sorts alphanumerically.
  */
 static int
 _cmp_oststat (oststat_t *o1, oststat_t *o2)
@@ -610,20 +597,6 @@ _copy_oststat (oststat_t *o1)
     o->kbytes_free = sample_copy (o1->kbytes_free);
     o->kbytes_total = sample_copy (o1->kbytes_total);
     return o;
-}
-
-/* Match an OST or MDT target against a file system name.
- * Target names are assumed to be of the form fs-OSTxxxx or fs-MDTxxxx.
- */
-static int
-_fsmatch (char *name, char *fs)
-{
-    char *p = strchr (name, '-');
-    int len = p ? p - name : strlen (name);
-
-    if (strlen (fs) == len && strncmp (name, fs, len) == 0)
-        return 1;
-    return 0;
 }
 
 /* Update oststat_t record (oscstate field) in ost_data list for
@@ -750,9 +723,23 @@ _update_mdt (char *mdtname, char *mdsname, time_t t,
     }
 }
 
+/* Match an OST or MDT target against a file system name.
+ * Target names are assumed to be of the form fs-OSTxxxx or fs-MDTxxxx.
+ */
+static int
+_fsmatch (char *name, char *fs)
+{
+    char *p = strchr (name, '-');
+    int len = p ? p - name : strlen (name);
+
+    if (strlen (fs) == len && strncmp (name, fs, len) == 0)
+        return 1;
+    return 0;
+}
+
 /* Obtain lmt_osc records from cerebro and update ost_data.
- * Note that this is a way to get a "definitive" list of all the OST's
- * when starting up, even if they have never reported to cerebro.
+ * Note that this is a way to get a list of all the OST's
+ * when starting up, even if they have never reported in to cerebro.
  */
 static void
 _poll_osc (char *fs, List ost_data, int stale_secs)
