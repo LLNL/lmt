@@ -67,6 +67,7 @@ typedef struct {
     double val[2];
     time_t time[2];
     int valid; /* count of valid samples [0,1,2] */
+    int stale_secs;
 } sample_t;
 
 typedef struct {
@@ -75,13 +76,11 @@ typedef struct {
     sample_t rbytes;
     sample_t wbytes;
     sample_t iops;
-    uint64_t num_exports;
+    sample_t num_exports;
     char recov_status[32];
     time_t ost_metric_timestamp;
     char ossname[MAXHOSTNAMELEN];
 } oststat_t;
-
-#define STALE_THRESH_SEC    12
 
 typedef struct {
     double tbytes_free;
@@ -104,37 +103,37 @@ typedef struct {
     sample_t statfs;
     sample_t rename;
     sample_t getxattr;
+    time_t mdt_metric_timestamp;
 } mdtsum_t;
 
-static void _poll_cerebro (void);
-static void _update_display (WINDOW *win);
-static void _update_display_ost (WINDOW *win, int ostcount, int minost,
-                                 int selost);
+static void _poll_cerebro (char *fs, List ost_data, mdtsum_t *mdtsum,
+                           ostsum_t *ostsum, int stale_secs);
+static void _update_display (WINDOW *win, char *fs, mdtsum_t *mdtsum,
+                             ostsum_t *ostsum, int stale_secs);
+static void _update_display_ost (WINDOW *win, List ost_data, int minost,
+                                 int selost, int stale_secs);
 static void _destroy_oststat (oststat_t *o);
+static int _cmp_oststat (oststat_t *o1, oststat_t *o2);
+static int _cmp_oststat2 (oststat_t *o1, oststat_t *o2);
 
-#define OPTIONS "f:c:"
+#define OPTIONS "f:c:t:s:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
     {"filesystem",      required_argument,  0, 'f'},
     {"config-file",     required_argument,  0, 'c'},
+    {"sample-period",   required_argument,  0, 't'},
+    {"stale-secs",      required_argument,  0, 's'},
     {0, 0, 0, 0},
 };
 #else
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
 
-static int sample_period = 2; /* seconds */
-static List ost_data = NULL;
-static ostsum_t ostsum;
-static mdtsum_t mdtsum;
-static char *fs = NULL;
-static int sort_ost = 1;
-
 static void
 usage (void)
 {
-    fprintf (stderr, "Usage: ltop -f FS [-c config]\n");
+    fprintf (stderr, "Usage: ltop -f FS [-c config] [-t SECS] [-s SECS]\n");
     exit (1);
 }
 
@@ -145,6 +144,14 @@ main (int argc, char *argv[])
     char *conffile = NULL;
     WINDOW *win, *ostwin;
     int ostcount, selost = -1, minost = 0;
+    int sort_ost = 1;
+    char *fs = NULL;
+    int sample_period = 2; /* seconds */
+    int stale_secs = 12; /* seconds */
+    List ost_data = list_create ((ListDelF)_destroy_oststat);
+    ostsum_t ostsum;
+    mdtsum_t mdtsum;
+    time_t now;
 
     err_init (argv[0]);
     optind = 0;
@@ -157,6 +164,12 @@ main (int argc, char *argv[])
                 break;
             case 'c':   /* --config-file FILE */
                 conffile = optarg;
+                break;
+            case 't':   /* --sample-period SECS */
+                sample_period = strtoul (optarg, NULL, 10);
+                break;
+            case 's':   /* --stale-secs SECS */
+                stale_secs = strtoul (optarg, NULL, 10);
                 break;
             default:
                 usage ();
@@ -176,15 +189,16 @@ main (int argc, char *argv[])
      * see the file system.  Just abort in that case.
      */
 
-    ost_data = list_create ((ListDelF)_destroy_oststat);
 
     memset (&mdtsum, 0, sizeof (mdtsum));
     memset (&ostsum, 0, sizeof (ostsum));
 
-    _poll_cerebro ();
+    _poll_cerebro (fs, ost_data, &mdtsum, &ostsum, stale_secs);
 
     if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
+
+    list_sort (ost_data, (ListCmpF)_cmp_oststat);
 
     if (!(win = initscr ()))
         err_exit ("error initializing parent window");
@@ -202,8 +216,9 @@ main (int argc, char *argv[])
     curs_set (0);
 
     while (!isendwin ()) {
-        _update_display (win);
-        _update_display_ost (ostwin, ostcount, minost, selost);
+        _update_display (win, fs, &mdtsum, &ostsum, stale_secs);
+        _update_display_ost (ostwin, ost_data, minost, selost, stale_secs);
+        now = time (NULL);
         switch (getch ()) {
             case KEY_DC:            /* Delete - turn off highlighting */
                 selost = -1;
@@ -247,8 +262,13 @@ main (int argc, char *argv[])
             case ERR:   /* timeout */
                 break;
         }
-        _poll_cerebro ();
-        ostcount = list_count (ost_data);
+        if (time (NULL) - now >= sample_period)
+            _poll_cerebro (fs, ost_data, &mdtsum, &ostsum, stale_secs);
+    
+        if (sort_ost)
+            list_sort (ost_data, (ListCmpF)_cmp_oststat);
+        else /* sort by oss */
+            list_sort (ost_data, (ListCmpF)_cmp_oststat2);
     }
 
     list_destroy (ost_data);
@@ -257,17 +277,15 @@ main (int argc, char *argv[])
     exit (0);
 }
 
-static char
-_propeller (void)
-{
-    const char p[] = { '|', '/', '-', '\\' };
-    static int i = 0;
-
-    return p[i++ % sizeof (p)];
-}
- 
 static void
-_sample_init (sample_t *sp)
+_sample_init (sample_t *sp, int stale_secs)
+{
+    sp->valid = 0;
+    sp->stale_secs = stale_secs;
+}
+
+static void
+_sample_invalid (sample_t *sp)
 {
     sp->valid = 0;
 }
@@ -289,180 +307,144 @@ _sample_update (sample_t *sp, double val, time_t t)
     }
 }
 
-static char *
-_sample_to_smbps (sample_t *sp, char *s, int len)
-{
-    time_t now = time (NULL);
-    double val;
-
-    if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
-            && (now - sp->time[0]) <= STALE_THRESH_SEC + LMT_UPDATE_INTERVAL) {
-        val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
-        snprintf (s, len, "%*.2f", len - 1, val);
-    } else
-        snprintf (s, len, "%*s", len - 1, "***");
-    return s;
-}
-
 static double
-_sample_to_fmbps (sample_t *sp, double *valp)
+_sample_to_rate (sample_t *sp)
 {
     time_t now = time (NULL);
-    double val;
+    double val = 0;
 
-    if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
-            && (now - sp->time[0]) <= STALE_THRESH_SEC + LMT_UPDATE_INTERVAL)
-        val = (sp->val[1] - sp->val[0]) / ((sp->time[1] - sp->time[0]) * 1E6);
-    else
-        val = 0.0;
-    *valp = val;
+    if (sp->valid == 2 && (now - sp->time[1]) <= sp->stale_secs)
+        val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]);
+    if (val < 0)
+        val = 0;
     return val;
 }
 
 
-static char *
-_sample_to_oprate (sample_t *sp, char *s, int len)
+static double
+_sample_to_val (sample_t *sp)
 {
     time_t now = time (NULL);
-    double val;
+    double val = 0;
 
-    if (sp->valid == 2 && (now - sp->time[1]) <= STALE_THRESH_SEC
-           && (now - sp->time[0]) <= STALE_THRESH_SEC + LMT_UPDATE_INTERVAL) {
-        val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]);
-        snprintf (s, len, "%*lu", len - 1, (unsigned long)val);
-    } else {
-        snprintf (s, len, "%*s", len - 1, "***");
-    }
-    return s;
-}
-
-static char *
-_nexp_to_val (oststat_t *o, char *s, int len)
-{
-    time_t now = time (NULL);
-
-    if ((now - o->ost_metric_timestamp) > STALE_THRESH_SEC)
-        snprintf (s, len, "%*s", len - 1, "***");
-    else
-        snprintf (s, len, "%*lu", len - 1, o->num_exports);
-    return s;
+    if (sp->valid > 0 && (now - sp->time[1]) <= sp->stale_secs)
+        val = sp->val[1];
+    return val;
 }
 
 static void
-_update_display (WINDOW *win)
+_update_display (WINDOW *win, char *fs, mdtsum_t *mdtsum, ostsum_t *ostsum,
+                 int stale_secs)
 {
+    time_t now = time (NULL);
     int x = 0;
-    char op[7], cl[7], gattr[7], sattr[7];
-    char li[7], ul[7], mkd[7], rmd[7];
-    char sfs[7], ren[7], gxattr[7];
 
     wclear (win);
 
-    mvwprintw (win, x, 0, "Filesystem: %s", fs);
-    mvwprintw (win, x++, 78, "%c", _propeller ());
+    mvwprintw (win, x++, 0, "Filesystem: %s", fs);
+    if ((now - mdtsum->mdt_metric_timestamp) > stale_secs) {
+        x += 6;
+        goto skipmdt;
+    }
     mvwprintw (win, x++, 0,
                "    Inodes: %12.3fm total, %12.3fm used, %12.3fm free",
-               mdtsum.minodes_total,
-               mdtsum.minodes_total - mdtsum.minodes_free,
-               mdtsum.minodes_free);
+               mdtsum->minodes_total,
+               mdtsum->minodes_total - mdtsum->minodes_free,
+               mdtsum->minodes_free);
     mvwprintw (win, x++, 0,
                "     Space: %12.3ft total, %12.3ft used, %12.3ft free",
-               ostsum.tbytes_total,
-               ostsum.tbytes_total - ostsum.tbytes_free,
-               ostsum.tbytes_free);
+               ostsum->tbytes_total,
+               ostsum->tbytes_total - ostsum->tbytes_free,
+               ostsum->tbytes_free);
     mvwprintw (win, x++, 0,
                "   Bytes/s: %12.3fg read,  %12.3fg write",
-               ostsum.rmbps / 1024,
-               ostsum.wmbps / 1024);
+               ostsum->rmbps / 1024,
+               ostsum->wmbps / 1024);
     mvwprintw (win, x++, 0,
-               "   MDops/s: %6s open,   %6s close,  %6s getattr,  %6s setattr",
-               _sample_to_oprate (&mdtsum.open,    op,    sizeof (op)),
-               _sample_to_oprate (&mdtsum.close,   cl,    sizeof (cl)),
-               _sample_to_oprate (&mdtsum.getattr, gattr, sizeof (gattr)),
-               _sample_to_oprate (&mdtsum.setattr, sattr, sizeof (sattr)));
+               "   MDops/s: %6.0f open,   %6.0f close,  %6.0f getattr,  %6.0f setattr",
+               _sample_to_rate (&mdtsum->open),
+               _sample_to_rate (&mdtsum->close),
+               _sample_to_rate (&mdtsum->getattr),
+               _sample_to_rate (&mdtsum->setattr));
     mvwprintw (win, x++, 0,
-               "            %6s link,   %6s unlink, %6s mkdir,    %6s rmdir",
-               _sample_to_oprate (&mdtsum.link,    li,    sizeof (li)),
-               _sample_to_oprate (&mdtsum.unlink,  ul,    sizeof (ul)),
-               _sample_to_oprate (&mdtsum.mkdir,   mkd,   sizeof (mkd)),
-               _sample_to_oprate (&mdtsum.rmdir,   rmd,   sizeof (rmd)));
-    mvwprintw (win, x++, 0, "            %6s statfs, %6s rename, %6s getxattr",
-               _sample_to_oprate (&mdtsum.statfs,  sfs,    sizeof (sfs)),
-               _sample_to_oprate (&mdtsum.rename,  ren,    sizeof (ren)),
-               _sample_to_oprate (&mdtsum.getxattr,gxattr,sizeof (gxattr)));
-
+               "            %6.0f link,   %6.0f unlink, %6.0f mkdir,    %6.0f rmdir",
+               _sample_to_rate (&mdtsum->link),
+               _sample_to_rate (&mdtsum->unlink),
+               _sample_to_rate (&mdtsum->mkdir),
+               _sample_to_rate (&mdtsum->rmdir));
+    mvwprintw (win, x++, 0, "            %6.0f statfs, %6.0f rename, %6.0f getxattr",
+               _sample_to_rate (&mdtsum->statfs),
+               _sample_to_rate (&mdtsum->rename),
+               _sample_to_rate (&mdtsum->getxattr));
+skipmdt:
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
-               "%-80s", "OST  S        OSS   Exp   rMB/s   wMB/s   IOPS");
+               "%-80s", "OST  S        OSS   Exp rMB/s wMB/s  IOPS");
     wattroff(win, A_REVERSE);
 
     wrefresh (win);
 }
 
 static void
-_update_display_ost (WINDOW *win, int ostcount, int minost, int selost)
+_update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
+                     int stale_secs)
 {
     ListIterator itr;
     oststat_t *o;
     int x = 0;
-    char rmbps[8], wmbps[8], iops[7], nexp[6];
     time_t now = time (NULL);
     int skipost = minost;
 
     wclear (win);
 
-    if (ost_data) {
-        itr = list_iterator_create (ost_data);
-        while ((o = list_next (itr))) {
-            if (skipost-- > 0)
-                continue;
-            if (selost == x + minost)
-                wattron (win, A_REVERSE);
-            /* available info is expired */
-            if ((now - o->ost_metric_timestamp) > STALE_THRESH_SEC) {
-                mvwprintw (win, x, 0, "%s %s", o->name, o->oscstate);
-            /* ost is in recovery - display recovery stats */
-            } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
-                mvwprintw (win, x, 0, "%s %s   %s", o->name, o->oscstate,
-                           o->recov_status);
-            /* ost is in normal state */
-            } else {
-                mvwprintw (win, x, 0, "%s %s %10.10s %s %s %s %s", o->name,
-                      o->oscstate,
-                      o->ossname,
-                      _nexp_to_val (o, nexp, sizeof (nexp)),
-                      _sample_to_smbps (&o->rbytes, rmbps, sizeof (rmbps)),
-                      _sample_to_smbps (&o->wbytes, wmbps, sizeof (wmbps)),
-                      _sample_to_oprate (&o->iops, iops, sizeof (iops)));
-            }
-            if (selost == x + minost)
-                wattroff(win, A_REVERSE);
-            x++;
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr))) {
+        if (skipost-- > 0)
+            continue;
+        if (selost == x + minost)
+            wattron (win, A_REVERSE);
+        /* available info is expired */
+        if ((now - o->ost_metric_timestamp) > stale_secs) {
+            mvwprintw (win, x, 0, "%s %s", o->name, o->oscstate);
+        /* ost is in recovery - display recovery stats */
+        } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
+            mvwprintw (win, x, 0, "%s %s   %s", o->name, o->oscstate,
+                       o->recov_status);
+        /* ost is in normal state */
+        } else {
+            mvwprintw (win, x, 0, "%s %s %10.10s %5.0f %5.0f %5.0f %5.0f",
+                  o->name,
+                  o->oscstate,
+                  o->ossname,
+                  _sample_to_val (&o->num_exports),
+                  _sample_to_rate (&o->rbytes) / (1024*1024),
+                  _sample_to_rate (&o->wbytes) / (1024*1024),
+                  _sample_to_rate (&o->iops));
         }
-        list_iterator_destroy (itr);
+        if (selost == x + minost)
+            wattroff(win, A_REVERSE);
+        x++;
     }
+    list_iterator_destroy (itr);
 
     wrefresh (win);
 }
 
 static void
-_update_ostsum (void)
+_update_ostsum (List ost_data, ostsum_t *ostsum)
 {
     ListIterator itr;
     double totr = 0, totw = 0;
-    double r, w;
     oststat_t *o;
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
-        _sample_to_fmbps (&o->rbytes, &r);
-        totr += r;
-        _sample_to_fmbps (&o->wbytes, &w);    
-        totw += w;
+        totr += _sample_to_rate (&o->rbytes) / (1024*1024);
+        totw += _sample_to_rate (&o->wbytes) / (1024*1024);    
     }
     list_iterator_destroy (itr);        
-    ostsum.rmbps = totr;
-    ostsum.wmbps = totw;
+    ostsum->rmbps = totr;
+    ostsum->wmbps = totw;
 }
 
 /**
@@ -495,7 +477,6 @@ _numerical_suffix (char *s, unsigned long *np)
     return p;
 }
 
-
 static int
 _cmp_oststat2 (oststat_t *o1, oststat_t *o2)
 {
@@ -513,7 +494,7 @@ _cmp_oststat2 (oststat_t *o1, oststat_t *o2)
 }
 
 static oststat_t *
-_create_oststat (char *name, char *state)
+_create_oststat (char *name, char *state, int stale_secs)
 {
     oststat_t *o = xmalloc (sizeof (*o));
     char *ostx = strstr (name, "-OST");
@@ -521,10 +502,10 @@ _create_oststat (char *name, char *state)
     memset (o, 0, sizeof (*o));
     strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
     strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
-    _sample_init (&o->rbytes);
-    _sample_init (&o->wbytes);
-    _sample_init (&o->iops);
-
+    _sample_init (&o->rbytes, stale_secs);
+    _sample_init (&o->wbytes, stale_secs);
+    _sample_init (&o->iops, stale_secs);
+    _sample_init (&o->num_exports, stale_secs);
     return o;
 }
 
@@ -535,7 +516,7 @@ _destroy_oststat (oststat_t *o)
 }
 
 static int
-_fsmatch (char *name)
+_fsmatch (char *name, char *fs)
 {
     char *p = strchr (name, '-');
     int len = p ? p - name : strlen (name);
@@ -546,12 +527,12 @@ _fsmatch (char *name)
 }
 
 static void
-_update_osc (char *name, char *state)
+_update_osc (char *name, char *state, List ost_data, int stale_secs)
 {
     oststat_t *o;
 
     if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, name))) {
-        o = _create_oststat (name, state);
+        o = _create_oststat (name, state, stale_secs);
         list_append (ost_data, o);
     } else {
         strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
@@ -561,26 +542,33 @@ _update_osc (char *name, char *state)
 static void
 _update_ost (char *ostname, char *ossname, time_t t,
              uint64_t read_bytes, uint64_t write_bytes, uint64_t iops,
-             uint64_t num_exports, char *recov_status)
+             uint64_t num_exports, char *recov_status, List ost_data)
 {
     oststat_t *o;
 
     if (!(o = list_find_first (ost_data, (ListFindF)_match_oststat, ostname)))
         return;
     if (o->ost_metric_timestamp < t) {
+        if (strcmp (ossname, o->ossname) != 0) { /* failover/failback */
+            _sample_invalid (&o->rbytes);
+            _sample_invalid (&o->wbytes);
+            _sample_invalid (&o->iops);
+            _sample_invalid (&o->num_exports);
+            snprintf (o->ossname, sizeof (o->ossname), "%s", ossname);
+        }
         o->ost_metric_timestamp = t;
         _sample_update (&o->rbytes, (double)read_bytes, t);
         _sample_update (&o->wbytes, (double)write_bytes, t);
         _sample_update (&o->iops, (double)iops, t);
-        o->num_exports = num_exports;
+        _sample_update (&o->num_exports, (double)num_exports, t);
         snprintf (o->recov_status, sizeof(o->recov_status), "%s", recov_status);
-        snprintf (o->ossname, sizeof (o->ossname), "%s", ossname);
     }
 }
 
 static void
 _update_mdt (char *name, time_t t, uint64_t inodes_free, uint64_t inodes_total,
-             uint64_t kbytes_free, uint64_t kbytes_total, List mdops)
+             uint64_t kbytes_free, uint64_t kbytes_total, List mdops,
+             mdtsum_t *mdtsum)
 {
     char *opname, *s;
     ListIterator itr;
@@ -591,31 +579,32 @@ _update_mdt (char *name, time_t t, uint64_t inodes_free, uint64_t inodes_total,
         if (lmt_mdt_decode_v1_mdops (s, &opname,
                                 &samples, &sum, &sumsquares) == 0) {
             if (!strcmp (opname, "open"))
-                _sample_update (&mdtsum.open, (double)samples, t);
+                _sample_update (&mdtsum->open, (double)samples, t);
             else if (!strcmp (opname, "close"))
-                _sample_update (&mdtsum.close, (double)samples, t);
+                _sample_update (&mdtsum->close, (double)samples, t);
             else if (!strcmp (opname, "getattr"))
-                _sample_update (&mdtsum.getattr, (double)samples, t);
+                _sample_update (&mdtsum->getattr, (double)samples, t);
             else if (!strcmp (opname, "setattr"))
-                _sample_update (&mdtsum.setattr, (double)samples, t);
+                _sample_update (&mdtsum->setattr, (double)samples, t);
             else if (!strcmp (opname, "link"))
-                _sample_update (&mdtsum.link, (double)samples, t);
+                _sample_update (&mdtsum->link, (double)samples, t);
             else if (!strcmp (opname, "unlink"))
-                _sample_update (&mdtsum.unlink, (double)samples, t);
+                _sample_update (&mdtsum->unlink, (double)samples, t);
             else if (!strcmp (opname, "mkdir"))
-                _sample_update (&mdtsum.mkdir, (double)samples, t);
+                _sample_update (&mdtsum->mkdir, (double)samples, t);
             else if (!strcmp (opname, "rmdir"))
-                _sample_update (&mdtsum.rmdir, (double)samples, t);
+                _sample_update (&mdtsum->rmdir, (double)samples, t);
             else if (!strcmp (opname, "statfs"))
-                _sample_update (&mdtsum.statfs, (double)samples, t);
+                _sample_update (&mdtsum->statfs, (double)samples, t);
             else if (!strcmp (opname, "rename"))
-                _sample_update (&mdtsum.rename, (double)samples, t);
+                _sample_update (&mdtsum->rename, (double)samples, t);
             else if (!strcmp (opname, "getxattr"))
-                _sample_update (&mdtsum.getxattr, (double)samples, t);
+                _sample_update (&mdtsum->getxattr, (double)samples, t);
             free (opname);
         }
     }
     list_iterator_destroy (itr);
+    mdtsum->mdt_metric_timestamp = t;
 }
 
 /* We get the definitive list of OST's from the MDS's osc view, which should
@@ -624,7 +613,7 @@ _update_mdt (char *name, time_t t, uint64_t inodes_free, uint64_t inodes_total,
  * a useful thing to know.
  */
 static int
-_poll_osc (void)
+_poll_osc (char *fs, List ost_data, int stale_secs)
 {
     int retval = -1;
     cmetric_t c;
@@ -649,11 +638,11 @@ _poll_osc (void)
         itr2 = list_iterator_create (oscinfo);
         while ((s = list_next (itr2))) {
             if (lmt_osc_decode_v1_oscinfo (s, &oscname, &oscstate) == 0) {
-                if (_fsmatch (oscname)) {
-                    if (now - t > STALE_THRESH_SEC)
-                        _update_osc (oscname, " ");
+                if (_fsmatch (oscname, fs)) {
+                    if (now - t > stale_secs)
+                        _update_osc (oscname, " ", ost_data, stale_secs);
                     else
-                        _update_osc (oscname, oscstate);
+                        _update_osc (oscname, oscstate, ost_data, stale_secs);
                 }
                 free (oscname);
                 free (oscstate);
@@ -670,7 +659,7 @@ done:
 }
 
 static int
-_poll_ost (void)
+_poll_ost (char *fs, List ost_data, ostsum_t *ostsum, int stale_secs)
 {
     int retval = -1;
     cmetric_t c;
@@ -704,10 +693,10 @@ _poll_ost (void)
                                            &kbytes_free, &kbytes_total,
                                            &inodes_free, &inodes_total, &iops,
                                            &num_exports, &recov_status) == 0) {
-                if (_fsmatch (ostname)) {
+                if (_fsmatch (ostname, fs)) {
                     _update_ost (ostname, ossname, t, read_bytes, write_bytes,
-                                 iops, num_exports, recov_status);
-                    if (now - t <= STALE_THRESH_SEC) {
+                                 iops, num_exports, recov_status, ost_data);
+                    if (now - t <= stale_secs) {
                         sum_kbytes_free += kbytes_free;
                         sum_kbytes_total += kbytes_total;
                     }
@@ -722,15 +711,15 @@ _poll_ost (void)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
-    ostsum.tbytes_free = (double)sum_kbytes_free / (1024.0*1024*1024);
-    ostsum.tbytes_total = (double)sum_kbytes_total / (1024.0*1024*1024);
+    ostsum->tbytes_free = (double)sum_kbytes_free / (1024.0*1024*1024);
+    ostsum->tbytes_total = (double)sum_kbytes_total / (1024.0*1024*1024);
     retval = 0;
 done: 
     return retval;
 }
 
 static int
-_poll_mdt (void)
+_poll_mdt (char *fs, mdtsum_t *mdtsum)
 {
     int retval = -1;
     cmetric_t c;
@@ -761,9 +750,9 @@ _poll_mdt (void)
             if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
                                            &inodes_total, &kbytes_free,
                                            &kbytes_total, &mdops) == 0) {
-                if (_fsmatch (mdtname)) {
+                if (_fsmatch (mdtname, fs)) {
                     _update_mdt (mdtname, t, inodes_free, inodes_total,
-                                 kbytes_free, kbytes_total, mdops);
+                                 kbytes_free, kbytes_total, mdops, mdtsum);
                     sum_inodes_free += inodes_free;
                     sum_inodes_total += inodes_total;
                 }
@@ -776,28 +765,24 @@ _poll_mdt (void)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
-    mdtsum.minodes_free = (double)sum_inodes_free / (1024.0*1024);
-    mdtsum.minodes_total = (double)sum_inodes_total / (1024.0*1024);
+    mdtsum->minodes_free = (double)sum_inodes_free / (1024.0*1024);
+    mdtsum->minodes_total = (double)sum_inodes_total / (1024.0*1024);
     retval = 0;
 done: 
     return retval;
 }
 
 static void
-_poll_cerebro (void)
+_poll_cerebro (char *fs, List ost_data, mdtsum_t *mdtsum, ostsum_t *ostsum,
+               int stale_secs)
 {
-    if (_poll_osc () < 0)
+    if (_poll_osc (fs, ost_data, stale_secs) < 0)
         err_exit ("could not get cerebro lmt_osc metric");
-    if (_poll_ost () < 0)
+    if (_poll_ost (fs, ost_data, ostsum, stale_secs) < 0)
         err_exit ("could not get cerebro lmt_ost metric");
-    _update_ostsum ();
-    if (_poll_mdt () < 0)
+    _update_ostsum (ost_data, ostsum);
+    if (_poll_mdt (fs, mdtsum) < 0)
         err_exit ("could not get cerebro lmt_mdt metric");
-    
-    if (sort_ost)
-        list_sort (ost_data, (ListCmpF)_cmp_oststat);
-    else /* sort by oss */
-        list_sort (ost_data, (ListCmpF)_cmp_oststat2);
 }
 
 /*
