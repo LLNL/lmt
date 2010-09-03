@@ -80,6 +80,7 @@ typedef struct {
     char recov_status[32];
     time_t ost_metric_timestamp;
     char ossname[MAXHOSTNAMELEN];
+    int tag;
 } oststat_t;
 
 typedef struct {
@@ -113,6 +114,9 @@ static void _destroy_mdtstat (mdtstat_t *m);
 static int _cmp_oststat (oststat_t *o1, oststat_t *o2);
 static int _cmp_oststat2 (oststat_t *o1, oststat_t *o2);
 static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
+static void _tag_nth_ost (int ostview, List ost_data, List oss_data,
+                          int selost);
+static void _clear_tags (List ost_data);
 
 /* Hardwired display geometry.
  */
@@ -192,6 +196,7 @@ main (int argc, char *argv[])
     _poll_ost (fs, ost_data, stale_secs);
     _poll_mdt (fs, mdt_data, stale_secs);
     list_sort (ost_data, (ListCmpF)_cmp_oststat);
+    assert (ostview);
     ostcount = list_count (ost_data);
     if (ostcount == 0 || list_count (mdt_data) == 0)
         msg_exit ("no data found for file system `%s'", fs);
@@ -222,6 +227,8 @@ main (int argc, char *argv[])
         switch (getch ()) {
             case KEY_DC:            /* Delete - turn off highlighting */
                 selost = -1;
+                _clear_tags (ost_data);
+                _clear_tags (oss_data);
                 break;
             case 'q':               /* q|Ctrl-C - quit */
             case 0x03:
@@ -267,6 +274,10 @@ main (int argc, char *argv[])
                 ostcount = list_count (ostview ? ost_data : oss_data);
                 minost = 0;
                 selost = -1;
+                break;
+            case ' ':               /* SPACE - tag selected OST */
+                if (selost != -1)
+                    _tag_nth_ost (ostview, ost_data, oss_data, selost);
                 break;
             case ERR:               /* timeout */
                 break;
@@ -405,6 +416,8 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             continue;
         if (x - 1 + minost == selost)
             wattron (win, A_REVERSE);
+        if (o->tag)
+            wattron (win, A_UNDERLINE);
         /* available info is expired */
         if ((now - o->ost_metric_timestamp) > stale_secs) {
             mvwprintw (win, x, 0, "%4.4s %1.1s", o->name, o->oscstate);
@@ -424,6 +437,8 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         }
         if (x - 1 + minost == selost)
             wattroff(win, A_REVERSE);
+        if (o->tag)
+            wattroff(win, A_UNDERLINE);
         x++;
     }
     list_iterator_destroy (itr);
@@ -922,6 +937,8 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
              */
             snprintf (o2->name, sizeof (o2->name), "(%d)",
                       (int)strtoul (o2->name + 1, NULL, 10) + 1);
+            if (o->tag)
+                o2->tag = o->tag;
         } else {
             o2 = _copy_oststat (o);
             snprintf (o2->name, sizeof (o2->name), "(%d)", 1);
@@ -930,6 +947,52 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
     }
     list_iterator_destroy (itr);
     list_sort (oss_data, (ListCmpF)_cmp_oststat2);
+}
+
+static void
+_clear_tags (List ost_data)
+{
+    oststat_t *o;
+    ListIterator itr;
+
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr)))
+        o->tag = 0;
+    list_iterator_destroy (itr);
+}
+
+static void
+_tag_nth_ost (int ostview, List ost_data, List oss_data, int selost)
+{
+    oststat_t *o, *o2;
+    ListIterator itr, itr2;
+    int n = 0;
+
+    if (ostview) {
+        itr = list_iterator_create (ost_data);
+        while ((o = list_next (itr))) {
+            if (selost == n++) {
+                o->tag = !o->tag;
+                break;
+            }
+        }
+        list_iterator_destroy (itr);
+    } else {
+        itr = list_iterator_create (oss_data);
+        while ((o = list_next (itr))) {
+            if (selost == n++) {
+                o->tag = !o->tag;
+                itr2 = list_iterator_create (ost_data);
+                while ((o2 = list_next (itr2))) {
+                    if (!strcmp (o->ossname, o2->ossname))
+                        o2->tag = o->tag;
+                }
+                list_iterator_destroy (itr2);
+                break;
+            }
+        }
+        list_iterator_destroy (itr);
+    }
 }
 
 /*
