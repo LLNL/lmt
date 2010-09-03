@@ -102,6 +102,10 @@ typedef struct {
     char mdsname[MAXHOSTNAMELEN];
 } mdtstat_t;
 
+typedef enum {
+    SORT_OST, SORT_OSS, SORT_RBW, SORT_WBW, SORT_IOPS, SORT_EXP,
+} sort_t;
+
 static void _poll_osc (char *fs, List ost_data, int stale_secs);
 static void _poll_ost (char *fs, List ost_data, int stale_secs);
 static void _poll_mdt (char *fs, List mdt_data, int stale_secs);
@@ -111,11 +115,10 @@ static void _update_display_ost (WINDOW *win, List ost_data, int minost,
                                  int selost, int stale_secs);
 static void _destroy_oststat (oststat_t *o);
 static void _destroy_mdtstat (mdtstat_t *m);
-static int _cmp_oststat (oststat_t *o1, oststat_t *o2);
-static int _cmp_oststat2 (oststat_t *o1, oststat_t *o2);
 static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
+static void _sort_ostlist (List ost_data, sort_t s);
 
 /* Hardwired display geometry.
  */
@@ -151,8 +154,8 @@ main (int argc, char *argv[])
     char *conffile = NULL;
     WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
-    int sort_ost = 1;
-    int ostview = 1;
+    int ostview = 1, resort = 0;
+    sort_t ost_sort = SORT_OST;
     char *fs = NULL;
     int sample_period = 2; /* seconds */
     int stale_secs = 12; /* seconds */
@@ -194,7 +197,7 @@ main (int argc, char *argv[])
     _poll_osc (fs, ost_data, stale_secs);
     _poll_ost (fs, ost_data, stale_secs);
     _poll_mdt (fs, mdt_data, stale_secs);
-    list_sort (ost_data, (ListCmpF)_cmp_oststat);
+    _sort_ostlist (ost_data, ost_sort);
     assert (ostview);
     ostcount = list_count (ost_data);
     if (ostcount == 0 || list_count (mdt_data) == 0)
@@ -259,17 +262,11 @@ main (int argc, char *argv[])
                 if (minost + LINES - HDRLINES <= ostcount)
                     minost += (LINES - HDRLINES);
                 break;
-            case 'O':               /* o|O - toggle sort by ost/oss */
-            case 'o':
-                sort_ost = !sort_ost;
-                list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
-                                              : (ListCmpF)_cmp_oststat2);
-                break;
-            case 'c':               /* c|C - toggle compressed oss view */
-            case 'C':
+            case 'c':               /* c - toggle compressed oss view */
                 ostview = !ostview;
                 if (!ostview)
                     _summarize_ost (ost_data, oss_data, stale_secs);
+                resort = 1;
                 ostcount = list_count (ostview ? ost_data : oss_data);
                 minost = 0;
                 selost = -1;
@@ -280,6 +277,30 @@ main (int argc, char *argv[])
                 else
                     _tag_nth_ost (oss_data, selost, ost_data);
                 break;
+            case 't':               /* t - sort by ost */
+                ost_sort = SORT_OST;
+                resort = 1;
+                break;
+            case 's':               /* O - sort by oss */
+                ost_sort = SORT_OSS;
+                resort = 1;
+                break;
+            case 'r':               /* r - sort by read MB/s */
+                ost_sort = SORT_RBW;
+                resort = 1;
+                break;
+            case 'w':               /* w - sort by write MB/s */
+                ost_sort = SORT_WBW;
+                resort = 1;
+                break;
+            case 'i':               /* i - sort by IOPS */
+                ost_sort = SORT_IOPS;
+                resort = 1;
+                break;
+            case 'x':               /* x - sort by export count */
+                ost_sort = SORT_EXP;
+                resort = 1;
+                break;
             case ERR:               /* timeout */
                 break;
         }
@@ -287,16 +308,20 @@ main (int argc, char *argv[])
             _poll_osc (fs, ost_data, stale_secs);
             _poll_ost (fs, ost_data, stale_secs);
             _poll_mdt (fs, mdt_data, stale_secs);
-            list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
-                                          : (ListCmpF)_cmp_oststat2);
             if (!ostview)
                 _summarize_ost (ost_data, oss_data, stale_secs);
             ostcount = list_count (ostview ? ost_data : oss_data);
             last_sample = time (NULL);
             timeout (sample_period * 1000);
+            resort = 1;
         } else
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
-    
+
+        if (resort) {
+            _sort_ostlist (ost_data, ost_sort); 
+            _sort_ostlist (oss_data, ost_sort); 
+            resort = 0;
+        }
     }
 
     list_destroy (ost_data);
@@ -329,26 +354,26 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
-        rmbps += sample_rate (o->rbytes) / (1024*1024);
-        wmbps += sample_rate (o->wbytes) / (1024*1024);    
-        tbytes_free += sample_val (o->kbytes_free) / (1024*1024*1024);
-        tbytes_total += sample_val (o->kbytes_total) / (1024*1024*1024);
+        rmbps         += sample_rate (o->rbytes) / (1024*1024);
+        wmbps         += sample_rate (o->wbytes) / (1024*1024);    
+        tbytes_free   += sample_val (o->kbytes_free) / (1024*1024*1024);
+        tbytes_total  += sample_val (o->kbytes_total) / (1024*1024*1024);
     }
     list_iterator_destroy (itr);
     itr = list_iterator_create (mdt_data);
     while ((m = list_next (itr))) {
-        open += sample_rate (m->open);
-        close += sample_rate (m->close);
-        getattr += sample_rate (m->getattr);
-        setattr += sample_rate (m->setattr);
-        link += sample_rate (m->link);
-        unlink += sample_rate (m->unlink);
-        rmdir += sample_rate (m->rmdir);
-        mkdir += sample_rate (m->mkdir);
-        statfs += sample_rate (m->statfs);
-        rename += sample_rate (m->rename);
-        getxattr += sample_rate (m->getxattr);
-        minodes_free += sample_val (m->inodes_free) / (1024*1024);
+        open          += sample_rate (m->open);
+        close         += sample_rate (m->close);
+        getattr       += sample_rate (m->getattr);
+        setattr       += sample_rate (m->setattr);
+        link          += sample_rate (m->link);
+        unlink        += sample_rate (m->unlink);
+        rmdir         += sample_rate (m->rmdir);
+        mkdir         += sample_rate (m->mkdir);
+        statfs        += sample_rate (m->statfs);
+        rename        += sample_rate (m->rename);
+        getxattr      += sample_rate (m->getxattr);
+        minodes_free  += sample_val (m->inodes_free) / (1024*1024);
         minodes_total += sample_val (m->inodes_total) / (1024*1024);
         if (m->mdt_metric_timestamp > t)
             t = m->mdt_metric_timestamp;
@@ -467,19 +492,19 @@ _create_mdtstat (char *name, int stale_secs)
 
     memset (m, 0, sizeof (*m));
     strncpy (m->name, mdtx ? mdtx + 4 : name, sizeof(m->name) - 1);
-    m->inodes_free = sample_create (stale_secs);
+    m->inodes_free =  sample_create (stale_secs);
     m->inodes_total = sample_create (stale_secs);
-    m->open = sample_create (stale_secs);
-    m->close = sample_create (stale_secs);
-    m->getattr = sample_create (stale_secs);
-    m->setattr = sample_create (stale_secs);
-    m->link = sample_create (stale_secs);
-    m->unlink = sample_create (stale_secs);
-    m->mkdir = sample_create (stale_secs);
-    m->rmdir = sample_create (stale_secs);
-    m->statfs = sample_create (stale_secs);
-    m->rename = sample_create (stale_secs);
-    m->getxattr = sample_create (stale_secs);
+    m->open =         sample_create (stale_secs);
+    m->close =        sample_create (stale_secs);
+    m->getattr =      sample_create (stale_secs);
+    m->setattr =      sample_create (stale_secs);
+    m->link =         sample_create (stale_secs);
+    m->unlink =       sample_create (stale_secs);
+    m->mkdir =        sample_create (stale_secs);
+    m->rmdir =        sample_create (stale_secs);
+    m->statfs =       sample_create (stale_secs);
+    m->rename =       sample_create (stale_secs);
+    m->getxattr =     sample_create (stale_secs);
     return m;
 }
 
@@ -540,7 +565,7 @@ _numerical_suffix (char *s, unsigned long *np)
  * Like strcmp, but handle variable-width (unpadded) numerical suffixes, if any.
  */
 static int
-_cmp_oststat2 (oststat_t *o1, oststat_t *o2)
+_cmp_oststat_byoss (oststat_t *o1, oststat_t *o2)
 {
     unsigned long n1, n2;
     char *p1 = _numerical_suffix (o1->ossname, &n1);
@@ -559,9 +584,57 @@ _cmp_oststat2 (oststat_t *o1, oststat_t *o2)
  * Fixed width hex sorts alphanumerically.
  */
 static int
-_cmp_oststat (oststat_t *o1, oststat_t *o2)
+_cmp_oststat_byost (oststat_t *o1, oststat_t *o2)
 {
     return strcmp (o1->name, o2->name);
+}
+
+/* Used for list_sort () of OST list by export count (ascending order).
+ */
+static int
+_cmp_oststat_byexp (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_val (o1->num_exports);
+    double v2 = sample_val (o2->num_exports);
+
+    return (v1 > v2 ? 1
+          : v1 < v2 ? -1 : 0);
+}
+
+/* Used for list_sort () of OST list by iops (descending order).
+ */
+static int
+_cmp_oststat_byiops (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_rate (o1->iops);
+    double v2 = sample_rate (o2->iops);
+
+    return (v1 < v2 ? 1
+          : v1 > v2 ? -1 : 0);
+}
+
+/* Used for list_sort () of OST list by read b/w (descending order).
+ */
+static int
+_cmp_oststat_byrbw (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_rate (o1->rbytes);
+    double v2 = sample_rate (o2->rbytes);
+
+    return (v1 < v2 ? 1
+          : v1 > v2 ? -1 : 0);
+}
+
+/* Used for list_sort () of OST list by write b/w (descending order).
+ */
+static int
+_cmp_oststat_bywbw (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_rate (o1->wbytes);
+    double v2 = sample_rate (o2->wbytes);
+
+    return (v1 < v2 ? 1
+          : v1 > v2 ? -1 : 0);
 }
 
 /* Create an oststat record.
@@ -575,11 +648,11 @@ _create_oststat (char *name, int stale_secs)
     memset (o, 0, sizeof (*o));
     strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
     *o->oscstate = '\0';
-    o->rbytes = sample_create (stale_secs);
-    o->wbytes = sample_create (stale_secs);
-    o->iops = sample_create (stale_secs);
-    o->num_exports = sample_create (stale_secs);
-    o->kbytes_free = sample_create (stale_secs);
+    o->rbytes =       sample_create (stale_secs);
+    o->wbytes =       sample_create (stale_secs);
+    o->iops =         sample_create (stale_secs);
+    o->num_exports =  sample_create (stale_secs);
+    o->kbytes_free =  sample_create (stale_secs);
     o->kbytes_total = sample_create (stale_secs);
     return o;
 }
@@ -606,11 +679,11 @@ _copy_oststat (oststat_t *o1)
     oststat_t *o = xmalloc (sizeof (*o));
 
     memcpy (o, o1, sizeof (*o));
-    o->rbytes = sample_copy (o1->rbytes);
-    o->wbytes = sample_copy (o1->wbytes);
-    o->iops = sample_copy (o1->iops);
-    o->num_exports = sample_copy (o1->num_exports);
-    o->kbytes_free = sample_copy (o1->kbytes_free);
+    o->rbytes =       sample_copy (o1->rbytes);
+    o->wbytes =       sample_copy (o1->wbytes);
+    o->iops =         sample_copy (o1->iops);
+    o->num_exports =  sample_copy (o1->num_exports);
+    o->kbytes_free =  sample_copy (o1->kbytes_free);
     o->kbytes_total = sample_copy (o1->kbytes_total);
     return o;
 }
@@ -947,7 +1020,7 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
         }
     }
     list_iterator_destroy (itr);
-    list_sort (oss_data, (ListCmpF)_cmp_oststat2);
+    list_sort (oss_data, (ListCmpF)_cmp_oststat_byoss);
 }
 
 /* Clear all tags.
@@ -980,9 +1053,9 @@ _tag_ost_byoss (List ost_data, char *ossname, int tagval)
 }
 
 /* Toggle tag value on nth ost.
- * If tagging ost_data, set the last paramter NULL.
- * If tagging oss_data, set the last parmater to ost_data, and all ost's
- * on this oss will get tagged too.
+ * If tagging ost_data (first param), set the last paramter NULL.
+ * If tagging oss_data (first param), set the last parmater to ost_data,
+ * and all ost's on this oss will get tagged too.
  */
 static void
 _tag_nth_ost (List ost_data, int selost, List ost_data2)
@@ -1001,6 +1074,31 @@ _tag_nth_ost (List ost_data, int selost, List ost_data2)
     list_iterator_destroy (itr);
     if (ost_data2 && o != NULL)
         _tag_ost_byoss (ost_data2, o->ossname, o->tag);
+}
+
+static void
+_sort_ostlist (List ost_data, sort_t s)
+{
+    switch (s) {
+        case SORT_OST:
+            list_sort (ost_data, (ListCmpF)_cmp_oststat_byost);
+            break;
+        case SORT_OSS:
+            list_sort (ost_data, (ListCmpF)_cmp_oststat_byoss);
+            break;
+        case SORT_RBW:
+            list_sort (ost_data, (ListCmpF)_cmp_oststat_byrbw);
+            break;
+        case SORT_WBW:
+            list_sort (ost_data, (ListCmpF)_cmp_oststat_bywbw);
+            break;
+        case SORT_IOPS:
+            list_sort (ost_data, (ListCmpF)_cmp_oststat_byiops);
+            break;
+        case SORT_EXP:
+            list_sort (ost_data, (ListCmpF)_cmp_oststat_byexp);
+            break;
+    }
 }
 
 /*
