@@ -66,8 +66,8 @@
 #endif
 
 typedef struct {
-    char name[5];       /* last 4 chars of OST name, e.g. lc1-OST0001 */
-    char oscstate[2];   /* 1 char OSC state (translated by lmt_osc metric) */
+    char name[5];
+    char oscstate[2];
     sample_t rbytes;
     sample_t wbytes;
     sample_t iops;
@@ -100,8 +100,8 @@ typedef struct {
 
 static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
                            int stale_secs);
-static void _update_display (WINDOW *win, char *fs, List mdt_data,
-                             List ost_data, int stale_secs);
+static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
+                                 List ost_data, int stale_secs);
 static void _update_display_ost (WINDOW *win, List ost_data, int minost,
                                  int selost, int stale_secs);
 static void _destroy_oststat (oststat_t *o);
@@ -135,16 +135,15 @@ main (int argc, char *argv[])
 {
     int c;
     char *conffile = NULL;
-    WINDOW *win, *ostwin;
+    WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
-    int mdtcount;
     int sort_ost = 1;
     char *fs = NULL;
     int sample_period = 2; /* seconds */
     int stale_secs = 12; /* seconds */
     List ost_data = list_create ((ListDelF)_destroy_oststat);
     List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
-    time_t now;
+    time_t last_sample = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -176,22 +175,14 @@ main (int argc, char *argv[])
     if (lmt_conf_init (1, conffile) < 0)
         exit (1);
 
-    /* Populate the list of OST's for this file system using the OSC data,
-     * which indirectly reflects the MGS configuration.  Caveat: if the MDS
-     * has not reported in to cerebro since cerebrod was rebooted, we won't
-     * see the file system.  Just abort in that case.
-     */
-
     _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
-
-    if ((ostcount = list_count (ost_data)) == 0
-                || (mdtcount = list_count (mdt_data)) == 0) {
+    list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
+                                  : (ListCmpF)_cmp_oststat2);
+    ostcount = list_count (ost_data);
+    if (ostcount == 0 || list_count (mdt_data) == 0)
         msg_exit ("no data found for file system `%s'", fs);
-    }
 
-    list_sort (ost_data, (ListCmpF)_cmp_oststat);
-
-    if (!(win = initscr ()))
+    if (!(topwin = initscr ()))
         err_exit ("error initializing parent window");
     if (!(ostwin = newwin (ostcount, 80, 8, 0)))
         err_exit ("error initializing subwindow");
@@ -203,20 +194,19 @@ main (int argc, char *argv[])
     raw ();
     noecho ();
     timeout (sample_period * 1000);
-    keypad (win, TRUE);
+    keypad (topwin, TRUE);
     curs_set (0);
 
     while (!isendwin ()) {
-        _update_display (win, fs, ost_data, mdt_data, stale_secs);
+        _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs);
         _update_display_ost (ostwin, ost_data, minost, selost, stale_secs);
-        now = time (NULL);
         switch (getch ()) {
             case KEY_DC:            /* Delete - turn off highlighting */
                 selost = -1;
                 break;
             case 'q':               /* q|Ctrl-C - quit */
             case 0x03:
-                delwin (win);
+                delwin (ostwin);
                 endwin ();
                 break;
             case KEY_UP:            /* UpArrow|k - move highlight up */
@@ -244,22 +234,25 @@ main (int argc, char *argv[])
                 if (minost + LINES - 8 <= ostcount)
                     minost += (LINES - 8);
                 break;
-            case 'O':
-                sort_ost = 0;
-                break;
+            case 'O':               /* o|O - toggle sort by ost/oss */
             case 'o':
-                sort_ost = 1;
+                sort_ost = !sort_ost;
+                list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
+                                              : (ListCmpF)_cmp_oststat2);
                 break;
             case ERR:   /* timeout */
                 break;
         }
-        if (time (NULL) - now >= sample_period)
+        if (time (NULL) - last_sample >= sample_period) {
             _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
+            last_sample = time (NULL);
+            timeout (sample_period * 1000);
+            list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
+                                          : (ListCmpF)_cmp_oststat2);
+            ostcount = list_count (ost_data);
+        } else
+            timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
     
-        if (sort_ost)
-            list_sort (ost_data, (ListCmpF)_cmp_oststat);
-        else /* sort by oss */
-            list_sort (ost_data, (ListCmpF)_cmp_oststat2);
     }
 
     list_destroy (ost_data);
@@ -270,8 +263,8 @@ main (int argc, char *argv[])
 }
 
 static void
-_update_display (WINDOW *win, char *fs, List ost_data, List mdt_stat,
-                 int stale_secs)
+_update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_stat,
+                     int stale_secs)
 {
     time_t t = 0, now = time (NULL);
     int x = 0;
@@ -285,6 +278,8 @@ _update_display (WINDOW *win, char *fs, List ost_data, List mdt_stat,
     oststat_t *o;
     mdtstat_t *m;
 
+    /* Sum data rate and free space over all ost's.
+     */
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
         rmbps += sample_to_rate (o->rbytes) / (1024*1024);
@@ -293,6 +288,10 @@ _update_display (WINDOW *win, char *fs, List ost_data, List mdt_stat,
         tbytes_total += sample_to_val (o->kbytes_total) / (1024*1024*1024);
     }
     list_iterator_destroy (itr);
+
+    /* Sum op rate and free inodes over all mdt's.
+     * (There can be more than one post CMD).
+     */
     itr = list_iterator_create (mdt_stat);
     while ((m = list_next (itr))) {
         open += sample_to_rate (m->open);
@@ -525,7 +524,7 @@ _fsmatch (char *name, char *fs)
     char *p = strchr (name, '-');
     int len = p ? p - name : strlen (name);
 
-    if (strncmp (name, fs, len) == 0)
+    if (strlen (fs) == len && strncmp (name, fs, len) == 0)
         return 1;
     return 0;
 }
@@ -643,11 +642,6 @@ _update_mdt (char *mdtname, char *mdsname, time_t t,
     }
 }
 
-/* We get the definitive list of OST's from the MDS's osc view, which should
- * be constructed from the MDS logs, which in turn comes from the MGS.
- * The lmt_osc metric also provides the OST state from the MDS point of view,
- * a useful thing to know.
- */
 static int
 _poll_osc (char *fs, List ost_data, int stale_secs)
 {
