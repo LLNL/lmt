@@ -114,9 +114,8 @@ static void _destroy_mdtstat (mdtstat_t *m);
 static int _cmp_oststat (oststat_t *o1, oststat_t *o2);
 static int _cmp_oststat2 (oststat_t *o1, oststat_t *o2);
 static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
-static void _tag_nth_ost (int ostview, List ost_data, List oss_data,
-                          int selost);
 static void _clear_tags (List ost_data);
+static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
 
 /* Hardwired display geometry.
  */
@@ -276,8 +275,10 @@ main (int argc, char *argv[])
                 selost = -1;
                 break;
             case ' ':               /* SPACE - tag selected OST */
-                if (selost != -1)
-                    _tag_nth_ost (ostview, ost_data, oss_data, selost);
+                if (ostview)
+                    _tag_nth_ost (ost_data, selost, NULL);
+                else
+                    _tag_nth_ost (oss_data, selost, ost_data);
                 break;
             case ERR:               /* timeout */
                 break;
@@ -949,6 +950,8 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
     list_sort (oss_data, (ListCmpF)_cmp_oststat2);
 }
 
+/* Clear all tags.
+ */
 static void
 _clear_tags (List ost_data)
 {
@@ -961,38 +964,43 @@ _clear_tags (List ost_data)
     list_iterator_destroy (itr);
 }
 
+/* Set tag value on ost's with specified oss.
+ */
 static void
-_tag_nth_ost (int ostview, List ost_data, List oss_data, int selost)
+_tag_ost_byoss (List ost_data, char *ossname, int tagval)
 {
-    oststat_t *o, *o2;
-    ListIterator itr, itr2;
+    oststat_t *o;
+    ListIterator itr;
+
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr)))
+        if (!strcmp (o->ossname, ossname))
+            o->tag = tagval;
+    list_iterator_destroy (itr);
+}
+
+/* Toggle tag value on nth ost.
+ * If tagging ost_data, set the last paramter NULL.
+ * If tagging oss_data, set the last parmater to ost_data, and all ost's
+ * on this oss will get tagged too.
+ */
+static void
+_tag_nth_ost (List ost_data, int selost, List ost_data2)
+{
+    oststat_t *o;
+    ListIterator itr;
     int n = 0;
 
-    if (ostview) {
-        itr = list_iterator_create (ost_data);
-        while ((o = list_next (itr))) {
-            if (selost == n++) {
-                o->tag = !o->tag;
-                break;
-            }
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr))) {
+        if (selost == n++) {
+            o->tag = !o->tag;
+            break;
         }
-        list_iterator_destroy (itr);
-    } else {
-        itr = list_iterator_create (oss_data);
-        while ((o = list_next (itr))) {
-            if (selost == n++) {
-                o->tag = !o->tag;
-                itr2 = list_iterator_create (ost_data);
-                while ((o2 = list_next (itr2))) {
-                    if (!strcmp (o->ossname, o2->ossname))
-                        o2->tag = o->tag;
-                }
-                list_iterator_destroy (itr2);
-                break;
-            }
-        }
-        list_iterator_destroy (itr);
     }
+    list_iterator_destroy (itr);
+    if (ost_data2 && o != NULL)
+        _tag_ost_byoss (ost_data2, o->ossname, o->tag);
 }
 
 /*
