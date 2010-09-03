@@ -68,7 +68,7 @@ lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
 lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
 lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_ltop_OBJECTS = ltop.$(OBJEXT)
+am_ltop_OBJECTS = ltop.$(OBJEXT) sample.$(OBJEXT)
 ltop_OBJECTS = $(am_ltop_OBJECTS)
 am__DEPENDENCIES_3 =
 ltop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_3)
@@ -258,7 +258,7 @@ tlustre_SOURCES = tlustre.c
 tlustre_LDADD = $(common_ldadd)
 otop_SOURCES = otop.c
 otop_LDADD = $(common_ldadd) $(LIBCURSES)
-ltop_SOURCES = ltop.c
+ltop_SOURCES = ltop.c sample.c
 ltop_LDADD = $(common_ldadd) $(LIBCURSES)
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
@@ -354,6 +354,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmetric.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ltop.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/otop.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tlustre.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tproc.Po@am__quote@
 

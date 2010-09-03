@@ -18,7 +18,7 @@ tlustre_LDADD = $(common_ldadd)
 otop_SOURCES = otop.c
 otop_LDADD = $(common_ldadd) $(LIBCURSES)
 
-ltop_SOURCES = ltop.c
+ltop_SOURCES = ltop.c sample.c
 ltop_LDADD = $(common_ldadd) $(LIBCURSES)
 
 lmtmetric_SOURCES = lmtmetric.c

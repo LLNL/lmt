@@ -59,16 +59,11 @@
 #include "lmtcerebro.h"
 #include "lmtconf.h"
 
+#include "sample.h"
+
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64
 #endif
-
-typedef struct {
-    double val[2];
-    time_t time[2];
-    int valid; /* count of valid samples [0,1,2] */
-    int stale_secs;
-} sample_t;
 
 typedef struct {
     char name[5];       /* last 4 chars of OST name, e.g. lc1-OST0001 */
@@ -77,17 +72,12 @@ typedef struct {
     sample_t wbytes;
     sample_t iops;
     sample_t num_exports;
+    sample_t kbytes_free;
+    sample_t kbytes_total;
     char recov_status[32];
     time_t ost_metric_timestamp;
     char ossname[MAXHOSTNAMELEN];
 } oststat_t;
-
-typedef struct {
-    double tbytes_free;
-    double tbytes_total;
-    double rmbps;
-    double wmbps;
-} ostsum_t;
 
 typedef struct {
     double minodes_free;   /* mds */
@@ -107,14 +97,16 @@ typedef struct {
 } mdtsum_t;
 
 static void _poll_cerebro (char *fs, List ost_data, mdtsum_t *mdtsum,
-                           ostsum_t *ostsum, int stale_secs);
+                           int stale_secs);
 static void _update_display (WINDOW *win, char *fs, mdtsum_t *mdtsum,
-                             ostsum_t *ostsum, int stale_secs);
+                             List ost_data, int stale_secs);
 static void _update_display_ost (WINDOW *win, List ost_data, int minost,
                                  int selost, int stale_secs);
 static void _destroy_oststat (oststat_t *o);
 static int _cmp_oststat (oststat_t *o1, oststat_t *o2);
 static int _cmp_oststat2 (oststat_t *o1, oststat_t *o2);
+static mdtsum_t *_create_mdtsum (int stale_secs);
+static void _destroy_mdtsum (mdtsum_t *mdtsum);
 
 #define OPTIONS "f:c:t:s:"
 #if HAVE_GETOPT_LONG
@@ -149,8 +141,7 @@ main (int argc, char *argv[])
     int sample_period = 2; /* seconds */
     int stale_secs = 12; /* seconds */
     List ost_data = list_create ((ListDelF)_destroy_oststat);
-    ostsum_t ostsum;
-    mdtsum_t mdtsum;
+    mdtsum_t *mdtsum;
     time_t now;
 
     err_init (argv[0]);
@@ -183,17 +174,15 @@ main (int argc, char *argv[])
     if (lmt_conf_init (1, conffile) < 0)
         exit (1);
 
+    mdtsum = _create_mdtsum (stale_secs);
+
     /* Populate the list of OST's for this file system using the OSC data,
      * which indirectly reflects the MGS configuration.  Caveat: if the MDS
      * has not reported in to cerebro since cerebrod was rebooted, we won't
      * see the file system.  Just abort in that case.
      */
 
-
-    memset (&mdtsum, 0, sizeof (mdtsum));
-    memset (&ostsum, 0, sizeof (ostsum));
-
-    _poll_cerebro (fs, ost_data, &mdtsum, &ostsum, stale_secs);
+    _poll_cerebro (fs, ost_data, mdtsum, stale_secs);
 
     if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
@@ -216,7 +205,7 @@ main (int argc, char *argv[])
     curs_set (0);
 
     while (!isendwin ()) {
-        _update_display (win, fs, &mdtsum, &ostsum, stale_secs);
+        _update_display (win, fs, mdtsum, ost_data, stale_secs);
         _update_display_ost (ostwin, ost_data, minost, selost, stale_secs);
         now = time (NULL);
         switch (getch ()) {
@@ -263,7 +252,7 @@ main (int argc, char *argv[])
                 break;
         }
         if (time (NULL) - now >= sample_period)
-            _poll_cerebro (fs, ost_data, &mdtsum, &ostsum, stale_secs);
+            _poll_cerebro (fs, ost_data, mdtsum, stale_secs);
     
         if (sort_ost)
             list_sort (ost_data, (ListCmpF)_cmp_oststat);
@@ -272,72 +261,69 @@ main (int argc, char *argv[])
     }
 
     list_destroy (ost_data);
+    _destroy_mdtsum (mdtsum);
 
     msg ("Goodbye");
     exit (0);
 }
 
-static void
-_sample_init (sample_t *sp, int stale_secs)
-{
-    sp->valid = 0;
-    sp->stale_secs = stale_secs;
+static mdtsum_t *
+_create_mdtsum (int stale_secs)
+{   
+    mdtsum_t *m = xmalloc (sizeof (*m));
+
+    memset (m, 0, sizeof (*m));
+    m->open = sample_create (stale_secs);
+    m->close = sample_create (stale_secs);
+    m->getattr = sample_create (stale_secs);
+    m->setattr = sample_create (stale_secs);
+    m->link = sample_create (stale_secs);
+    m->unlink = sample_create (stale_secs);
+    m->mkdir = sample_create (stale_secs);
+    m->rmdir = sample_create (stale_secs);
+    m->statfs = sample_create (stale_secs);
+    m->rename = sample_create (stale_secs);
+    m->getxattr = sample_create (stale_secs);
+
+    return m;
 }
 
 static void
-_sample_invalid (sample_t *sp)
+_destroy_mdtsum (mdtsum_t *m)
 {
-    sp->valid = 0;
+    sample_destroy (m->open);
+    sample_destroy (m->close);
+    sample_destroy (m->getattr);
+    sample_destroy (m->setattr);
+    sample_destroy (m->link);
+    sample_destroy (m->unlink);
+    sample_destroy (m->mkdir);
+    sample_destroy (m->rmdir);
+    sample_destroy (m->statfs);
+    sample_destroy (m->rename);
+    sample_destroy (m->getxattr);
+    free (m);
 }
 
 static void
-_sample_update (sample_t *sp, double val, time_t t)
-{
-    if (sp->valid == 0) {
-        sp->time[1] = t;
-        sp->val[1] = val;
-        sp->valid++;
-    } else if (sp->time[1] < t) {
-        sp->time[0] = sp->time[1];
-        sp->val[0] = sp->val[1];
-        sp->time[1] = t;
-        sp->val[1] = val;
-        if (sp->valid < 2)
-            sp->valid++;
-    }
-}
-
-static double
-_sample_to_rate (sample_t *sp)
-{
-    time_t now = time (NULL);
-    double val = 0;
-
-    if (sp->valid == 2 && (now - sp->time[1]) <= sp->stale_secs)
-        val = (sp->val[1] - sp->val[0]) / (sp->time[1] - sp->time[0]);
-    if (val < 0)
-        val = 0;
-    return val;
-}
-
-
-static double
-_sample_to_val (sample_t *sp)
-{
-    time_t now = time (NULL);
-    double val = 0;
-
-    if (sp->valid > 0 && (now - sp->time[1]) <= sp->stale_secs)
-        val = sp->val[1];
-    return val;
-}
-
-static void
-_update_display (WINDOW *win, char *fs, mdtsum_t *mdtsum, ostsum_t *ostsum,
+_update_display (WINDOW *win, char *fs, mdtsum_t *mdtsum, List ost_data,
                  int stale_secs)
 {
     time_t now = time (NULL);
     int x = 0;
+    ListIterator itr;
+    double rmbps = 0, wmbps = 0;
+    double tbytes_free = 0, tbytes_total = 0;
+    oststat_t *o;
+
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr))) {
+        rmbps += sample_to_rate (o->rbytes) / (1024*1024);
+        wmbps += sample_to_rate (o->wbytes) / (1024*1024);    
+        tbytes_free += sample_to_val (o->kbytes_free) / (1024*1024*1024);
+        tbytes_total += sample_to_val (o->kbytes_total) / (1024*1024*1024);
+    }
+    list_iterator_destroy (itr);        
 
     wclear (win);
 
@@ -353,29 +339,29 @@ _update_display (WINDOW *win, char *fs, mdtsum_t *mdtsum, ostsum_t *ostsum,
                mdtsum->minodes_free);
     mvwprintw (win, x++, 0,
                "     Space: %12.3ft total, %12.3ft used, %12.3ft free",
-               ostsum->tbytes_total,
-               ostsum->tbytes_total - ostsum->tbytes_free,
-               ostsum->tbytes_free);
+               tbytes_total,
+               tbytes_total - tbytes_free,
+               tbytes_free);
     mvwprintw (win, x++, 0,
                "   Bytes/s: %12.3fg read,  %12.3fg write",
-               ostsum->rmbps / 1024,
-               ostsum->wmbps / 1024);
+               rmbps / 1024,
+               wmbps / 1024);
     mvwprintw (win, x++, 0,
                "   MDops/s: %6.0f open,   %6.0f close,  %6.0f getattr,  %6.0f setattr",
-               _sample_to_rate (&mdtsum->open),
-               _sample_to_rate (&mdtsum->close),
-               _sample_to_rate (&mdtsum->getattr),
-               _sample_to_rate (&mdtsum->setattr));
+               sample_to_rate (mdtsum->open),
+               sample_to_rate (mdtsum->close),
+               sample_to_rate (mdtsum->getattr),
+               sample_to_rate (mdtsum->setattr));
     mvwprintw (win, x++, 0,
                "            %6.0f link,   %6.0f unlink, %6.0f mkdir,    %6.0f rmdir",
-               _sample_to_rate (&mdtsum->link),
-               _sample_to_rate (&mdtsum->unlink),
-               _sample_to_rate (&mdtsum->mkdir),
-               _sample_to_rate (&mdtsum->rmdir));
+               sample_to_rate (mdtsum->link),
+               sample_to_rate (mdtsum->unlink),
+               sample_to_rate (mdtsum->mkdir),
+               sample_to_rate (mdtsum->rmdir));
     mvwprintw (win, x++, 0, "            %6.0f statfs, %6.0f rename, %6.0f getxattr",
-               _sample_to_rate (&mdtsum->statfs),
-               _sample_to_rate (&mdtsum->rename),
-               _sample_to_rate (&mdtsum->getxattr));
+               sample_to_rate (mdtsum->statfs),
+               sample_to_rate (mdtsum->rename),
+               sample_to_rate (mdtsum->getxattr));
 skipmdt:
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
@@ -416,10 +402,10 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
                   o->name,
                   o->oscstate,
                   o->ossname,
-                  _sample_to_val (&o->num_exports),
-                  _sample_to_rate (&o->rbytes) / (1024*1024),
-                  _sample_to_rate (&o->wbytes) / (1024*1024),
-                  _sample_to_rate (&o->iops));
+                  sample_to_val (o->num_exports),
+                  sample_to_rate (o->rbytes) / (1024*1024),
+                  sample_to_rate (o->wbytes) / (1024*1024),
+                  sample_to_rate (o->iops));
         }
         if (selost == x + minost)
             wattroff(win, A_REVERSE);
@@ -428,23 +414,6 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     list_iterator_destroy (itr);
 
     wrefresh (win);
-}
-
-static void
-_update_ostsum (List ost_data, ostsum_t *ostsum)
-{
-    ListIterator itr;
-    double totr = 0, totw = 0;
-    oststat_t *o;
-
-    itr = list_iterator_create (ost_data);
-    while ((o = list_next (itr))) {
-        totr += _sample_to_rate (&o->rbytes) / (1024*1024);
-        totw += _sample_to_rate (&o->wbytes) / (1024*1024);    
-    }
-    list_iterator_destroy (itr);        
-    ostsum->rmbps = totr;
-    ostsum->wmbps = totw;
 }
 
 /**
@@ -502,16 +471,24 @@ _create_oststat (char *name, char *state, int stale_secs)
     memset (o, 0, sizeof (*o));
     strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
     strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
-    _sample_init (&o->rbytes, stale_secs);
-    _sample_init (&o->wbytes, stale_secs);
-    _sample_init (&o->iops, stale_secs);
-    _sample_init (&o->num_exports, stale_secs);
+    o->rbytes = sample_create (stale_secs);
+    o->wbytes = sample_create (stale_secs);
+    o->iops = sample_create (stale_secs);
+    o->num_exports = sample_create (stale_secs);
+    o->kbytes_free = sample_create (stale_secs);
+    o->kbytes_total = sample_create (stale_secs);
     return o;
 }
 
 static void
 _destroy_oststat (oststat_t *o)
 {
+    sample_destroy (o->rbytes);
+    sample_destroy (o->wbytes);
+    sample_destroy (o->iops);
+    sample_destroy (o->num_exports);
+    sample_destroy (o->kbytes_free);
+    sample_destroy (o->kbytes_total);
     free (o);
 }
 
@@ -542,7 +519,8 @@ _update_osc (char *name, char *state, List ost_data, int stale_secs)
 static void
 _update_ost (char *ostname, char *ossname, time_t t,
              uint64_t read_bytes, uint64_t write_bytes, uint64_t iops,
-             uint64_t num_exports, char *recov_status, List ost_data)
+             uint64_t num_exports, char *recov_status, uint64_t kbytes_free,
+             uint64_t kbytes_total, List ost_data)
 {
     oststat_t *o;
 
@@ -550,17 +528,22 @@ _update_ost (char *ostname, char *ossname, time_t t,
         return;
     if (o->ost_metric_timestamp < t) {
         if (strcmp (ossname, o->ossname) != 0) { /* failover/failback */
-            _sample_invalid (&o->rbytes);
-            _sample_invalid (&o->wbytes);
-            _sample_invalid (&o->iops);
-            _sample_invalid (&o->num_exports);
+            sample_invalidate (o->rbytes);
+            sample_invalidate (o->wbytes);
+            sample_invalidate (o->iops);
+            sample_invalidate (o->num_exports);
+            sample_invalidate (o->kbytes_free);
+            sample_invalidate (o->kbytes_total);
             snprintf (o->ossname, sizeof (o->ossname), "%s", ossname);
         }
         o->ost_metric_timestamp = t;
-        _sample_update (&o->rbytes, (double)read_bytes, t);
-        _sample_update (&o->wbytes, (double)write_bytes, t);
-        _sample_update (&o->iops, (double)iops, t);
-        _sample_update (&o->num_exports, (double)num_exports, t);
+        sample_update (o->rbytes, (double)read_bytes, t);
+        sample_update (o->wbytes, (double)write_bytes, t);
+        sample_update (o->iops, (double)iops, t);
+        sample_update (o->num_exports, (double)num_exports, t);
+        sample_update (o->kbytes_free, (double)kbytes_free, t);
+        sample_update (o->kbytes_total, (double)kbytes_total, t);
+    
         snprintf (o->recov_status, sizeof(o->recov_status), "%s", recov_status);
     }
 }
@@ -579,27 +562,27 @@ _update_mdt (char *name, time_t t, uint64_t inodes_free, uint64_t inodes_total,
         if (lmt_mdt_decode_v1_mdops (s, &opname,
                                 &samples, &sum, &sumsquares) == 0) {
             if (!strcmp (opname, "open"))
-                _sample_update (&mdtsum->open, (double)samples, t);
+                sample_update (mdtsum->open, (double)samples, t);
             else if (!strcmp (opname, "close"))
-                _sample_update (&mdtsum->close, (double)samples, t);
+                sample_update (mdtsum->close, (double)samples, t);
             else if (!strcmp (opname, "getattr"))
-                _sample_update (&mdtsum->getattr, (double)samples, t);
+                sample_update (mdtsum->getattr, (double)samples, t);
             else if (!strcmp (opname, "setattr"))
-                _sample_update (&mdtsum->setattr, (double)samples, t);
+                sample_update (mdtsum->setattr, (double)samples, t);
             else if (!strcmp (opname, "link"))
-                _sample_update (&mdtsum->link, (double)samples, t);
+                sample_update (mdtsum->link, (double)samples, t);
             else if (!strcmp (opname, "unlink"))
-                _sample_update (&mdtsum->unlink, (double)samples, t);
+                sample_update (mdtsum->unlink, (double)samples, t);
             else if (!strcmp (opname, "mkdir"))
-                _sample_update (&mdtsum->mkdir, (double)samples, t);
+                sample_update (mdtsum->mkdir, (double)samples, t);
             else if (!strcmp (opname, "rmdir"))
-                _sample_update (&mdtsum->rmdir, (double)samples, t);
+                sample_update (mdtsum->rmdir, (double)samples, t);
             else if (!strcmp (opname, "statfs"))
-                _sample_update (&mdtsum->statfs, (double)samples, t);
+                sample_update (mdtsum->statfs, (double)samples, t);
             else if (!strcmp (opname, "rename"))
-                _sample_update (&mdtsum->rename, (double)samples, t);
+                sample_update (mdtsum->rename, (double)samples, t);
             else if (!strcmp (opname, "getxattr"))
-                _sample_update (&mdtsum->getxattr, (double)samples, t);
+                sample_update (mdtsum->getxattr, (double)samples, t);
             free (opname);
         }
     }
@@ -659,7 +642,7 @@ done:
 }
 
 static int
-_poll_ost (char *fs, List ost_data, ostsum_t *ostsum, int stale_secs)
+_poll_ost (char *fs, List ost_data)
 {
     int retval = -1;
     cmetric_t c;
@@ -670,10 +653,9 @@ _poll_ost (char *fs, List ost_data, ostsum_t *ostsum, int stale_secs)
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
     uint64_t iops, num_exports;
-    uint64_t sum_kbytes_free = 0, sum_kbytes_total = 0;
     ListIterator itr, itr2;
     float vers;
-    time_t t, now = time (NULL);
+    time_t t;
     
     if (lmt_cbr_get_metrics ("lmt_ost", &l) < 0)
         goto done;
@@ -695,11 +677,8 @@ _poll_ost (char *fs, List ost_data, ostsum_t *ostsum, int stale_secs)
                                            &num_exports, &recov_status) == 0) {
                 if (_fsmatch (ostname, fs)) {
                     _update_ost (ostname, ossname, t, read_bytes, write_bytes,
-                                 iops, num_exports, recov_status, ost_data);
-                    if (now - t <= stale_secs) {
-                        sum_kbytes_free += kbytes_free;
-                        sum_kbytes_total += kbytes_total;
-                    }
+                                 iops, num_exports, recov_status,
+                                 kbytes_free, kbytes_total, ost_data);
                 }
                 free (ostname);
                 free (recov_status);
@@ -711,8 +690,6 @@ _poll_ost (char *fs, List ost_data, ostsum_t *ostsum, int stale_secs)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
-    ostsum->tbytes_free = (double)sum_kbytes_free / (1024.0*1024*1024);
-    ostsum->tbytes_total = (double)sum_kbytes_total / (1024.0*1024*1024);
     retval = 0;
 done: 
     return retval;
@@ -773,14 +750,12 @@ done:
 }
 
 static void
-_poll_cerebro (char *fs, List ost_data, mdtsum_t *mdtsum, ostsum_t *ostsum,
-               int stale_secs)
+_poll_cerebro (char *fs, List ost_data, mdtsum_t *mdtsum, int stale_secs)
 {
     if (_poll_osc (fs, ost_data, stale_secs) < 0)
         err_exit ("could not get cerebro lmt_osc metric");
-    if (_poll_ost (fs, ost_data, ostsum, stale_secs) < 0)
+    if (_poll_ost (fs, ost_data) < 0)
         err_exit ("could not get cerebro lmt_ost metric");
-    _update_ostsum (ost_data, ostsum);
     if (_poll_mdt (fs, mdtsum) < 0)
         err_exit ("could not get cerebro lmt_mdt metric");
 }
