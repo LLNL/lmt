@@ -370,7 +370,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                ((tbytes_total - tbytes_free) / tbytes_total) * 100,
                tbytes_free);
     mvwprintw (win, x++, 0,
-      "   Bytes/s: %12.3fg read,  %12.3fg write",
+      "   Bytes/s: %10.3fg read,  %10.3fg write",
                rmbps / 1024, wmbps / 1024);
     mvwprintw (win, x++, 0,
       "   MDops/s: %6.0f open,   %6.0f close,  %6.0f getattr,  %6.0f setattr",
