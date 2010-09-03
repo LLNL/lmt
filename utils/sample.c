@@ -23,6 +23,8 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+/* sample.c - ADT for 2-point data values used in rate calculation */
+
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -58,12 +60,16 @@ sample_destroy (sample_t s)
     free (s);
 }
 
+/* Invalidate both data points.
+ */
 void
 sample_invalidate (sample_t s)
 {
     s->valid = 0;
 }
 
+/* Update sample with val @ timestamp t.
+ */
 void
 sample_update (sample_t s, double val, time_t t)
 {
@@ -81,6 +87,10 @@ sample_update (sample_t s, double val, time_t t)
     }
 }
 
+/* Return a rate calculated from delta(val) / delta(time),
+ * or 0 if there are not two valid samples or the most
+ * recent sample expired.
+ */
 double
 sample_to_rate (sample_t s)
 {
@@ -93,6 +103,8 @@ sample_to_rate (sample_t s)
     return val;
 }
 
+/* Return the most recent sample, or 0 if none or expired.
+ */
 double
 sample_to_val (sample_t s)
 {

@@ -23,6 +23,8 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+/* ltop.c - curses based interface to lmt cerebro data */
+
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -98,8 +100,9 @@ typedef struct {
     char mdsname[MAXHOSTNAMELEN];
 } mdtstat_t;
 
-static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
-                           int stale_secs);
+static void _poll_osc (char *fs, List ost_data, int stale_secs);
+static void _poll_ost (char *fs, List ost_data, int stale_secs);
+static void _poll_mdt (char *fs, List mdt_data, int stale_secs);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
                                  List ost_data, int stale_secs);
 static void _update_display_ost (WINDOW *win, List ost_data, int minost,
@@ -167,15 +170,14 @@ main (int argc, char *argv[])
                 usage ();
         }
     }
-    if (optind < argc)
+    if (optind < argc || !fs)
         usage();
-    if (!fs)
-        usage();
-
-    if (lmt_conf_init (1, conffile) < 0)
+    if (lmt_conf_init (1, conffile) < 0) /* FIXME: needed? */
         exit (1);
 
-    _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
+    _poll_osc (fs, ost_data, stale_secs);
+    _poll_ost (fs, ost_data, stale_secs);
+    _poll_mdt (fs, mdt_data, stale_secs);
     list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
                                   : (ListCmpF)_cmp_oststat2);
     ostcount = list_count (ost_data);
@@ -187,16 +189,16 @@ main (int argc, char *argv[])
     if (!(ostwin = newwin (ostcount, 80, 8, 0)))
         err_exit ("error initializing subwindow");
 
-    /* Keys will not be echoed, tty control sequences aren't handled by tty
-     * driver, getch () times out and returns ERR after sample_period seconds,
-     * multi-char keypad/arrow keys are handled.  Make cursor invisible.
+    /* Curses-fu:  keys will not be echoed, tty control sequences aren't
+     * handled by tty driver, getch () times out and returns ERR after
+     * sample_period seconds, multi-char keypad/arrow keys are handled.
+     * Make cursor invisible.
      */
     raw ();
     noecho ();
     timeout (sample_period * 1000);
     keypad (topwin, TRUE);
     curs_set (0);
-
     while (!isendwin ()) {
         _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs);
         _update_display_ost (ostwin, ost_data, minost, selost, stale_secs);
@@ -240,11 +242,13 @@ main (int argc, char *argv[])
                 list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
                                               : (ListCmpF)_cmp_oststat2);
                 break;
-            case ERR:   /* timeout */
+            case ERR:               /* timeout */
                 break;
         }
         if (time (NULL) - last_sample >= sample_period) {
-            _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
+            _poll_osc (fs, ost_data, stale_secs);
+            _poll_ost (fs, ost_data, stale_secs);
+            _poll_mdt (fs, mdt_data, stale_secs);
             last_sample = time (NULL);
             timeout (sample_period * 1000);
             list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
@@ -262,8 +266,12 @@ main (int argc, char *argv[])
     exit (0);
 }
 
+/* Update the top (summary) window of the display.
+ * Sum data rate and free space over all OST's.
+ * Sum op rates and free inodes over all MDT's (>1 if CMD).
+ */
 static void
-_update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_stat,
+_update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                      int stale_secs)
 {
     time_t t = 0, now = time (NULL);
@@ -278,8 +286,6 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_stat,
     oststat_t *o;
     mdtstat_t *m;
 
-    /* Sum data rate and free space over all ost's.
-     */
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
         rmbps += sample_to_rate (o->rbytes) / (1024*1024);
@@ -288,11 +294,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_stat,
         tbytes_total += sample_to_val (o->kbytes_total) / (1024*1024*1024);
     }
     list_iterator_destroy (itr);
-
-    /* Sum op rate and free inodes over all mdt's.
-     * (There can be more than one post CMD).
-     */
-    itr = list_iterator_create (mdt_stat);
+    itr = list_iterator_create (mdt_data);
     while ((m = list_next (itr))) {
         open += sample_to_rate (m->open);
         close += sample_to_rate (m->close);
@@ -346,6 +348,11 @@ skipmdt:
     wrefresh (win);
 }
 
+/* Update the ost window of the display.
+ * Minost is the first ost to display (zero origin).
+ * Selost is the selected ost, or -1 if none are selected.
+ * Stale_secs is the number of seconds after which data is expried.
+ */
 static void
 _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
                      int stale_secs)
@@ -366,17 +373,16 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             wattron (win, A_REVERSE);
         /* available info is expired */
         if ((now - o->ost_metric_timestamp) > stale_secs) {
-            mvwprintw (win, x, 0, "%s %s", o->name, o->oscstate);
+            mvwprintw (win, x, 0, "%4.4s %1.1s", o->name, o->oscstate);
         /* ost is in recovery - display recovery stats */
         } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
-            mvwprintw (win, x, 0, "%s %s   %s", o->name, o->oscstate,
+            mvwprintw (win, x, 0, "%4.4s %1.1s   %s", o->name, o->oscstate,
                        o->recov_status);
         /* ost is in normal state */
         } else {
-            mvwprintw (win, x, 0, "%s %s %10.10s %5.0f %5.0f %5.0f %5.0f",
-                  o->name,
-                  o->oscstate,
-                  o->ossname,
+            mvwprintw (win, x, 0,
+              "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f",
+                  o->name, o->oscstate, o->ossname,
                   sample_to_val (o->num_exports),
                   sample_to_rate (o->rbytes) / (1024*1024),
                   sample_to_rate (o->wbytes) / (1024*1024),
@@ -391,10 +397,8 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     wrefresh (win);
 }
 
-/**
- ** Cerebro Routines
- **/
-
+/*  Used for list_find_first () of OST by target name, e.g. fs-OSTxxxx.
+ */
 static int
 _match_oststat (oststat_t *o, char *name)
 {
@@ -403,6 +407,8 @@ _match_oststat (oststat_t *o, char *name)
     return (strcmp (o->name, p ? p + 4 : name) == 0);
 }
 
+/*  Used for list_find_first () of MDT by target name, e.g. fs-MDTxxxx.
+ */
 static int
 _match_mdtstat (mdtstat_t *m, char *name)
 {
@@ -411,24 +417,8 @@ _match_mdtstat (mdtstat_t *m, char *name)
     return (strcmp (m->name, p ? p + 4 : name) == 0);
 }
 
-static int
-_cmp_oststat (oststat_t *o1, oststat_t *o2)
-{
-    return strcmp (o1->name, o2->name);
-}
-
-static char *
-_numerical_suffix (char *s, unsigned long *np)
-{
-    char *p = s + strlen (s);
-
-    while (p > s && isdigit (*(p - 1)))
-        p--;
-    if (*p)
-        *np = strtoul (p, NULL, 10);
-    return p;
-}
-
+/* Create an mdtstat record.
+ */
 static mdtstat_t *
 _create_mdtstat (char *name, int stale_secs)
 {
@@ -453,6 +443,8 @@ _create_mdtstat (char *name, int stale_secs)
     return m;
 }
 
+/* Destroy an mdtstat record.
+ */
 static void
 _destroy_mdtstat (mdtstat_t *m)
 {
@@ -472,6 +464,24 @@ _destroy_mdtstat (mdtstat_t *m)
     free (m);
 }
 
+/* Helper for _cmp_ostatst2 ()
+ */
+static char *
+_numerical_suffix (char *s, unsigned long *np)
+{
+    char *p = s + strlen (s);
+
+    while (p > s && isdigit (*(p - 1)))
+        p--;
+    if (*p)
+        *np = strtoul (p, NULL, 10);
+    return p;
+}
+
+/* Used for list_sort () of OST list, where sorting order is determined
+ * by ossname.  Use a modified alpha-numeric sort which takes into account
+ * numerical hostname suffixes, if any.
+ */
 static int
 _cmp_oststat2 (oststat_t *o1, oststat_t *o2)
 {
@@ -488,6 +498,18 @@ _cmp_oststat2 (oststat_t *o1, oststat_t *o2)
     return strcmp (o1->ossname, o2->ossname);
 }
 
+/* Used for list_sort () of OST list, where sorting order is determined
+ * by ostname.  The name is presumed to consist of fixed with hex which
+ * sorts alpha-numerically.
+ */
+static int
+_cmp_oststat (oststat_t *o1, oststat_t *o2)
+{
+    return strcmp (o1->name, o2->name);
+}
+
+/* Create an oststat record.
+ */
 static oststat_t *
 _create_oststat (char *name, int stale_secs)
 {
@@ -496,7 +518,7 @@ _create_oststat (char *name, int stale_secs)
 
     memset (o, 0, sizeof (*o));
     strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
-    strncpy (o->oscstate, " ", sizeof (o->oscstate) - 1);
+    *o->oscstate = '\0';
     o->rbytes = sample_create (stale_secs);
     o->wbytes = sample_create (stale_secs);
     o->iops = sample_create (stale_secs);
@@ -506,6 +528,8 @@ _create_oststat (char *name, int stale_secs)
     return o;
 }
 
+/* Destroy an oststat record.
+ */
 static void
 _destroy_oststat (oststat_t *o)
 {
@@ -518,6 +542,9 @@ _destroy_oststat (oststat_t *o)
     free (o);
 }
 
+/* Match an OST or MDT target against a file system name.
+ * Target names are assumed to be of the form fs-OSTxxxx or fs-MDTxxxx.
+ */
 static int
 _fsmatch (char *name, char *fs)
 {
@@ -529,6 +556,11 @@ _fsmatch (char *name, char *fs)
     return 0;
 }
 
+/* Update oststat_t record (oscstate field) in ost_data list for
+ * specified ostname.  Create an entry if one doesn't exist.
+ * FIXME(design): we only keep one OSC state per OST, but possibly multiple
+ * MDT's are reporting it under CMD and last in wins.
+ */
 static void
 _update_osc (char *name, char *state, List ost_data, int stale_secs)
 {
@@ -541,6 +573,9 @@ _update_osc (char *name, char *state, List ost_data, int stale_secs)
     strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
 }
 
+/* Update oststat_t record in ost_data list for specified ostname.
+ * Create an entry if one doesn't exist.
+ */
 static void
 _update_ost (char *ostname, char *ossname, time_t t,
              uint64_t read_bytes, uint64_t write_bytes, uint64_t iops,
@@ -574,6 +609,9 @@ _update_ost (char *ostname, char *ossname, time_t t,
     }
 }
 
+/* Update mdtstat_t record in mdt_data list for specified mdtname.
+ * Create an entry if one doesn't exist.
+ */
 static void
 _update_mdt (char *mdtname, char *mdsname, time_t t,
              uint64_t inodes_free, uint64_t inodes_total,
@@ -642,10 +680,13 @@ _update_mdt (char *mdtname, char *mdsname, time_t t,
     }
 }
 
-static int
+/* Obtain lmt_osc records from cerebro and update ost_data.
+ * Note that this is a way to get a "definitive" list of all the OST's
+ * when starting up, even if they have never reported to cerebro.
+ */
+static void
 _poll_osc (char *fs, List ost_data, int stale_secs)
 {
-    int retval = -1;
     cmetric_t c;
     List oscinfo, l = NULL;
     char *s, *val, *mdsname, *oscname, *oscstate;
@@ -654,7 +695,7 @@ _poll_osc (char *fs, List ost_data, int stale_secs)
     time_t t, now = time (NULL);
 
     if (lmt_cbr_get_metrics ("lmt_osc", &l) < 0)
-        goto done;
+        return;
     itr = list_iterator_create (l);
     while ((c = list_next (itr))) {
         t = lmt_cbr_get_time (c);
@@ -670,7 +711,7 @@ _poll_osc (char *fs, List ost_data, int stale_secs)
             if (lmt_osc_decode_v1_oscinfo (s, &oscname, &oscstate) == 0) {
                 if (_fsmatch (oscname, fs)) {
                     if (now - t > stale_secs)
-                        _update_osc (oscname, " ", ost_data, stale_secs);
+                        _update_osc (oscname, "", ost_data, stale_secs);
                     else
                         _update_osc (oscname, oscstate, ost_data, stale_secs);
                 }
@@ -683,15 +724,13 @@ _poll_osc (char *fs, List ost_data, int stale_secs)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
-    retval = 0;
-done: 
-    return retval;
 }
 
-static int
+/* Obtain lmt_ost records from cerebro and update ost_data.
+ */
+static void
 _poll_ost (char *fs, List ost_data, int stale_secs)
 {
-    int retval = -1;
     cmetric_t c;
     List ostinfo, l = NULL;
     char *s, *val, *ossname, *ostname, *recov_status;
@@ -705,7 +744,7 @@ _poll_ost (char *fs, List ost_data, int stale_secs)
     time_t t;
     
     if (lmt_cbr_get_metrics ("lmt_ost", &l) < 0)
-        goto done;
+        return;
     itr = list_iterator_create (l);
     while ((c = list_next (itr))) {
         if (!(val = lmt_cbr_get_val (c)))
@@ -737,15 +776,13 @@ _poll_ost (char *fs, List ost_data, int stale_secs)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
-    retval = 0;
-done: 
-    return retval;
 }
 
-static int
+/* Obtain lmt_mdt records from cerebro and update mdt_data.
+ */
+static void
 _poll_mdt (char *fs, List mdt_data, int stale_secs)
 {
-    int retval = -1;
     cmetric_t c;
     List mdops, mdtinfo, l = NULL;
     char *s, *val, *mdsname, *mdtname;
@@ -757,7 +794,7 @@ _poll_mdt (char *fs, List mdt_data, int stale_secs)
     time_t t;
 
     if (lmt_cbr_get_metrics ("lmt_mdt", &l) < 0)
-        goto done;
+        return;
     itr = list_iterator_create (l);
     while ((c = list_next (itr))) {
         if (!(val = lmt_cbr_get_val (c)))
@@ -787,20 +824,6 @@ _poll_mdt (char *fs, List mdt_data, int stale_secs)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
-    retval = 0;
-done: 
-    return retval;
-}
-
-static void
-_poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs)
-{
-    if (_poll_osc (fs, ost_data, stale_secs) < 0)
-        err_exit ("could not get cerebro lmt_osc metric");
-    if (_poll_ost (fs, ost_data, stale_secs) < 0)
-        err_exit ("could not get cerebro lmt_ost metric");
-    if (_poll_mdt (fs, mdt_data, stale_secs) < 0)
-        err_exit ("could not get cerebro lmt_mdt metric");
 }
 
 /*
