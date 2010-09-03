@@ -296,6 +296,16 @@ main (int argc, char *argv[])
     exit (0);
 }
 
+/*
+Filesystem: lc1
+    Inodes:      442.011m total,       47.103m used,      394.908m free  100%
+     Space:      172.188t total,       14.477t used,      157.711t free  100%
+   Bytes/s:        0.091g read,         0.263g write
+   MDops/s:      0 open,        2 close,       0 getattr,       0 setattr
+                 0 link,        0 unlink,      0 mkdir,         0 rmdir
+                 1 statfs,      0 rename,      0 getxattr
+*/
+
 /* Update the top (summary) window of the display.
  * Sum data rate and free space over all OST's.
  * Sum op rates and free inodes over all MDT's (>1 if CMD).
@@ -350,11 +360,15 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     if (now - t > stale_secs)
         return;
     mvwprintw (win, x++, 0,
-      "    Inodes: %12.3fm total, %12.3fm used, %12.3fm free",
-               minodes_total, minodes_total - minodes_free, minodes_free);
+      "    Inodes: %10.3fm total, %10.3fm used (%3.0f%%), %10.3fm free",
+               minodes_total, minodes_total - minodes_free,
+               ((minodes_total - minodes_free) / minodes_total) * 100,
+               minodes_free);
     mvwprintw (win, x++, 0,
-      "     Space: %12.3ft total, %12.3ft used, %12.3ft free",
-               tbytes_total, tbytes_total - tbytes_free, tbytes_free);
+      "     Space: %10.3ft total, %10.3ft used (%3.0f%%), %10.3ft free",
+               tbytes_total, tbytes_total - tbytes_free,
+               ((tbytes_total - tbytes_free) / tbytes_total) * 100,
+               tbytes_free);
     mvwprintw (win, x++, 0,
       "   Bytes/s: %12.3fg read,  %12.3fg write",
                rmbps / 1024, wmbps / 1024);
@@ -392,7 +406,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
 
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
-               "%-80s", "OST  S        OSS   Exp rMB/s wMB/s  IOPS");
+               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS");
     wattroff(win, A_REVERSE);
     assert (x == OSTWIN_H_LINES);
 
@@ -917,9 +931,13 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
              * in the OSS exports count.
              */
             sample_min (o2->num_exports, o->num_exports);
+            /* Maintain OST count in name field.
+             */
+            snprintf (o2->name, sizeof (o2->name), "(%d)",
+                      (int)strtoul (o2->name + 1, NULL, 10) + 1);
         } else {
             o2 = _copy_oststat (o);
-            o2->name[0] = '\0';
+            snprintf (o2->name, sizeof (o2->name), "(%d)", 1);
             list_append (oss_data, o2);
         }
     }
