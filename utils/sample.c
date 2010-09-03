@@ -99,6 +99,7 @@ sample_update (sample_t s, double val, time_t t)
 
 /* s1 += s2
  * Only has an effect if samples were collected at the same times.
+ * (This is a somewhat contrived interface for ltop aggregation of ost data)
  */
 void
 sample_add (sample_t s1, sample_t s2)
@@ -118,9 +119,13 @@ sample_add (sample_t s1, sample_t s2)
 #ifndef MAX
 #define MAX(a,b)   ((a) > (b) ? (a) : (b))
 #endif
+#ifndef MIN
+#define MIN(a,b)   ((a) < (b) ? (a) : (b))
+#endif
 
 /* s1 = MAX (s1, s2)
  * Only has an effect if samples were collected at the same times.
+ * (This is a somewhat contrived interface for ltop aggregation of ost data)
  */
 void
 sample_max (sample_t s1, sample_t s2)
@@ -137,12 +142,30 @@ sample_max (sample_t s1, sample_t s2)
         s1->val[0] = MAX (s1->val[0], s2->val[0]);
 }
 
-/* Return a rate calculated from delta(val) / delta(time),
- * or 0 if there are not two valid samples or the most
- * recent sample expired.
+/* s1 = MAX (s1, s2)
+ * Only has an effect if samples were collected at the same times.
+ * (This is a somewhat contrived interface for ltop aggregation of ost data)
+ */
+void
+sample_min (sample_t s1, sample_t s2)
+{
+    if (s1->valid != s2->valid)
+        return;
+    if (s1->valid > 0 && s1->time[1] != s2->time[1])
+        return;
+    if (s1->valid > 1 && s1->time[0] != s2->time[0])
+        return;
+    if (s1->valid > 0)
+        s1->val[1] = MIN (s1->val[1], s2->val[1]);
+    if (s1->valid > 1)
+        s1->val[0] = MIN (s1->val[0], s2->val[0]);
+}
+
+/* Return delta(val) / delta(time),
+ * Returns 0 if expired, or < 2 valid data points.
  */
 double
-sample_to_rate (sample_t s)
+sample_rate (sample_t s)
 {
     double val = 0;
 
@@ -153,10 +176,11 @@ sample_to_rate (sample_t s)
     return val;
 }
 
-/* Return the most recent sample, or 0 if none or expired.
+/* Return newest data point.
+ * Returns 0 if expired or < 1 valid data point.
  */
 double
-sample_to_val (sample_t s)
+sample_val (sample_t s)
 {
     if (s->valid > 0 && (time (NULL) - s->time[1]) <= s->stale_secs)
         return s->val[1];

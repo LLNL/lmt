@@ -33,8 +33,9 @@ void sample_invalidate (sample_t s);
 void sample_update (sample_t s, double val, time_t t);
 void sample_add (sample_t s1, sample_t s2);
 void sample_max (sample_t s1, sample_t s2);
-double sample_to_rate (sample_t s);
-double sample_to_val (sample_t s);
+void sample_min (sample_t s1, sample_t s2);
+double sample_rate (sample_t s);
+double sample_val (sample_t s);
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

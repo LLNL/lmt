@@ -44,6 +44,7 @@
 #include <libgen.h>
 #include <time.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "list.h"
 #include "hash.h"
@@ -113,6 +114,12 @@ static int _cmp_oststat (oststat_t *o1, oststat_t *o2);
 static int _cmp_oststat2 (oststat_t *o1, oststat_t *o2);
 static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
 
+/* Hardwired display geometry.
+ */
+#define TOPWIN_LINES    7       /* lines in topwin */
+#define OSTWIN_H_LINES  1       /* header lines in ostwin */
+#define HDRLINES    (TOPWIN_LINES + OSTWIN_H_LINES)
+
 #define OPTIONS "f:c:t:s:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
@@ -178,18 +185,20 @@ main (int argc, char *argv[])
     if (lmt_conf_init (1, conffile) < 0) /* FIXME: needed? */
         exit (1);
 
+    /* Poll cerebro for data, then sort the ost data for display.
+     * Abort if no mds or ost data is found.  Expired data is OK.
+     */
     _poll_osc (fs, ost_data, stale_secs);
     _poll_ost (fs, ost_data, stale_secs);
     _poll_mdt (fs, mdt_data, stale_secs);
-    list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
-                                  : (ListCmpF)_cmp_oststat2);
+    list_sort (ost_data, (ListCmpF)_cmp_oststat);
     ostcount = list_count (ost_data);
     if (ostcount == 0 || list_count (mdt_data) == 0)
         msg_exit ("no data found for file system `%s'", fs);
 
     if (!(topwin = initscr ()))
         err_exit ("error initializing parent window");
-    if (!(ostwin = newwin (ostcount, 80, 8, 0)))
+    if (!(ostwin = newwin (ostcount, 80, TOPWIN_LINES, 0)))
         err_exit ("error initializing subwindow");
 
     /* Curses-fu:  keys will not be echoed, tty control sequences aren't
@@ -202,6 +211,11 @@ main (int argc, char *argv[])
     timeout (sample_period * 1000);
     keypad (topwin, TRUE);
     curs_set (0);
+
+    /* Main processing loop:
+     * Update display, read kbd (or timeout), update ost_data & mdt_data,
+     *   create oss_data (summary of ost_data), [repeat]
+     */
     while (!isendwin ()) {
         _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs);
         _update_display_ost (ostwin, ostview ? ost_data : oss_data,
@@ -224,7 +238,7 @@ main (int argc, char *argv[])
                 /* fall thru */
             case KEY_PPAGE:         /* PageUp|Ctrl-U - previous page */
             case 0x15:
-                minost -= (LINES - 8);
+                minost -= (LINES - HDRLINES);
                 if (minost < 0)
                     minost = 0;
                 break;
@@ -232,13 +246,13 @@ main (int argc, char *argv[])
             case 'j':   /* vi */
                 if (selost < ostcount - 1)
                     selost++;
-                if (selost - minost < LINES - 8)
+                if (selost - minost < LINES - HDRLINES)
                     break;
                  /* fall thru */
             case KEY_NPAGE:         /* PageDn|Ctrl-D - next page */
             case 0x04:
-                if (minost + LINES - 8 <= ostcount)
-                    minost += (LINES - 8);
+                if (minost + LINES - HDRLINES <= ostcount)
+                    minost += (LINES - HDRLINES);
                 break;
             case 'O':               /* o|O - toggle sort by ost/oss */
             case 'o':
@@ -304,27 +318,27 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
-        rmbps += sample_to_rate (o->rbytes) / (1024*1024);
-        wmbps += sample_to_rate (o->wbytes) / (1024*1024);    
-        tbytes_free += sample_to_val (o->kbytes_free) / (1024*1024*1024);
-        tbytes_total += sample_to_val (o->kbytes_total) / (1024*1024*1024);
+        rmbps += sample_rate (o->rbytes) / (1024*1024);
+        wmbps += sample_rate (o->wbytes) / (1024*1024);    
+        tbytes_free += sample_val (o->kbytes_free) / (1024*1024*1024);
+        tbytes_total += sample_val (o->kbytes_total) / (1024*1024*1024);
     }
     list_iterator_destroy (itr);
     itr = list_iterator_create (mdt_data);
     while ((m = list_next (itr))) {
-        open += sample_to_rate (m->open);
-        close += sample_to_rate (m->close);
-        getattr += sample_to_rate (m->getattr);
-        setattr += sample_to_rate (m->setattr);
-        link += sample_to_rate (m->link);
-        unlink += sample_to_rate (m->unlink);
-        rmdir += sample_to_rate (m->rmdir);
-        mkdir += sample_to_rate (m->mkdir);
-        statfs += sample_to_rate (m->statfs);
-        rename += sample_to_rate (m->rename);
-        getxattr += sample_to_rate (m->getxattr);
-        minodes_free += sample_to_val (m->inodes_free) / (1024*1024);
-        minodes_total += sample_to_val (m->inodes_total) / (1024*1024);
+        open += sample_rate (m->open);
+        close += sample_rate (m->close);
+        getattr += sample_rate (m->getattr);
+        setattr += sample_rate (m->setattr);
+        link += sample_rate (m->link);
+        unlink += sample_rate (m->unlink);
+        rmdir += sample_rate (m->rmdir);
+        mkdir += sample_rate (m->mkdir);
+        statfs += sample_rate (m->statfs);
+        rename += sample_rate (m->rename);
+        getxattr += sample_rate (m->getxattr);
+        minodes_free += sample_val (m->inodes_free) / (1024*1024);
+        minodes_total += sample_val (m->inodes_total) / (1024*1024);
         if (m->mdt_metric_timestamp > t)
             t = m->mdt_metric_timestamp;
     }
@@ -333,10 +347,8 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     wclear (win);
 
     mvwprintw (win, x++, 0, "Filesystem: %s", fs);
-    if (now - t > stale_secs) {
-        x += 6;
-        goto skipmdt;
-    }
+    if (now - t > stale_secs)
+        return;
     mvwprintw (win, x++, 0,
       "    Inodes: %12.3fm total, %12.3fm used, %12.3fm free",
                minodes_total, minodes_total - minodes_free, minodes_free);
@@ -355,13 +367,10 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     mvwprintw (win, x++, 0,
       "            %6.0f statfs, %6.0f rename, %6.0f getxattr",
                statfs, rename, getxattr);
-skipmdt:
-    wattron (win, A_REVERSE);
-    mvwprintw (win, x++, 0,
-               "%-80s", "OST  S        OSS   Exp rMB/s wMB/s  IOPS");
-    wattroff(win, A_REVERSE);
 
     wrefresh (win);
+
+    assert (x == TOPWIN_LINES);
 }
 
 /* Update the ost window of the display.
@@ -381,11 +390,17 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
 
     wclear (win);
 
+    wattron (win, A_REVERSE);
+    mvwprintw (win, x++, 0,
+               "%-80s", "OST  S        OSS   Exp rMB/s wMB/s  IOPS");
+    wattroff(win, A_REVERSE);
+    assert (x == OSTWIN_H_LINES);
+
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
         if (skipost-- > 0)
             continue;
-        if (selost == x + minost)
+        if (x - 1 + minost == selost)
             wattron (win, A_REVERSE);
         /* available info is expired */
         if ((now - o->ost_metric_timestamp) > stale_secs) {
@@ -399,12 +414,12 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             mvwprintw (win, x, 0,
               "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f",
                        o->name, o->oscstate, o->ossname,
-                       sample_to_val (o->num_exports),
-                       sample_to_rate (o->rbytes) / (1024*1024),
-                       sample_to_rate (o->wbytes) / (1024*1024),
-                       sample_to_rate (o->iops));
+                       sample_val (o->num_exports),
+                       sample_rate (o->rbytes) / (1024*1024),
+                       sample_rate (o->wbytes) / (1024*1024),
+                       sample_rate (o->iops));
         }
-        if (selost == x + minost)
+        if (x - 1 + minost == selost)
             wattroff(win, A_REVERSE);
         x++;
     }
@@ -868,7 +883,7 @@ _poll_mdt (char *fs, List mdt_data, int stale_secs)
 }
 
 /* Re-create oss_data, one record per oss, with data aggregated from
- * the OST"s on that OSS.
+ * the OST's on that OSS.
  */
 static void
 _summarize_ost (List ost_data, List oss_data, int stale_secs)
@@ -886,7 +901,6 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
             sample_add (o2->rbytes, o->rbytes);
             sample_add (o2->wbytes, o->wbytes);
             sample_add (o2->iops, o->iops);
-            sample_max (o2->num_exports, o->num_exports);
             sample_add (o2->kbytes_free, o->kbytes_free);
             sample_add (o2->kbytes_total, o->kbytes_total);
             if (o->ost_metric_timestamp > o2->ost_metric_timestamp)
@@ -899,6 +913,10 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
             if (strncmp (o->recov_status, "COMPLETE", 8) != 0)
                 memcpy (o2->recov_status, o->recov_status,
                         sizeof (o->recov_status));
+            /* Similarly, any "missing clients" on OST's should be reflected.
+             * in the OSS exports count.
+             */
+            sample_min (o2->num_exports, o->num_exports);
         } else {
             o2 = _copy_oststat (o);
             o2->name[0] = '\0';
