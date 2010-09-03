@@ -60,6 +60,16 @@ sample_destroy (sample_t s)
     free (s);
 }
 
+sample_t
+sample_copy (sample_t s1)
+{
+    sample_t s = xmalloc (sizeof (*s));
+
+    memcpy (s, s1, sizeof (*s));
+
+    return s;
+}
+
 /* Invalidate both data points.
  */
 void
@@ -85,6 +95,46 @@ sample_update (sample_t s, double val, time_t t)
         if (s->valid < 2)
             s->valid++;
     }
+}
+
+/* s1 += s2
+ * Only has an effect if samples were collected at the same times.
+ */
+void
+sample_add (sample_t s1, sample_t s2)
+{
+    if (s1->valid != s2->valid)
+        return;
+    if (s1->valid > 0 && s1->time[1] != s2->time[1])
+        return;
+    if (s1->valid > 1 && s1->time[0] != s2->time[0])
+        return;
+    if (s1->valid > 0)
+        s1->val[1] += s2->val[1];
+    if (s1->valid > 1)
+        s1->val[0] += s2->val[0];
+}
+
+#ifndef MAX
+#define MAX(a,b)   ((a) > (b) ? (a) : (b))
+#endif
+
+/* s1 = MAX (s1, s2)
+ * Only has an effect if samples were collected at the same times.
+ */
+void
+sample_max (sample_t s1, sample_t s2)
+{
+    if (s1->valid != s2->valid)
+        return;
+    if (s1->valid > 0 && s1->time[1] != s2->time[1])
+        return;
+    if (s1->valid > 1 && s1->time[0] != s2->time[0])
+        return;
+    if (s1->valid > 0)
+        s1->val[1] = MAX (s1->val[1], s2->val[1]);
+    if (s1->valid > 1)
+        s1->val[0] = MAX (s1->val[0], s2->val[0]);
 }
 
 /* Return a rate calculated from delta(val) / delta(time),

@@ -111,6 +111,7 @@ static void _destroy_oststat (oststat_t *o);
 static void _destroy_mdtstat (mdtstat_t *m);
 static int _cmp_oststat (oststat_t *o1, oststat_t *o2);
 static int _cmp_oststat2 (oststat_t *o1, oststat_t *o2);
+static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
 
 #define OPTIONS "f:c:t:s:"
 #if HAVE_GETOPT_LONG
@@ -141,11 +142,13 @@ main (int argc, char *argv[])
     WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
     int sort_ost = 1;
+    int ostview = 1;
     char *fs = NULL;
     int sample_period = 2; /* seconds */
     int stale_secs = 12; /* seconds */
     List ost_data = list_create ((ListDelF)_destroy_oststat);
     List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
+    List oss_data = list_create ((ListDelF)_destroy_oststat);
     time_t last_sample = 0;
 
     err_init (argv[0]);
@@ -201,7 +204,8 @@ main (int argc, char *argv[])
     curs_set (0);
     while (!isendwin ()) {
         _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs);
-        _update_display_ost (ostwin, ost_data, minost, selost, stale_secs);
+        _update_display_ost (ostwin, ostview ? ost_data : oss_data,
+                             minost, selost, stale_secs);
         switch (getch ()) {
             case KEY_DC:            /* Delete - turn off highlighting */
                 selost = -1;
@@ -242,6 +246,15 @@ main (int argc, char *argv[])
                 list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
                                               : (ListCmpF)_cmp_oststat2);
                 break;
+            case 'c':               /* c|C - toggle compressed oss view */
+            case 'C':
+                ostview = !ostview;
+                if (!ostview)
+                    _summarize_ost (ost_data, oss_data, stale_secs);
+                ostcount = list_count (ostview ? ost_data : oss_data);
+                minost = 0;
+                selost = -1;
+                break;
             case ERR:               /* timeout */
                 break;
         }
@@ -249,11 +262,13 @@ main (int argc, char *argv[])
             _poll_osc (fs, ost_data, stale_secs);
             _poll_ost (fs, ost_data, stale_secs);
             _poll_mdt (fs, mdt_data, stale_secs);
-            last_sample = time (NULL);
-            timeout (sample_period * 1000);
             list_sort (ost_data, sort_ost ? (ListCmpF)_cmp_oststat
                                           : (ListCmpF)_cmp_oststat2);
-            ostcount = list_count (ost_data);
+            if (!ostview)
+                _summarize_ost (ost_data, oss_data, stale_secs);
+            ostcount = list_count (ostview ? ost_data : oss_data);
+            last_sample = time (NULL);
+            timeout (sample_period * 1000);
         } else
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
     
@@ -261,6 +276,7 @@ main (int argc, char *argv[])
 
     list_destroy (ost_data);
     list_destroy (mdt_data);
+    list_destroy (oss_data);
 
     msg ("Goodbye");
     exit (0);
@@ -350,7 +366,7 @@ skipmdt:
 
 /* Update the ost window of the display.
  * Minost is the first ost to display (zero origin).
- * Selost is the selected ost, or -1 if none are selected.
+ * Selost is the selected ost, or -1 if none are selected (zero origin).
  * Stale_secs is the number of seconds after which data is expried.
  */
 static void
@@ -382,11 +398,11 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         } else {
             mvwprintw (win, x, 0,
               "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f",
-                  o->name, o->oscstate, o->ossname,
-                  sample_to_val (o->num_exports),
-                  sample_to_rate (o->rbytes) / (1024*1024),
-                  sample_to_rate (o->wbytes) / (1024*1024),
-                  sample_to_rate (o->iops));
+                       o->name, o->oscstate, o->ossname,
+                       sample_to_val (o->num_exports),
+                       sample_to_rate (o->rbytes) / (1024*1024),
+                       sample_to_rate (o->wbytes) / (1024*1024),
+                       sample_to_rate (o->iops));
         }
         if (selost == x + minost)
             wattroff(win, A_REVERSE);
@@ -405,6 +421,14 @@ _match_oststat (oststat_t *o, char *name)
     char *p = strstr (name, "-OST");
 
     return (strcmp (o->name, p ? p + 4 : name) == 0);
+}
+
+/*  Used for list_find_first () of OST by oss name.
+ */
+static int
+_match_oststat2 (oststat_t *o, char *name)
+{
+    return (strcmp (o->ossname, name) == 0);
 }
 
 /*  Used for list_find_first () of MDT by target name, e.g. fs-MDTxxxx.
@@ -540,6 +564,23 @@ _destroy_oststat (oststat_t *o)
     sample_destroy (o->kbytes_free);
     sample_destroy (o->kbytes_total);
     free (o);
+}
+
+/* Copy an oststat record.
+ */
+static oststat_t *
+_copy_oststat (oststat_t *o1)
+{
+    oststat_t *o = xmalloc (sizeof (*o));
+
+    memcpy (o, o1, sizeof (*o));
+    o->rbytes = sample_copy (o1->rbytes);
+    o->wbytes = sample_copy (o1->wbytes);
+    o->iops = sample_copy (o1->iops);
+    o->num_exports = sample_copy (o1->num_exports);
+    o->kbytes_free = sample_copy (o1->kbytes_free);
+    o->kbytes_total = sample_copy (o1->kbytes_total);
+    return o;
 }
 
 /* Match an OST or MDT target against a file system name.
@@ -824,6 +865,48 @@ _poll_mdt (char *fs, List mdt_data, int stale_secs)
     }
     list_iterator_destroy (itr);
     list_destroy (l);
+}
+
+/* Re-create oss_data, one record per oss, with data aggregated from
+ * the OST"s on that OSS.
+ */
+static void
+_summarize_ost (List ost_data, List oss_data, int stale_secs)
+{
+    oststat_t *o, *o2;
+    ListIterator itr;
+
+    while ((o = list_dequeue (oss_data)))
+        _destroy_oststat (o);
+
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr))) {
+        o2 = list_find_first (oss_data, (ListFindF)_match_oststat2, o->ossname);
+        if (o2) {
+            sample_add (o2->rbytes, o->rbytes);
+            sample_add (o2->wbytes, o->wbytes);
+            sample_add (o2->iops, o->iops);
+            sample_max (o2->num_exports, o->num_exports);
+            sample_add (o2->kbytes_free, o->kbytes_free);
+            sample_add (o2->kbytes_total, o->kbytes_total);
+            if (o->ost_metric_timestamp > o2->ost_metric_timestamp)
+                o2->ost_metric_timestamp = o->ost_metric_timestamp;
+            /* Ensure recov_status and oscstate reflect any unrecovered or
+             * non-full state of individual OSTs.  Last in wins.
+             */
+            if (strcmp (o->oscstate, "F") != 0)
+                memcpy (o2->oscstate, o->oscstate, sizeof (o->oscstate));
+            if (strncmp (o->recov_status, "COMPLETE", 8) != 0)
+                memcpy (o2->recov_status, o->recov_status,
+                        sizeof (o->recov_status));
+        } else {
+            o2 = _copy_oststat (o);
+            o2->name[0] = '\0';
+            list_append (oss_data, o2);
+        }
+    }
+    list_iterator_destroy (itr);
+    list_sort (oss_data, (ListCmpF)_cmp_oststat2);
 }
 
 /*
