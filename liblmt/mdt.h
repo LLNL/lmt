@@ -23,6 +23,8 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+int lmt_mdt_string_v1 (pctx_t ctx, char *s, int len);
+
 int lmt_mdt_decode_v1 (const char *s, char **mdsnamep,
                         float *pct_cpup, float *pct_memp, List *mdtinfo);
 int lmt_mdt_decode_v1_mdtinfo (const char *s, char **mdtnamep,

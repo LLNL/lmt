@@ -51,7 +51,10 @@
 #include "proc.h"
 
 #include "lmtconf.h"
-#include "lmt.h"
+#include "ost.h"
+#include "mdt.h"
+#include "osc.h"
+#include "router.h"
 
 #define OPTIONS "m:r:t:"
 #if HAVE_GETOPT_LONG

@@ -45,6 +45,7 @@
 #include "proc.h"
 
 #include "lmt.h"
+#include "ost.h"
 #include "lmtconf.h"
 #include "util.h"
 

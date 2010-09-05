@@ -23,6 +23,9 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+
+int lmt_ost_string_v2 (pctx_t ctx, char *s, int len);
+
 int lmt_ost_decode_v2 (const char *s, char **ossnamep,
                         float *pct_cpup, float *pct_memp, List *ostinfop);
 int lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,

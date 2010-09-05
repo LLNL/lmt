@@ -192,15 +192,14 @@ main (int argc, char *argv[])
         exit (1);
 
     /* Poll cerebro for data, then sort the ost data for display.
-     * Abort if no mds or ost data is found.  Expired data is OK.
+     * If either the mds or any ost's are up, then ostcount > 0.
      */
     _poll_osc (fs, ost_data, stale_secs);
     _poll_ost (fs, ost_data, stale_secs);
     _poll_mdt (fs, mdt_data, stale_secs);
     _sort_ostlist (ost_data, ost_sort);
     assert (ostview);
-    ostcount = list_count (ost_data);
-    if (ostcount == 0 || list_count (mdt_data) == 0)
+    if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
 
     /* Curses-fu:  keys will not be echoed, tty control sequences aren't

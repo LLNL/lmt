@@ -25,18 +25,6 @@
 
 #define LMT_UPDATE_INTERVAL     5   /* in seconds */
 
-/* ost.c */
-int lmt_ost_string_v2 (pctx_t ctx, char *s, int len);
-
-/* mdt.c */
-int lmt_mdt_string_v1 (pctx_t ctx, char *s, int len);
-
-/* osc.c */
-int lmt_osc_string_v1 (pctx_t ctx, char *s, int len);
-
-/* router.c */
-int lmt_router_string_v1 (pctx_t ctx, char *s, int len);
-
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */

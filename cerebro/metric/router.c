@@ -45,6 +45,7 @@
 #include "proc.h"
 
 #include "lmt.h"
+#include "router.h"
 #include "lmtconf.h"
 #include "util.h"
 
