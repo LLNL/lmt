@@ -37,6 +37,10 @@ int proc_lustre_num_exports (pctx_t ctx, char *name, uint64_t *np);
 
 int proc_lustre_ldlm_lock_count (pctx_t ctx, char *name, uint64_t *np);
 
+int proc_lustre_ldlm_grant_rate (pctx_t ctx, char *name, uint64_t *np);
+
+int proc_lustre_ldlm_cancel_rate (pctx_t ctx, char *name, uint64_t *np);
+
 typedef struct {
     char *key;
     char *val;
@@ -49,9 +53,6 @@ int proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
 int proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp);
 
 int proc_lustre_hashrecov (pctx_t ctx, char *name, hash_t *hp);
-
-int proc_lustre_rwbytes (pctx_t ctx, char *name,
-                         uint64_t *rbp, uint64_t *wbp, uint64_t *iopsp);
 
 int proc_lustre_lnet_newbytes (pctx_t ctx, uint64_t *valp);
 

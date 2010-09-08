@@ -73,8 +73,17 @@
 
 #define PROC_FS_LUSTRE_OST_LDLM_LOCK_COUNT \
                          "fs/lustre/ldlm/namespaces/filter-%s_UUID/lock_count"
+#define PROC_FS_LUSTRE_OST_LDLM_GRANT_RATE \
+                         "fs/lustre/ldlm/namespaces/filter-%s_UUID/grant_rate"
+#define PROC_FS_LUSTRE_OST_LDLM_CANCEL_RATE \
+                         "fs/lustre/ldlm/namespaces/filter-%s_UUID/cancel_rate"
+
 #define PROC_FS_LUSTRE_MDT_LDLM_LOCK_COUNT \
                          "fs/lustre/ldlm/namespaces/mds-%s_UUID/lock_count"
+#define PROC_FS_LUSTRE_MDT_LDLM_GRANT_RATE \
+                         "fs/lustre/ldlm/namespaces/mds-%s_UUID/grant_rate"
+#define PROC_FS_LUSTRE_MDT_LDLM_CANCEL_RATE \
+                         "fs/lustre/ldlm/namespaces/mds-%s_UUID/cancel_rate"
 
 #define PROC_SYS_LNET_ROUTES            "sys/lnet/routes"
 #define PROC_SYS_LNET_STATS             "sys/lnet/stats"
@@ -218,6 +227,52 @@ proc_lustre_ldlm_lock_count (pctx_t ctx, char *name, uint64_t *np)
         tmpl = PROC_FS_LUSTRE_OST_LDLM_LOCK_COUNT;
     } else if (strstr (name, "-MDT")) {
         tmpl = PROC_FS_LUSTRE_MDT_LDLM_LOCK_COUNT;
+    } else {
+        errno = EINVAL;
+        goto done;
+    }
+    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0)
+        goto done;
+done:
+    if (ret == 0)
+        *np = n;
+    return ret;
+}
+
+int
+proc_lustre_ldlm_grant_rate (pctx_t ctx, char *name, uint64_t *np)
+{
+    int ret = -1;
+    uint64_t n;
+    char *tmpl;
+
+    if (strstr (name, "-OST")) {
+        tmpl = PROC_FS_LUSTRE_OST_LDLM_GRANT_RATE;
+    } else if (strstr (name, "-MDT")) {
+        tmpl = PROC_FS_LUSTRE_MDT_LDLM_GRANT_RATE;
+    } else {
+        errno = EINVAL;
+        goto done;
+    }
+    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0)
+        goto done;
+done:
+    if (ret == 0)
+        *np = n;
+    return ret;
+}
+
+int
+proc_lustre_ldlm_cancel_rate (pctx_t ctx, char *name, uint64_t *np)
+{
+    int ret = -1;
+    uint64_t n;
+    char *tmpl;
+
+    if (strstr (name, "-OST")) {
+        tmpl = PROC_FS_LUSTRE_OST_LDLM_CANCEL_RATE;
+    } else if (strstr (name, "-MDT")) {
+        tmpl = PROC_FS_LUSTRE_MDT_LDLM_CANCEL_RATE;
     } else {
         errno = EINVAL;
         goto done;
@@ -491,29 +546,6 @@ proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
         *sumsqp = sumsq;
     ret = 0;
 done:
-    return ret;
-}
-
-int
-proc_lustre_rwbytes (pctx_t ctx, char *name, uint64_t *rbp, uint64_t *wbp,
-                     uint64_t *iop)
-{
-    int ret = -1;
-    hash_t stats = NULL;
-
-    if (proc_lustre_hashstats (ctx, name, &stats) < 0)
-        goto done;
-    /* If values are zero, token will not be present in proc file, so
-     * ignore errors parsing these tokens from proc.
-     */
-    *iop = *rbp = *wbp = 0;
-    proc_lustre_parsestat (stats, "read_bytes", NULL, NULL, NULL, rbp, NULL);
-    proc_lustre_parsestat (stats, "write_bytes", NULL, NULL, NULL, wbp, NULL);
-    proc_lustre_parsestat (stats, "commitrw", iop, NULL, NULL, NULL, NULL);
-    ret = 0;
-done:
-    if (stats)
-        hash_destroy (stats);
     return ret;
 }
 

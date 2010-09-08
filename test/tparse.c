@@ -69,9 +69,9 @@ const char *router_v1_str =
     "1.0;alc42;0.100000;98.810898;1845066588";
 const char *ost_v2_str = 
     "2;tycho1;0.100000;98.810898;"
-    "lc1-OST0000;15156;976;99880;1912016;1964438;28;42;128;2;COMPLETED 100/100;"
-    "lc1-OST0008;15156;976;99880;1912016;1964438;28;42;128;1;COMPLETED 1/1;"
-    "lc1-OST0010;15156;976;99880;1912016;1964438;28;42;128;0;RECOVERING 1/1009";
+    "lc1-OST0000;15156;976;99880;116;18;28;42;128;2;1;1;1;1;COMPLETED 100/100;"
+    "lc1-OST0008;15156;976;99880;116;18;28;42;128;1;1;1;1;1;COMPLETED 1/1;"
+    "lc1-OST0010;15156;976;99880;116;18;28;42;128;0;1;1;1;1;RECOVERING 1/1009";
 const char *mdt_v1_str =
     "1;tycho-mds2;0.000000;1.561927;"
     "lc2-MDT0000;31242342;31242480;124969368;125441296;"
@@ -189,7 +189,9 @@ _parse_ost_v2 (const char *s)
     uint64_t read_bytes, write_bytes;
     uint64_t inodes_free, inodes_total;
     uint64_t kbytes_free, kbytes_total;
-    uint64_t iops, num_exports, lock_count;
+    uint64_t iops, num_exports;
+    uint64_t lock_count, grant_rate, cancel_rate;
+    uint64_t connect, reconnect;
     List ostinfo = NULL;
     ListIterator itr = NULL;
     char *osi;
@@ -202,7 +204,8 @@ _parse_ost_v2 (const char *s)
         if (lmt_ost_decode_v2_ostinfo (osi, &ostname, &read_bytes, &write_bytes,
                                        &kbytes_free, &kbytes_total,
                                        &inodes_free, &inodes_total, &iops,
-                                       &num_exports, &lock_count,
+                                       &num_exports, &lock_count, &grant_rate,
+                                       &cancel_rate, &connect, &reconnect,
                                        &recov_status) < 0)
             goto done;
         free (ostname);
