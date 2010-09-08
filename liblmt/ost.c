@@ -280,8 +280,8 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
     if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
                 ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%[^;];",
                 ostname, &inodes_free, &inodes_total, &kbytes_free,
-                &kbytes_total, &read_bytes, &write_bytes, &num_exports,
-                &lock_count, &iops, recov_status) != 11) {
+                &kbytes_total, &read_bytes, &write_bytes, &iops, &num_exports,
+                &lock_count, recov_status) != 11) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_ost_v2: parse error: ostinfo");
         goto done;
