@@ -1,9 +1,7 @@
 /*****************************************************************************
  *  Copyright (C) 2010 Lawrence Livermore National Security, LLC.
  *  This module written by Jim Garlick <garlick@llnl.gov>
- *  UCRL-CODE-232438
- *  All Rights Reserved.
- *
+ *  UCRL-CODE-232438 *  All Rights Reserved.  *
  *  This file is part of Lustre Monitoring Tool, version 2.
  *  Authors: H. Wartens, P. Spencer, N. O'Neill, J. Long, J. Garlick
  *  For details, see http://code.google.com/p/lmt/.
@@ -36,6 +34,8 @@ int proc_lustre_uuid (pctx_t ctx, char *name, char **uuidp);
 int proc_lustre_oscinfo (pctx_t ctx, char *name, char **uuidp, char **statep);
 
 int proc_lustre_num_exports (pctx_t ctx, char *name, uint64_t *np);
+
+int proc_lustre_ldlm_lock_count (pctx_t ctx, char *name, uint64_t *np);
 
 typedef struct {
     char *key;

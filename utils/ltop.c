@@ -75,6 +75,7 @@ typedef struct {
     sample_t wbytes;
     sample_t iops;
     sample_t num_exports;
+    sample_t lock_count;
     sample_t kbytes_free;
     sample_t kbytes_total;
     char recov_status[32];
@@ -103,7 +104,7 @@ typedef struct {
 } mdtstat_t;
 
 typedef enum {
-    SORT_OST, SORT_OSS, SORT_RBW, SORT_WBW, SORT_IOPS, SORT_EXP,
+    SORT_OST, SORT_OSS, SORT_RBW, SORT_WBW, SORT_IOPS, SORT_EXP, SORT_LOCKS,
 } sort_t;
 
 static void _poll_osc (char *fs, List ost_data, int stale_secs);
@@ -300,6 +301,10 @@ main (int argc, char *argv[])
                 ost_sort = SORT_EXP;
                 resort = 1;
                 break;
+            case 'l':               /* l - sort by lock count */
+                ost_sort = SORT_LOCKS;
+                resort = 1;
+                break;
             case ERR:               /* timeout */
                 break;
         }
@@ -342,7 +347,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     time_t t = 0, now = time (NULL);
     int x = 0;
     ListIterator itr;
-    double rmbps = 0, wmbps = 0;
+    double rmbps = 0, wmbps = 0, iops = 0;
     double tbytes_free = 0, tbytes_total = 0;
     double minodes_free = 0, minodes_total = 0;
     double open = 0, close = 0, getattr = 0, setattr = 0;
@@ -355,6 +360,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     while ((o = list_next (itr))) {
         rmbps         += sample_rate (o->rbytes) / (1024*1024);
         wmbps         += sample_rate (o->wbytes) / (1024*1024);    
+        iops          += sample_rate (o->iops);
         tbytes_free   += sample_val (o->kbytes_free) / (1024*1024*1024);
         tbytes_total  += sample_val (o->kbytes_total) / (1024*1024*1024);
     }
@@ -395,8 +401,8 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                ((tbytes_total - tbytes_free) / tbytes_total) * 100,
                tbytes_free);
     mvwprintw (win, x++, 0,
-      "   Bytes/s: %10.3fg read,  %10.3fg write",
-               rmbps / 1024, wmbps / 1024);
+      "   Bytes/s: %10.3fg read,  %10.3fg write,            %6.0f IOPS",
+               rmbps / 1024, wmbps / 1024, iops);
     mvwprintw (win, x++, 0,
       "   MDops/s: %6.0f open,   %6.0f close,  %6.0f getattr,  %6.0f setattr",
                open, close, getattr, setattr);
@@ -431,7 +437,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
 
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
-               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS");
+               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS LOCKS");
     wattroff(win, A_REVERSE);
     assert (x == OSTWIN_H_LINES);
 
@@ -453,12 +459,13 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         /* ost is in normal state */
         } else {
             mvwprintw (win, x, 0,
-              "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f",
+              "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f %5.0f",
                        o->name, o->oscstate, o->ossname,
                        sample_val (o->num_exports),
                        sample_rate (o->rbytes) / (1024*1024),
                        sample_rate (o->wbytes) / (1024*1024),
-                       sample_rate (o->iops));
+                       sample_rate (o->iops),
+                       sample_val (o->lock_count));
         }
         if (x - 1 + minost == selost)
             wattroff(win, A_REVERSE);
@@ -600,6 +607,18 @@ _cmp_oststat_byexp (oststat_t *o1, oststat_t *o2)
           : v1 < v2 ? -1 : 0);
 }
 
+/* Used for list_sort () of OST list by lock count (descending order).
+ */
+static int
+_cmp_oststat_bylocks (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_val (o1->lock_count);
+    double v2 = sample_val (o2->lock_count);
+
+    return (v1 < v2 ? 1
+          : v1 > v2 ? -1 : 0);
+}
+
 /* Used for list_sort () of OST list by iops (descending order).
  */
 static int
@@ -651,6 +670,7 @@ _create_oststat (char *name, int stale_secs)
     o->wbytes =       sample_create (stale_secs);
     o->iops =         sample_create (stale_secs);
     o->num_exports =  sample_create (stale_secs);
+    o->lock_count =   sample_create (stale_secs);
     o->kbytes_free =  sample_create (stale_secs);
     o->kbytes_total = sample_create (stale_secs);
     return o;
@@ -665,6 +685,7 @@ _destroy_oststat (oststat_t *o)
     sample_destroy (o->wbytes);
     sample_destroy (o->iops);
     sample_destroy (o->num_exports);
+    sample_destroy (o->lock_count);
     sample_destroy (o->kbytes_free);
     sample_destroy (o->kbytes_total);
     free (o);
@@ -682,6 +703,7 @@ _copy_oststat (oststat_t *o1)
     o->wbytes =       sample_copy (o1->wbytes);
     o->iops =         sample_copy (o1->iops);
     o->num_exports =  sample_copy (o1->num_exports);
+    o->lock_count =   sample_copy (o1->lock_count);
     o->kbytes_free =  sample_copy (o1->kbytes_free);
     o->kbytes_total = sample_copy (o1->kbytes_total);
     return o;
@@ -710,8 +732,9 @@ _update_osc (char *name, char *state, List ost_data, int stale_secs)
 static void
 _update_ost (char *ostname, char *ossname, time_t t,
              uint64_t read_bytes, uint64_t write_bytes, uint64_t iops,
-             uint64_t num_exports, char *recov_status, uint64_t kbytes_free,
-             uint64_t kbytes_total, int stale_secs, List ost_data)
+             uint64_t num_exports, uint64_t lock_count, char *recov_status,
+             uint64_t kbytes_free, uint64_t kbytes_total, int stale_secs,
+             List ost_data)
 {
     oststat_t *o;
 
@@ -725,6 +748,7 @@ _update_ost (char *ostname, char *ossname, time_t t,
             sample_invalidate (o->wbytes);
             sample_invalidate (o->iops);
             sample_invalidate (o->num_exports);
+            sample_invalidate (o->lock_count);
             sample_invalidate (o->kbytes_free);
             sample_invalidate (o->kbytes_total);
             snprintf (o->ossname, sizeof (o->ossname), "%s", ossname);
@@ -734,6 +758,7 @@ _update_ost (char *ostname, char *ossname, time_t t,
         sample_update (o->wbytes, (double)write_bytes, t);
         sample_update (o->iops, (double)iops, t);
         sample_update (o->num_exports, (double)num_exports, t);
+        sample_update (o->lock_count, (double)lock_count, t);
         sample_update (o->kbytes_free, (double)kbytes_free, t);
         sample_update (o->kbytes_total, (double)kbytes_total, t);
         snprintf (o->recov_status, sizeof(o->recov_status), "%s", recov_status);
@@ -883,7 +908,7 @@ _poll_ost (char *fs, List ost_data, int stale_secs)
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
-    uint64_t iops, num_exports;
+    uint64_t iops, num_exports, lock_count;
     ListIterator itr, itr2;
     float vers;
     time_t t;
@@ -905,11 +930,13 @@ _poll_ost (char *fs, List ost_data, int stale_secs)
                                            &read_bytes, &write_bytes,
                                            &kbytes_free, &kbytes_total,
                                            &inodes_free, &inodes_total, &iops,
-                                           &num_exports, &recov_status) == 0) {
+                                           &num_exports, &lock_count,
+                                           &recov_status) == 0) {
                 if (_fsmatch (ostname, fs)) {
                     _update_ost (ostname, ossname, t, read_bytes, write_bytes,
-                                 iops, num_exports, recov_status, kbytes_free,
-                                 kbytes_total, stale_secs, ost_data);
+                                 iops, num_exports, lock_count, recov_status,
+                                 kbytes_free, kbytes_total, stale_secs,
+                                 ost_data);
                 }
                 free (ostname);
                 free (recov_status);
@@ -1096,6 +1123,9 @@ _sort_ostlist (List ost_data, sort_t s)
             break;
         case SORT_EXP:
             list_sort (ost_data, (ListCmpF)_cmp_oststat_byexp);
+            break;
+        case SORT_LOCKS:
+            list_sort (ost_data, (ListCmpF)_cmp_oststat_bylocks);
             break;
     }
 }

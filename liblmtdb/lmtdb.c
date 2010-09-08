@@ -148,13 +148,14 @@ _insert_ostinfo (char *ossname, float pct_cpu, float pct_mem, char *s)
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
-    uint64_t iops, num_exports;
+    uint64_t iops, num_exports, lock_count;
     char *recov_status = NULL;
 
     if (lmt_ost_decode_v2_ostinfo (s, &ostname, &read_bytes, &write_bytes,
                                    &kbytes_free, &kbytes_total,
                                    &inodes_free, &inodes_total, &iops,
-                                   &num_exports, &recov_status) < 0) {
+                                   &num_exports, &lock_count,
+                                   &recov_status) < 0) {
         goto done;
     }
     if (!(db = _svc_to_db (ostname)))

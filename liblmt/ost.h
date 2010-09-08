@@ -33,7 +33,7 @@ int lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
                         uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                         uint64_t *inodes_freep, uint64_t *inodes_totalp,
                         uint64_t *iopsp, uint64_t *num_exportsp,
-                        char **recov_statusp);
+                        uint64_t *lock_countp, char **recov_statusp);
 
 /* legacy */
 

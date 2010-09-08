@@ -71,6 +71,11 @@
 #define PROC_FS_LUSTRE_OST_NUM_EXPORTS  "fs/lustre/obdfilter/%s/num_exports"
 #define PROC_FS_LUSTRE_MDT_NUM_EXPORTS  "fs/lustre/mds/%s/num_exports"
 
+#define PROC_FS_LUSTRE_OST_LDLM_LOCK_COUNT \
+                         "fs/lustre/ldlm/namespaces/filter-%s_UUID/lock_count"
+#define PROC_FS_LUSTRE_MDT_LDLM_LOCK_COUNT \
+                         "fs/lustre/ldlm/namespaces/mds-%s_UUID/lock_count"
+
 #define PROC_SYS_LNET_ROUTES            "sys/lnet/routes"
 #define PROC_SYS_LNET_STATS             "sys/lnet/stats"
 
@@ -202,6 +207,28 @@ done:
     return ret;
 }
 
+int
+proc_lustre_ldlm_lock_count (pctx_t ctx, char *name, uint64_t *np)
+{
+    int ret = -1;
+    uint64_t n;
+    char *tmpl;
+
+    if (strstr (name, "-OST")) {
+        tmpl = PROC_FS_LUSTRE_OST_LDLM_LOCK_COUNT;
+    } else if (strstr (name, "-MDT")) {
+        tmpl = PROC_FS_LUSTRE_MDT_LDLM_LOCK_COUNT;
+    } else {
+        errno = EINVAL;
+        goto done;
+    }
+    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0)
+        goto done;
+done:
+    if (ret == 0)
+        *np = n;
+    return ret;
+}
 
 static void
 _trim_uuid (char *s)
