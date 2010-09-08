@@ -76,6 +76,9 @@ typedef struct {
     sample_t iops;
     sample_t num_exports;
     sample_t lock_count;
+    sample_t grant_rate;
+    sample_t cancel_rate;
+    sample_t connect;
     sample_t kbytes_free;
     sample_t kbytes_total;
     char recov_status[32];
@@ -437,7 +440,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
 
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
-               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS LOCKS");
+               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS   LOCKS  GR CR CON");
     wattroff(win, A_REVERSE);
     assert (x == OSTWIN_H_LINES);
 
@@ -459,13 +462,16 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         /* ost is in normal state */
         } else {
             mvwprintw (win, x, 0,
-              "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f %5.0f",
+              "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f %7.0f %3.0f %3.0f %3.0f",
                        o->name, o->oscstate, o->ossname,
                        sample_val (o->num_exports),
                        sample_rate (o->rbytes) / (1024*1024),
                        sample_rate (o->wbytes) / (1024*1024),
                        sample_rate (o->iops),
-                       sample_val (o->lock_count));
+                       sample_val (o->lock_count),
+                       sample_val (o->grant_rate),
+                       sample_val (o->cancel_rate),
+                       sample_rate (o->connect));
         }
         if (x - 1 + minost == selost)
             wattroff(win, A_REVERSE);
@@ -671,6 +677,9 @@ _create_oststat (char *name, int stale_secs)
     o->iops =         sample_create (stale_secs);
     o->num_exports =  sample_create (stale_secs);
     o->lock_count =   sample_create (stale_secs);
+    o->grant_rate =   sample_create (stale_secs);
+    o->cancel_rate =  sample_create (stale_secs);
+    o->connect =      sample_create (stale_secs);
     o->kbytes_free =  sample_create (stale_secs);
     o->kbytes_total = sample_create (stale_secs);
     return o;
@@ -686,6 +695,9 @@ _destroy_oststat (oststat_t *o)
     sample_destroy (o->iops);
     sample_destroy (o->num_exports);
     sample_destroy (o->lock_count);
+    sample_destroy (o->grant_rate);
+    sample_destroy (o->cancel_rate);
+    sample_destroy (o->connect);
     sample_destroy (o->kbytes_free);
     sample_destroy (o->kbytes_total);
     free (o);
@@ -704,6 +716,9 @@ _copy_oststat (oststat_t *o1)
     o->iops =         sample_copy (o1->iops);
     o->num_exports =  sample_copy (o1->num_exports);
     o->lock_count =   sample_copy (o1->lock_count);
+    o->grant_rate =   sample_copy (o1->grant_rate);
+    o->cancel_rate =  sample_copy (o1->cancel_rate);
+    o->connect =      sample_copy (o1->connect);
     o->kbytes_free =  sample_copy (o1->kbytes_free);
     o->kbytes_total = sample_copy (o1->kbytes_total);
     return o;
@@ -732,9 +747,10 @@ _update_osc (char *name, char *state, List ost_data, int stale_secs)
 static void
 _update_ost (char *ostname, char *ossname, time_t t,
              uint64_t read_bytes, uint64_t write_bytes, uint64_t iops,
-             uint64_t num_exports, uint64_t lock_count, char *recov_status,
-             uint64_t kbytes_free, uint64_t kbytes_total, int stale_secs,
-             List ost_data)
+             uint64_t num_exports, uint64_t lock_count, uint64_t grant_rate,
+             uint64_t cancel_rate, uint64_t connect,
+             char *recov_status, uint64_t kbytes_free, uint64_t kbytes_total,
+             int stale_secs, List ost_data)
 {
     oststat_t *o;
 
@@ -908,7 +924,9 @@ _poll_ost (char *fs, List ost_data, int stale_secs)
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
-    uint64_t iops, num_exports, lock_count;
+    uint64_t iops, num_exports;
+    uint64_t lock_count, grant_rate, cancel_rate;
+    uint64_t connect, reconnect;
     ListIterator itr, itr2;
     float vers;
     time_t t;
@@ -931,12 +949,15 @@ _poll_ost (char *fs, List ost_data, int stale_secs)
                                            &kbytes_free, &kbytes_total,
                                            &inodes_free, &inodes_total, &iops,
                                            &num_exports, &lock_count,
+                                           &grant_rate, &cancel_rate,
+                                           &connect, &reconnect,
                                            &recov_status) == 0) {
                 if (_fsmatch (ostname, fs)) {
                     _update_ost (ostname, ossname, t, read_bytes, write_bytes,
-                                 iops, num_exports, lock_count, recov_status,
-                                 kbytes_free, kbytes_total, stale_secs,
-                                 ost_data);
+                                 iops, num_exports, lock_count, grant_rate,
+                                 cancel_rate, connect + reconnect,
+                                 recov_status, kbytes_free, kbytes_total,
+                                 stale_secs, ost_data);
                 }
                 free (ostname);
                 free (recov_status);
@@ -1020,6 +1041,9 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
             sample_add (o2->kbytes_free, o->kbytes_free);
             sample_add (o2->kbytes_total, o->kbytes_total);
             sample_add (o2->lock_count, o->lock_count);
+            sample_add (o2->grant_rate, o->grant_rate);
+            sample_add (o2->cancel_rate, o->cancel_rate);
+            sample_add (o2->connect, o->connect);
             if (o->ost_metric_timestamp > o2->ost_metric_timestamp)
                 o2->ost_metric_timestamp = o->ost_metric_timestamp;
             /* Ensure recov_status and oscstate reflect any unrecovered or

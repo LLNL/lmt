@@ -37,8 +37,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-sbin_PROGRAMS = tproc$(EXEEXT) tlustre$(EXEEXT) otop$(EXEEXT) \
-	lmtmetric$(EXEEXT) lmtdiagnose$(EXEEXT) ltop$(EXEEXT)
+sbin_PROGRAMS = tproc$(EXEEXT) tlustre$(EXEEXT) lmtmetric$(EXEEXT) \
+	lmtdiagnose$(EXEEXT) ltop$(EXEEXT)
 @MYSQL_TRUE@am__append_1 = $(top_builddir)/liblmtdb/liblmtdb.la
 subdir = utils
 DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in
@@ -72,9 +72,6 @@ am_ltop_OBJECTS = ltop.$(OBJEXT) sample.$(OBJEXT)
 ltop_OBJECTS = $(am_ltop_OBJECTS)
 am__DEPENDENCIES_3 =
 ltop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_3)
-am_otop_OBJECTS = otop.$(OBJEXT)
-otop_OBJECTS = $(am_otop_OBJECTS)
-otop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_3)
 am_tlustre_OBJECTS = tlustre.$(OBJEXT)
 tlustre_OBJECTS = $(am_tlustre_OBJECTS)
 tlustre_DEPENDENCIES = $(am__DEPENDENCIES_1)
@@ -93,10 +90,9 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) $(ltop_SOURCES) \
-	$(otop_SOURCES) $(tlustre_SOURCES) $(tproc_SOURCES)
+	$(tlustre_SOURCES) $(tproc_SOURCES)
 DIST_SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) \
-	$(ltop_SOURCES) $(otop_SOURCES) $(tlustre_SOURCES) \
-	$(tproc_SOURCES)
+	$(ltop_SOURCES) $(tlustre_SOURCES) $(tproc_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -256,8 +252,6 @@ tproc_SOURCES = tproc.c
 tproc_LDADD = $(common_ldadd)
 tlustre_SOURCES = tlustre.c
 tlustre_LDADD = $(common_ldadd)
-otop_SOURCES = otop.c
-otop_LDADD = $(common_ldadd) $(LIBCURSES)
 ltop_SOURCES = ltop.c sample.c
 ltop_LDADD = $(common_ldadd) $(LIBCURSES)
 lmtmetric_SOURCES = lmtmetric.c
@@ -334,9 +328,6 @@ lmtmetric$(EXEEXT): $(lmtmetric_OBJECTS) $(lmtmetric_DEPENDENCIES)
 ltop$(EXEEXT): $(ltop_OBJECTS) $(ltop_DEPENDENCIES) 
 	@rm -f ltop$(EXEEXT)
 	$(LINK) $(ltop_LDFLAGS) $(ltop_OBJECTS) $(ltop_LDADD) $(LIBS)
-otop$(EXEEXT): $(otop_OBJECTS) $(otop_DEPENDENCIES) 
-	@rm -f otop$(EXEEXT)
-	$(LINK) $(otop_LDFLAGS) $(otop_OBJECTS) $(otop_LDADD) $(LIBS)
 tlustre$(EXEEXT): $(tlustre_OBJECTS) $(tlustre_DEPENDENCIES) 
 	@rm -f tlustre$(EXEEXT)
 	$(LINK) $(tlustre_LDFLAGS) $(tlustre_OBJECTS) $(tlustre_LDADD) $(LIBS)
@@ -353,7 +344,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdiagnose.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmetric.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ltop.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/otop.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tlustre.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tproc.Po@am__quote@
