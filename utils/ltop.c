@@ -1019,6 +1019,7 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
             sample_add (o2->iops, o->iops);
             sample_add (o2->kbytes_free, o->kbytes_free);
             sample_add (o2->kbytes_total, o->kbytes_total);
+            sample_add (o2->lock_count, o->lock_count);
             if (o->ost_metric_timestamp > o2->ost_metric_timestamp)
                 o2->ost_metric_timestamp = o->ost_metric_timestamp;
             /* Ensure recov_status and oscstate reflect any unrecovered or
