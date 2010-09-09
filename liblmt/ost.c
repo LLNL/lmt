@@ -196,6 +196,8 @@ done:
         free (uuid);
     if (recov_hash)
         hash_destroy (recov_hash);
+    if (stats_hash)
+        hash_destroy (stats_hash);
     return retval;
 }
 

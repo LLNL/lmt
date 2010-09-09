@@ -81,9 +81,9 @@
 #define PROC_FS_LUSTRE_MDT_LDLM_LOCK_COUNT \
                          "fs/lustre/ldlm/namespaces/mds-%s_UUID/lock_count"
 #define PROC_FS_LUSTRE_MDT_LDLM_GRANT_RATE \
-                         "fs/lustre/ldlm/namespaces/mds-%s_UUID/grant_rate"
+                         "fs/lustre/ldlm/namespaces/mds-%s_UUID/pool/grant_rate"
 #define PROC_FS_LUSTRE_MDT_LDLM_CANCEL_RATE \
-                         "fs/lustre/ldlm/namespaces/mds-%s_UUID/cancel_rate"
+                         "fs/lustre/ldlm/namespaces/mds-%s_UUID/pool/cancel_rate"
 
 #define PROC_SYS_LNET_ROUTES            "sys/lnet/routes"
 #define PROC_SYS_LNET_STATS             "sys/lnet/stats"
