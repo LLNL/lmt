@@ -4,7 +4,9 @@ check_PROGRAMS = \
 TESTS_ENVIRONMENT = env
 
 TESTS = \
-	t00-tparse
+	t00-tparse \
+	t01-lmtconfig-sanity \
+	t02-lmtconfig-sanity
 
 XFAIL_TESTS =
 

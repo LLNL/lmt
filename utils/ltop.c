@@ -108,6 +108,7 @@ typedef struct {
 
 typedef enum {
     SORT_OST, SORT_OSS, SORT_RBW, SORT_WBW, SORT_IOPS, SORT_EXP, SORT_LOCKS,
+    SORT_LGR, SORT_LCR, SORT_CONN,
 } sort_t;
 
 static void _poll_osc (char *fs, List ost_data, int stale_secs);
@@ -308,6 +309,18 @@ main (int argc, char *argv[])
                 ost_sort = SORT_LOCKS;
                 resort = 1;
                 break;
+            case 'g':               /* l - sort by lock grant rate */
+                ost_sort = SORT_LGR;
+                resort = 1;
+                break;
+            case 'L':               /* l - sort by lock cancellation rate */
+                ost_sort = SORT_LCR;
+                resort = 1;
+                break;
+            case 'C':               /* n - sort by (re-)connection rate */
+                ost_sort = SORT_CONN;
+                resort = 1;
+                break;
             case ERR:               /* timeout */
                 break;
         }
@@ -440,7 +453,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
 
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
-               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS   LOCKS  GR CR CON");
+               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS   LOCKS LGR LCR CON");
     wattroff(win, A_REVERSE);
     assert (x == OSTWIN_H_LINES);
 
@@ -620,6 +633,42 @@ _cmp_oststat_bylocks (oststat_t *o1, oststat_t *o2)
 {
     double v1 = sample_val (o1->lock_count);
     double v2 = sample_val (o2->lock_count);
+
+    return (v1 < v2 ? 1
+          : v1 > v2 ? -1 : 0);
+}
+
+/* Used for list_sort () of OST list by lock grant rate (descending order).
+ */
+static int
+_cmp_oststat_bylgr (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_val (o1->grant_rate);
+    double v2 = sample_val (o2->grant_rate);
+
+    return (v1 < v2 ? 1
+          : v1 > v2 ? -1 : 0);
+}
+
+/* Used for list_sort () of OST list by lock cancel rate (descending order).
+ */
+static int
+_cmp_oststat_bylcr (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_val (o1->cancel_rate);
+    double v2 = sample_val (o2->cancel_rate);
+
+    return (v1 < v2 ? 1
+          : v1 > v2 ? -1 : 0);
+}
+
+/* Used for list_sort () of OST list by (re-)connect rate (descending order).
+ */
+static int
+_cmp_oststat_byconn (oststat_t *o1, oststat_t *o2)
+{
+    double v1 = sample_val (o1->connect);
+    double v2 = sample_val (o2->connect);
 
     return (v1 < v2 ? 1
           : v1 > v2 ? -1 : 0);
@@ -1130,29 +1179,41 @@ _tag_nth_ost (List ost_data, int selost, List ost_data2)
 static void
 _sort_ostlist (List ost_data, sort_t s)
 {
+    ListCmpF c = NULL;
+
     switch (s) {
         case SORT_OST:
-            list_sort (ost_data, (ListCmpF)_cmp_oststat_byost);
+            c = (ListCmpF)_cmp_oststat_byost;
             break;
         case SORT_OSS:
-            list_sort (ost_data, (ListCmpF)_cmp_oststat_byoss);
+            c = (ListCmpF)_cmp_oststat_byoss;
             break;
         case SORT_RBW:
-            list_sort (ost_data, (ListCmpF)_cmp_oststat_byrbw);
+            c = (ListCmpF)_cmp_oststat_byrbw;
             break;
         case SORT_WBW:
-            list_sort (ost_data, (ListCmpF)_cmp_oststat_bywbw);
+            c = (ListCmpF)_cmp_oststat_bywbw;
             break;
         case SORT_IOPS:
-            list_sort (ost_data, (ListCmpF)_cmp_oststat_byiops);
+            c = (ListCmpF)_cmp_oststat_byiops;
             break;
         case SORT_EXP:
-            list_sort (ost_data, (ListCmpF)_cmp_oststat_byexp);
+            c = (ListCmpF)_cmp_oststat_byexp;
             break;
         case SORT_LOCKS:
-            list_sort (ost_data, (ListCmpF)_cmp_oststat_bylocks);
+            c = (ListCmpF)_cmp_oststat_bylocks;
+            break;
+        case SORT_LGR:
+            c = (ListCmpF)_cmp_oststat_bylgr;
+            break;
+        case SORT_LCR:
+            c = (ListCmpF)_cmp_oststat_bylcr;
+            break;
+        case SORT_CONN:
+            c = (ListCmpF)_cmp_oststat_byconn;
             break;
     }
+    list_sort (ost_data, c);
 }
 
 /*
