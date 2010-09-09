@@ -453,7 +453,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
 
     wattron (win, A_REVERSE);
     mvwprintw (win, x++, 0,
-               "%-80s", " OST S        OSS   Exp rMB/s wMB/s  IOPS   LOCKS LGR LCR CON");
+               "%-80s", " OST S        OSS   Exp   CR rMB/s wMB/s  IOPS   LOCKS  LGR  LCR");
     wattroff(win, A_REVERSE);
     assert (x == OSTWIN_H_LINES);
 
@@ -475,16 +475,16 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         /* ost is in normal state */
         } else {
             mvwprintw (win, x, 0,
-              "%4.4s %1.1s %10.10s %5.0f %5.0f %5.0f %5.0f %7.0f %3.0f %3.0f %3.0f",
+              "%4.4s %1.1s %10.10s %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f",
                        o->name, o->oscstate, o->ossname,
                        sample_val (o->num_exports),
+                       sample_rate (o->connect),
                        sample_rate (o->rbytes) / (1024*1024),
                        sample_rate (o->wbytes) / (1024*1024),
                        sample_rate (o->iops),
                        sample_val (o->lock_count),
                        sample_val (o->grant_rate),
-                       sample_val (o->cancel_rate),
-                       sample_rate (o->connect));
+                       sample_val (o->cancel_rate));
         }
         if (x - 1 + minost == selost)
             wattroff(win, A_REVERSE);
@@ -824,6 +824,9 @@ _update_ost (char *ostname, char *ossname, time_t t,
         sample_update (o->iops, (double)iops, t);
         sample_update (o->num_exports, (double)num_exports, t);
         sample_update (o->lock_count, (double)lock_count, t);
+        sample_update (o->grant_rate, (double)grant_rate, t);
+        sample_update (o->cancel_rate, (double)cancel_rate, t);
+        sample_update (o->connect, (double)connect, t);
         sample_update (o->kbytes_free, (double)kbytes_free, t);
         sample_update (o->kbytes_total, (double)kbytes_total, t);
         snprintf (o->recov_status, sizeof(o->recov_status), "%s", recov_status);
