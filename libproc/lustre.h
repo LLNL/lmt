@@ -46,6 +46,19 @@ typedef struct {
     char *val;
 } shash_t;
 
+typedef struct {
+    uint64_t x;
+    uint64_t yr;
+    uint64_t yw;
+} histent_t;
+
+typedef struct {
+    int bincount;
+    histent_t *bin;
+} histogram_t;
+
+void histogram_destroy (histogram_t *h);
+
 int proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
                            uint64_t *minp, uint64_t *maxp,
                            uint64_t *sump, uint64_t *sumsqp);
@@ -54,10 +67,16 @@ int proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp);
 
 int proc_lustre_hashrecov (pctx_t ctx, char *name, hash_t *hp);
 
+typedef enum {
+    BRW_RPC, BRW_DISPAGES, BRW_DISBLOCKS, BRW_FRAG, BRW_FLIGHT, BRW_IOTIME,
+    BRW_IOSIZE,
+} brw_t;
+
+int proc_lustre_brwstats (pctx_t ctx, char *name, brw_t t, histogram_t **histp);
+
 int proc_lustre_lnet_newbytes (pctx_t ctx, uint64_t *valp);
 
 int proc_lustre_lnet_routing_enabled (pctx_t ctx, int *valp);
-
 
 
 /*

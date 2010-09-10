@@ -36,7 +36,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-check_PROGRAMS = tparse$(EXEEXT)
+check_PROGRAMS = tparse$(EXEEXT) tlustre$(EXEEXT) tproc$(EXEEXT) \
+	tbrw_stats$(EXEEXT)
 subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -52,10 +53,28 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES =
+am_tbrw_stats_OBJECTS = tbrw_stats.$(OBJEXT)
+tbrw_stats_OBJECTS = $(am_tbrw_stats_OBJECTS)
+tbrw_stats_LDADD = $(LDADD)
+tbrw_stats_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
+	$(top_builddir)/libproc/libproc.la \
+	$(top_builddir)/liblsd/liblsd.la
+am_tlustre_OBJECTS = tlustre.$(OBJEXT)
+tlustre_OBJECTS = $(am_tlustre_OBJECTS)
+tlustre_LDADD = $(LDADD)
+tlustre_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
+	$(top_builddir)/libproc/libproc.la \
+	$(top_builddir)/liblsd/liblsd.la
 am_tparse_OBJECTS = tparse.$(OBJEXT)
 tparse_OBJECTS = $(am_tparse_OBJECTS)
 tparse_LDADD = $(LDADD)
 tparse_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
+	$(top_builddir)/libproc/libproc.la \
+	$(top_builddir)/liblsd/liblsd.la
+am_tproc_OBJECTS = tproc.$(OBJEXT)
+tproc_OBJECTS = $(am_tproc_OBJECTS)
+tproc_LDADD = $(LDADD)
+tproc_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
@@ -69,8 +88,10 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(tparse_SOURCES)
-DIST_SOURCES = $(tparse_SOURCES)
+SOURCES = $(tbrw_stats_SOURCES) $(tlustre_SOURCES) $(tparse_SOURCES) \
+	$(tproc_SOURCES)
+DIST_SOURCES = $(tbrw_stats_SOURCES) $(tlustre_SOURCES) \
+	$(tparse_SOURCES) $(tproc_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -223,7 +244,8 @@ TESTS_ENVIRONMENT = env
 TESTS = \
 	t00-tparse \
 	t01-lmtconfig-sanity \
-	t02-lmtconfig-sanity
+	t02-lmtconfig-sanity \
+	t03-parse-brw_stats
 
 XFAIL_TESTS = 
 CLEANFILES = *.out *.diff
@@ -237,6 +259,9 @@ LDADD = \
         $(top_builddir)/liblsd/liblsd.la
 
 tparse_SOURCES = tparse.c
+tbrw_stats_SOURCES = tbrw_stats.c
+tproc_SOURCES = tproc.c
+tlustre_SOURCES = tlustre.c
 all: all-am
 
 .SUFFIXES:
@@ -277,9 +302,18 @@ clean-checkPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
+tbrw_stats$(EXEEXT): $(tbrw_stats_OBJECTS) $(tbrw_stats_DEPENDENCIES) 
+	@rm -f tbrw_stats$(EXEEXT)
+	$(LINK) $(tbrw_stats_LDFLAGS) $(tbrw_stats_OBJECTS) $(tbrw_stats_LDADD) $(LIBS)
+tlustre$(EXEEXT): $(tlustre_OBJECTS) $(tlustre_DEPENDENCIES) 
+	@rm -f tlustre$(EXEEXT)
+	$(LINK) $(tlustre_LDFLAGS) $(tlustre_OBJECTS) $(tlustre_LDADD) $(LIBS)
 tparse$(EXEEXT): $(tparse_OBJECTS) $(tparse_DEPENDENCIES) 
 	@rm -f tparse$(EXEEXT)
 	$(LINK) $(tparse_LDFLAGS) $(tparse_OBJECTS) $(tparse_LDADD) $(LIBS)
+tproc$(EXEEXT): $(tproc_OBJECTS) $(tproc_DEPENDENCIES) 
+	@rm -f tproc$(EXEEXT)
+	$(LINK) $(tproc_LDFLAGS) $(tproc_OBJECTS) $(tproc_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -287,7 +321,10 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tbrw_stats.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tlustre.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tparse.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tproc.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

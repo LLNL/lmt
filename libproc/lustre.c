@@ -24,6 +24,7 @@
  *****************************************************************************/
 
 #include <errno.h>
+#include <unistd.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,6 +61,8 @@
 
 #define PROC_FS_LUSTRE_MDT_STATS        "fs/lustre/mds/%s/stats"
 #define PROC_FS_LUSTRE_OST_STATS        "fs/lustre/obdfilter/%s/stats"
+
+#define PROC_FS_LUSTRE_OST_BRW_STATS    "fs/lustre/obdfilter/%s/brw_stats"
 
 #define PROC_FS_LUSTRE_OSC_STATE        "fs/lustre/osc/%s/state"
 
@@ -584,6 +587,164 @@ proc_lustre_lnet_routing_enabled (pctx_t ctx, int *valp)
         errno = EIO;
     }
     return retval;
+}
+
+static histogram_t *
+histogram_create (void)
+{
+    histogram_t *h;
+
+    if (!(h = malloc (sizeof (histogram_t))))
+        msg_exit ("out of memory");
+    memset (h, 0, sizeof (histogram_t));
+
+    return h;
+}
+
+void
+histogram_destroy (histogram_t *h)
+{
+    free (h->bin);
+    free (h);
+}
+
+static void
+histogram_add (histogram_t *h, uint64_t x, uint64_t yr, uint64_t yw)
+{
+    int i;
+
+    for (i = 0; i < h->bincount; i++) {
+        if (h->bin[i].x == x)
+            break;
+    }
+    if (i == h->bincount) {
+        int newsize = (i + 1) * sizeof (h->bin[0]);
+
+        if (i == 0)
+            h->bin = malloc (newsize);
+        else
+            h->bin = realloc (h->bin, newsize);
+        if (!h->bin)
+            msg_exit ("out of memory");
+        memset (&h->bin[i], 0, sizeof(h->bin[i]));
+        h->bincount++;
+    }
+    h->bin[i].x = x;
+    h->bin[i].yr += yr;
+    h->bin[i].yw += yw;
+}
+
+static int
+_cmp_bin (const void *a1, const void *a2)
+{
+    const histent_t *h1 = a1;
+    const histent_t *h2 = a2;
+
+    return (h1->x < h2->x ? -1 :
+            h1->x > h2->x ? 1 : 0);
+}
+
+static void
+histogram_sort (histogram_t *h)
+{
+    qsort (h->bin, h->bincount, sizeof (h->bin[0]), _cmp_bin);
+}
+
+/* Seek to desired section of brw_stats file.
+ */
+static int
+_brw_seek (pctx_t ctx, brw_t t)
+{
+    char line[256];
+    const char *s = "";
+    int ret;
+
+    switch (t) {
+        case BRW_RPC:
+            s = "pages per bulk r/w";
+            break;
+        case BRW_DISPAGES:
+            s = "discontiguous pages";
+            break;
+        case BRW_DISBLOCKS:
+            s = "discontiguous blocks";
+            break;
+        case BRW_FRAG:
+            s = "disk fragmented I/Os";
+            break;
+        case BRW_FLIGHT:
+            s = "disk I/Os in flight";
+            break;
+        case BRW_IOTIME:
+            s = "I/O time (1/1000s)";
+            break;
+        case BRW_IOSIZE:
+            s = "disk I/O size";
+            break;
+    }
+    while ((ret = proc_gets (ctx, NULL, line, sizeof (line))) >= 0) {
+        if (!strncmp (line, s, strlen (s)))
+            break;
+    }
+    return ret;
+}
+
+static int
+_brw_parse (pctx_t ctx, histogram_t **hp)
+{
+    const char *fmt = "%15[^:]: %"PRIu64" %*d %*d | %"PRIu64" %*d %*d";
+    char s[16];
+    uint64_t r, w, x;
+    histogram_t *h = histogram_create ();
+    char *endptr;
+    int ret = -1;
+
+    while ((ret = proc_scanf (ctx, NULL, fmt, s, &r, &w) == 3)) {
+        x = strtoul (s, &endptr, 10);
+        switch (*endptr) {
+            case 'K' :
+                x *= 1024;
+                break;
+            case 'M' :
+                x *= (1024*1024);
+                break;
+            default:
+                break;
+        }
+        histogram_add (h, x, r, w);
+    }
+    if (ret != 3 && errno == 0) /* treat EOF/stanza end as success */
+        ret = 0;
+    if (ret == 0) {
+        histogram_sort (h);
+        *hp = h;
+    } else
+        histogram_destroy (h);
+    return ret;
+}
+
+/* Parse section [t] of brw_stats file into histogram stored in [histp].
+ */
+int
+proc_lustre_brwstats (pctx_t ctx, char *name, brw_t t, histogram_t **hp)
+{
+    int ret = -1;
+    histogram_t *h = NULL;
+
+    if (strstr (name, "-OST"))
+        ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_BRW_STATS, name);
+    else 
+        errno = EINVAL;
+    if (ret < 0)
+        goto done;
+    ret = _brw_seek (ctx, t);
+    if (ret == 0)
+        ret = _brw_parse (ctx, &h);
+    proc_close (ctx);
+done:
+    if (ret == 0)
+        *hp = h;
+    return ret;
 }
 
 /*

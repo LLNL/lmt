@@ -160,7 +160,7 @@ main (int argc, char *argv[])
     WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
     int ostview = 1, resort = 0;
-    sort_t ost_sort = SORT_OST;
+    sort_t sortby = SORT_OST;
     char *fs = NULL;
     int sample_period = 2; /* seconds */
     int stale_secs = 12; /* seconds */
@@ -202,7 +202,7 @@ main (int argc, char *argv[])
     _poll_osc (fs, ost_data, stale_secs);
     _poll_ost (fs, ost_data, stale_secs);
     _poll_mdt (fs, mdt_data, stale_secs);
-    _sort_ostlist (ost_data, ost_sort);
+    _sort_ostlist (ost_data, sortby);
     assert (ostview);
     if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
@@ -282,43 +282,43 @@ main (int argc, char *argv[])
                     _tag_nth_ost (oss_data, selost, ost_data);
                 break;
             case 't':               /* t - sort by ost */
-                ost_sort = SORT_OST;
+                sortby = SORT_OST;
                 resort = 1;
                 break;
             case 's':               /* O - sort by oss */
-                ost_sort = SORT_OSS;
+                sortby = SORT_OSS;
                 resort = 1;
                 break;
             case 'r':               /* r - sort by read MB/s */
-                ost_sort = SORT_RBW;
+                sortby = SORT_RBW;
                 resort = 1;
                 break;
             case 'w':               /* w - sort by write MB/s */
-                ost_sort = SORT_WBW;
+                sortby = SORT_WBW;
                 resort = 1;
                 break;
             case 'i':               /* i - sort by IOPS */
-                ost_sort = SORT_IOPS;
+                sortby = SORT_IOPS;
                 resort = 1;
                 break;
             case 'x':               /* x - sort by export count */
-                ost_sort = SORT_EXP;
+                sortby = SORT_EXP;
                 resort = 1;
                 break;
             case 'l':               /* l - sort by lock count */
-                ost_sort = SORT_LOCKS;
+                sortby = SORT_LOCKS;
                 resort = 1;
                 break;
-            case 'g':               /* l - sort by lock grant rate */
-                ost_sort = SORT_LGR;
+            case 'g':               /* g - sort by lock grant rate */
+                sortby = SORT_LGR;
                 resort = 1;
                 break;
-            case 'L':               /* l - sort by lock cancellation rate */
-                ost_sort = SORT_LCR;
+            case 'L':               /* L - sort by lock cancellation rate */
+                sortby = SORT_LCR;
                 resort = 1;
                 break;
-            case 'C':               /* n - sort by (re-)connection rate */
-                ost_sort = SORT_CONN;
+            case 'C':               /* C - sort by (re-)connection rate */
+                sortby = SORT_CONN;
                 resort = 1;
                 break;
             case ERR:               /* timeout */
@@ -338,8 +338,8 @@ main (int argc, char *argv[])
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
 
         if (resort) {
-            _sort_ostlist (ost_data, ost_sort); 
-            _sort_ostlist (oss_data, ost_sort); 
+            _sort_ostlist (ost_data, sortby); 
+            _sort_ostlist (oss_data, sortby); 
             resort = 0;
         }
     }
