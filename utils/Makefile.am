@@ -20,3 +20,6 @@ lmtdiagnose_LDADD = $(common_ldadd)
 if MYSQL
 lmtdiagnose_LDADD += $(top_builddir)/liblmtdb/liblmtdb.la
 endif
+
+man1_MANS = \
+	ltop.1

@@ -85,5 +85,6 @@ AC_CONFIG_FILES( \
   test/Makefile \
   etc/Makefile \
   etc/lmt.conf \
+  utils/ltop.1 \
 )
 AC_OUTPUT

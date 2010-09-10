@@ -23341,7 +23341,7 @@ _ACEOF
 ##
 # Epilogue
 ##
-                                                                                                                        ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf"
+                                                                                                                                  ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf utils/ltop.1"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -23946,6 +23946,7 @@ do
   "test/Makefile" ) CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
   "etc/Makefile" ) CONFIG_FILES="$CONFIG_FILES etc/Makefile" ;;
   "etc/lmt.conf" ) CONFIG_FILES="$CONFIG_FILES etc/lmt.conf" ;;
+  "utils/ltop.1" ) CONFIG_FILES="$CONFIG_FILES utils/ltop.1" ;;
   "depfiles" ) CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
   "config/config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config/config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
