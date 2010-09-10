@@ -62,6 +62,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
 %{_libdir}/cerebro/cerebro_monitor_lmt*
 %{_sbindir}/*
+%{_mandir}/man1/*
 
 %files server-agent
 %{_libdir}/cerebro/cerebro_metric_lmt*
