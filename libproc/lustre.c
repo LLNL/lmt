@@ -724,6 +724,8 @@ _brw_parse (pctx_t ctx, histogram_t **hp)
 }
 
 /* Parse section [t] of brw_stats file into histogram stored in [histp].
+ * N.B. lustre populates section headings in proc file, but bins are not
+ * shown if empty.
  */
 int
 proc_lustre_brwstats (pctx_t ctx, char *name, brw_t t, histogram_t **hp)

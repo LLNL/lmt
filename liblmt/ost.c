@@ -97,6 +97,22 @@ _get_mem_usage (pctx_t ctx, double *fp)
 }
 
 static int
+_get_iops (pctx_t ctx, char *name, uint64_t *iopsp)
+{
+    histogram_t *h;
+    int i;
+    uint64_t iops = 0;
+
+    if (proc_lustre_brwstats (ctx, name, BRW_RPC, &h) < 0)
+        return -1;
+    for (i = 0; i < h->bincount; i++)
+        iops += h->bin[i].yr + h->bin[i].yw;
+    histogram_destroy (h);
+    *iopsp = iops;
+    return 0;
+}
+
+static int
 _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
 {
     char *uuid = NULL;
@@ -125,12 +141,17 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
                            &read_bytes, NULL);
     proc_lustre_parsestat (stats_hash, "write_bytes", NULL, NULL, NULL,
                            &write_bytes, NULL);
-    proc_lustre_parsestat (stats_hash, "commitrw", &iops, NULL, NULL,
-                           NULL, NULL);
     proc_lustre_parsestat (stats_hash, "connect", &connect, NULL, NULL,
                            NULL, NULL);
     proc_lustre_parsestat (stats_hash, "reconnect", &reconnect, NULL, NULL,
                            NULL, NULL);
+    //proc_lustre_parsestat (stats_hash, "commitrw", &iops, NULL, NULL,
+    //                       NULL, NULL);
+    if (_get_iops (ctx, name, &iops) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading lustre %s brw_stats", name);
+        goto done;
+    }
     if (proc_lustre_files (ctx, name, &filesfree, &filestotal) < 0) {
         if (lmt_conf_get_proto_debug ())
             err ("error reading lustre %s file stats from proc", name);
