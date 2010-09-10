@@ -36,8 +36,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-check_PROGRAMS = tparse$(EXEEXT) tlustre$(EXEEXT) tproc$(EXEEXT) \
-	tbrw_stats$(EXEEXT)
+check_PROGRAMS = tparse$(EXEEXT) tproc$(EXEEXT) tbrw_stats$(EXEEXT) \
+	tlustre$(EXEEXT)
 subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -245,7 +245,8 @@ TESTS = \
 	t00-tparse \
 	t01-lmtconfig-sanity \
 	t02-lmtconfig-sanity \
-	t03-parse-brw_stats
+	t03-parse-brw_stats \
+	t04-parse-cpu-mem
 
 XFAIL_TESTS = 
 CLEANFILES = *.out *.diff

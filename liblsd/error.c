@@ -223,6 +223,8 @@ _verr (int errnum, const char *fmt, va_list ap)
     vsnprintf (buf, sizeof (buf), fmt, ap);  /* ignore overflow */
     switch (dest) {
         case DEST_LOGF:
+            if (logf == NULL)
+                logf = stderr;
             fprintf (logf, "%s: %s: %s\n", prog, buf, errbuf);
             fflush (logf);
             break;

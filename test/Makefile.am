@@ -1,8 +1,8 @@
 check_PROGRAMS = \
 	tparse \
-	tlustre \
 	tproc \
-	tbrw_stats
+	tbrw_stats \
+	tlustre
 
 TESTS_ENVIRONMENT = env
 
@@ -10,7 +10,8 @@ TESTS = \
 	t00-tparse \
 	t01-lmtconfig-sanity \
 	t02-lmtconfig-sanity \
-	t03-parse-brw_stats
+	t03-parse-brw_stats \
+	t04-parse-cpu-mem
 
 XFAIL_TESTS =
 

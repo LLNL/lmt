@@ -1,6 +1,6 @@
 /*****************************************************************************
  *  Copyright (C) 2010 Lawrence Livermore National Security, LLC.
- *  This module written by Jim Garlick <garlick@llnl.gov>
+ *  This module by Jim Garlick <garlick@llnl.gov>
  *  UCRL-CODE-232438
  *  All Rights Reserved.
  *
@@ -23,57 +23,48 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+#if HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
 
 #include "list.h"
 #include "hash.h"
+#include "error.h"
 
 #include "proc.h"
-#include "stat.h"
 #include "meminfo.h"
-#include "lustre.h"
+#include "stat.h"
 
 int
 main (int argc, char *argv[])
 {
     pctx_t ctx;
-    uint64_t usage, total;
-    uint64_t ousage, ototal;
     uint64_t ktot, kfree;
+    uint64_t usage, total;
 
-    if (!(ctx = proc_create ("/proc"))) {
-        perror ("proc_create");
-        exit (1);
-    }
+    err_init (argv[0]);
+    if (argc != 2)
+        msg_exit ("missing proc argument");
 
-    if (proc_stat2 (ctx, &usage, &total) < 0) {
-        perror ("proc_stat2");
-        exit (1);
-    }
-    while (1) {
-        sleep (1);
-        ousage = usage;
-        ototal = total;
-        if (proc_stat2 (ctx, &usage, &total) < 0) {
-            perror ("proc_stat2");
-            exit (1);
-        }
-        if (proc_meminfo (ctx, &ktot, &kfree) < 0) {
-            perror ("proc_meminfo");
-            exit (1);
-        }
-        printf ("cpu=%.2f%% memory=%.2f%%\n",
-            fabs ((float)(usage - ousage) / (float)(total - ototal)) * 100.0,
-            (float)(ktot - kfree)/ktot * 100.0);
-    }
+    ctx = proc_create (argv[1]);
+
+    if (proc_meminfo (ctx, &ktot, &kfree) < 0)
+        err_exit ("proc_meminfo");
+    msg ("memory: %luK total, %luK free", ktot, kfree);
+
+    if (proc_stat2 (ctx, &usage, &total) < 0)
+        err_exit ("proc_stat2");
+    msg ("cpu: %lu usage, %lu total", usage, total);
 
     proc_destroy (ctx);
+
     exit (0);
 }
 

@@ -5,10 +5,10 @@ TEST=$(basename $0 | cut -d- -f1)
 
 # Set up fake proc directory for test
 tmpdir=$(mktemp -d)
-mkdir -p $tmpdir/proc/fs/lustre/obdfilter/lc1-OST0000
-cp brw_stats $tmpdir/proc/fs/lustre/obdfilter/lc1-OST0000
+mkdir -p $tmpdir/fs/lustre/obdfilter/lc1-OST0000
+cp proc.brw_stats $tmpdir/fs/lustre/obdfilter/lc1-OST0000/brw_stats
 
-./tbrw_stats $tmpdir/proc >$TEST.out 2>&1
+./tbrw_stats $tmpdir/ >$TEST.out 2>&1
 
 [ -n "$tmpdir" ] && rm -rf $tmpdir
 
