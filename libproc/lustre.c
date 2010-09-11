@@ -64,8 +64,6 @@
 
 #define PROC_FS_LUSTRE_OST_BRW_STATS    "fs/lustre/obdfilter/%s/brw_stats"
 
-#define PROC_FS_LUSTRE_OSC_STATE        "fs/lustre/osc/%s/state"
-
 #define PROC_FS_LUSTRE_OST_RECOVERY_STATUS \
                                         "fs/lustre/obdfilter/%s/recovery_status"
 #define PROC_FS_LUSTRE_MDT_RECOVERY_STATUS \
@@ -574,7 +572,7 @@ proc_lustre_lnet_routing_enabled (pctx_t ctx, int *valp)
     char buf[32];
     int retval = 0;
 
-    if (!proc_gets (ctx, PROC_SYS_LNET_ROUTES, buf, sizeof (buf))) {
+    if (proc_gets (ctx, PROC_SYS_LNET_ROUTES, buf, sizeof (buf)) < 0) {
         if (errno == 0)
             errno = EIO;
         retval = -1;

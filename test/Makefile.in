@@ -37,7 +37,7 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 check_PROGRAMS = tparse$(EXEEXT) tproc$(EXEEXT) tbrw_stats$(EXEEXT) \
-	tstats$(EXEEXT) trecov$(EXEEXT) tosc$(EXEEXT)
+	tstats$(EXEEXT) trecov$(EXEEXT) tosc$(EXEEXT) tlnet$(EXEEXT)
 subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -57,6 +57,12 @@ am_tbrw_stats_OBJECTS = tbrw_stats.$(OBJEXT)
 tbrw_stats_OBJECTS = $(am_tbrw_stats_OBJECTS)
 tbrw_stats_LDADD = $(LDADD)
 tbrw_stats_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
+	$(top_builddir)/libproc/libproc.la \
+	$(top_builddir)/liblsd/liblsd.la
+tlnet_SOURCES = tlnet.c
+tlnet_OBJECTS = tlnet.$(OBJEXT)
+tlnet_LDADD = $(LDADD)
+tlnet_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
 am_tosc_OBJECTS = tosc.$(OBJEXT)
@@ -100,10 +106,12 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(tbrw_stats_SOURCES) $(tosc_SOURCES) $(tparse_SOURCES) \
-	$(tproc_SOURCES) $(trecov_SOURCES) $(tstats_SOURCES)
-DIST_SOURCES = $(tbrw_stats_SOURCES) $(tosc_SOURCES) $(tparse_SOURCES) \
-	$(tproc_SOURCES) $(trecov_SOURCES) $(tstats_SOURCES)
+SOURCES = $(tbrw_stats_SOURCES) tlnet.c $(tosc_SOURCES) \
+	$(tparse_SOURCES) $(tproc_SOURCES) $(trecov_SOURCES) \
+	$(tstats_SOURCES)
+DIST_SOURCES = $(tbrw_stats_SOURCES) tlnet.c $(tosc_SOURCES) \
+	$(tparse_SOURCES) $(tproc_SOURCES) $(trecov_SOURCES) \
+	$(tstats_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -261,7 +269,8 @@ TESTS = \
 	t04-parse-cpu-mem \
 	t05-parse-stats \
 	t06-parse-recovery \
-	t07-parse-oscinfo
+	t07-parse-oscinfo \
+	t08-parse-lnet
 
 XFAIL_TESTS = 
 CLEANFILES = *.out *.diff
@@ -323,6 +332,9 @@ clean-checkPROGRAMS:
 tbrw_stats$(EXEEXT): $(tbrw_stats_OBJECTS) $(tbrw_stats_DEPENDENCIES) 
 	@rm -f tbrw_stats$(EXEEXT)
 	$(LINK) $(tbrw_stats_LDFLAGS) $(tbrw_stats_OBJECTS) $(tbrw_stats_LDADD) $(LIBS)
+tlnet$(EXEEXT): $(tlnet_OBJECTS) $(tlnet_DEPENDENCIES) 
+	@rm -f tlnet$(EXEEXT)
+	$(LINK) $(tlnet_LDFLAGS) $(tlnet_OBJECTS) $(tlnet_LDADD) $(LIBS)
 tosc$(EXEEXT): $(tosc_OBJECTS) $(tosc_DEPENDENCIES) 
 	@rm -f tosc$(EXEEXT)
 	$(LINK) $(tosc_LDFLAGS) $(tosc_OBJECTS) $(tosc_LDADD) $(LIBS)
@@ -346,6 +358,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tbrw_stats.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tlnet.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tosc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tparse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tproc.Po@am__quote@

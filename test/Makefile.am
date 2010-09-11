@@ -4,7 +4,8 @@ check_PROGRAMS = \
 	tbrw_stats \
 	tstats \
 	trecov \
-	tosc
+	tosc \
+	tlnet
 
 TESTS_ENVIRONMENT = env
 
@@ -16,7 +17,8 @@ TESTS = \
 	t04-parse-cpu-mem \
 	t05-parse-stats \
 	t06-parse-recovery \
-	t07-parse-oscinfo
+	t07-parse-oscinfo \
+	t08-parse-lnet
 
 XFAIL_TESTS =
 
