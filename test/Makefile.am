@@ -3,7 +3,8 @@ check_PROGRAMS = \
 	tproc \
 	tbrw_stats \
 	tstats \
-	trecov
+	trecov \
+	tosc
 
 TESTS_ENVIRONMENT = env
 
@@ -14,7 +15,8 @@ TESTS = \
 	t03-parse-brw_stats \
 	t04-parse-cpu-mem \
 	t05-parse-stats \
-	t06-parse-recovery
+	t06-parse-recovery \
+	t07-parse-oscinfo
 
 XFAIL_TESTS =
 
@@ -35,3 +37,4 @@ tbrw_stats_SOURCES = tbrw_stats.c
 tproc_SOURCES = tproc.c
 tstats_SOURCES = tstats.c
 trecov_SOURCES = trecov.c
+tosc_SOURCES = tosc.c
