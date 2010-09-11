@@ -23,6 +23,8 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+/* tproc.c - test parsing of /proc/meminfo and /proc/stats */
+
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif

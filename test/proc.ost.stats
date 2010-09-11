@@ -1,0 +1,25 @@
+snapshot_time             1284241188.775657 secs.usecs
+read_bytes                1023683 samples [bytes] 0 1048576 471987441490
+write_bytes               1432924 samples [bytes] 1 1048576 744266735272
+get_page                  2456607 samples [usec] 0 273229 411988283 2328085303377
+cache_access              115285915 samples [pages] 1 1 115285915
+cache_hit                 62606623 samples [pages] 1 1 62606623
+cache_miss                52679292 samples [pages] 1 1 52679292
+get_info                  2 samples [reqs]
+set_info_async            1 samples [reqs]
+process_config            1 samples [reqs]
+connect                   9671 samples [reqs]
+reconnect                 95316 samples [reqs]
+disconnect                9671 samples [reqs]
+statfs                    5236154 samples [reqs]
+create                    49360 samples [reqs]
+destroy                   849742 samples [reqs]
+setattr                   62746 samples [reqs]
+punch                     1164130 samples [reqs]
+sync                      2 samples [reqs]
+preprw                    2456607 samples [reqs]
+commitrw                  2456607 samples [reqs]
+llog_init                 1 samples [reqs]
+notify                    1 samples [reqs]
+quotactl                  9812 samples [reqs]
+ping                      289648645 samples [reqs]

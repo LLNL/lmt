@@ -23,7 +23,7 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-/* tbrw_stats.c - test parsing of brw_stats file */
+/* tstats.c - test parsing of lustre stats file */
 
 #if HAVE_CONFIG_H
 #include "config.h"
@@ -43,18 +43,11 @@
 #include "proc.h"
 #include "lustre.h"
 
-void
-dump_brw_stats (pctx_t ctx, char *name, brw_t t, char *desc)
+int
+print_keyval (shash_t *s, char *key, char *name)
 {
-    histogram_t *h;
-    int i;
-
-    if (proc_lustre_brwstats (ctx, name, t, &h) < 0)
-        err_exit ("error reading %s", desc);
-    msg ("%s", desc);
-    for (i = 0; i < h->bincount; i++)
-        msg ("%lu: %lu, %lu", h->bin[i].x, h->bin[i].yr, h->bin[i].yw);
-    histogram_destroy (h); 
+    msg ("%s: %s='%s'", name, key, s->val);
+    return 0;
 }
 
 int
@@ -64,6 +57,7 @@ main (int argc, char *argv[])
     List srvlist;
     ListIterator itr;
     char *name;
+    hash_t stats;
 
     err_init (argv[0]);
     if (argc != 2)
@@ -73,21 +67,30 @@ main (int argc, char *argv[])
 
     if (proc_lustre_ostlist (ctx, &srvlist) < 0)
         err_exit ("error looking for ost's");
-    if (list_count (srvlist) == 0)
-        msg_exit ("no ost information found");
     itr = list_iterator_create (srvlist);
     while ((name = list_next (itr))) {
-        dump_brw_stats (ctx, name, BRW_RPC, "pages per bulk r/w");
-        dump_brw_stats (ctx, name, BRW_DISPAGES, "discontiguous pages");
-        dump_brw_stats (ctx, name, BRW_DISBLOCKS, "discontiguous blocks");
-        dump_brw_stats (ctx, name, BRW_FRAG, "disk fragmented I/Os");
-        dump_brw_stats (ctx, name, BRW_FLIGHT, "disk I/Os in flight");
-        dump_brw_stats (ctx, name, BRW_IOTIME, "I/O time (1/1000s)");
-        dump_brw_stats (ctx, name, BRW_IOSIZE, "disk I/O size");
+        msg ("ost: %s", name);
+        if (proc_lustre_hashstats (ctx, name, &stats) < 0)
+            err_exit ("proc_lustre_hashstats: failed");
+        hash_for_each (stats, (hash_arg_f)print_keyval, name);
+        hash_destroy (stats);
     }
     list_iterator_destroy (itr);
-
     list_destroy (srvlist);
+
+    if (proc_lustre_mdtlist (ctx, &srvlist) < 0)
+        err_exit ("error looking for mdt's");
+    itr = list_iterator_create (srvlist);
+    while ((name = list_next (itr))) {
+        msg ("mdt: %s", name);
+        if (proc_lustre_hashstats (ctx, name, &stats) < 0)
+            err_exit ("proc_lustre_hashstats: failed");
+        hash_for_each (stats, (hash_arg_f)print_keyval, name);
+        hash_destroy (stats);
+    }
+    list_iterator_destroy (itr);
+    list_destroy (srvlist);
+
     proc_destroy (ctx);
 
     exit (0);

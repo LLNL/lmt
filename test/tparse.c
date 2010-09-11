@@ -23,6 +23,8 @@
  *  <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+/* tparse.c - test parsing of lmt metric strings */
+
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif

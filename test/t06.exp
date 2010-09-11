@@ -1,0 +1,10 @@
+trecov: ost: lc1-OST0000
+trecov: lc1-OST0000: last_transno:='17179877610'
+trecov: lc1-OST0000: replayed_requests:='0'
+trecov: lc1-OST0000: completed_clients:='2469/2471'
+trecov: lc1-OST0000: delayed_clients:='0/2471'
+trecov: lc1-OST0000: status:='COMPLETE'
+trecov: lc1-OST0000: recovery_duration:='303'
+trecov: lc1-OST0000: recovery_start:='1281389557'
+trecov: mdt: lc1-MDT0000
+trecov: lc1-MDT0000: status:='INACTIVE'

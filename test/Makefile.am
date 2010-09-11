@@ -2,7 +2,8 @@ check_PROGRAMS = \
 	tparse \
 	tproc \
 	tbrw_stats \
-	tlustre
+	tstats \
+	trecov
 
 TESTS_ENVIRONMENT = env
 
@@ -11,7 +12,9 @@ TESTS = \
 	t01-lmtconfig-sanity \
 	t02-lmtconfig-sanity \
 	t03-parse-brw_stats \
-	t04-parse-cpu-mem
+	t04-parse-cpu-mem \
+	t05-parse-stats \
+	t06-parse-recovery
 
 XFAIL_TESTS =
 
@@ -30,4 +33,5 @@ LDADD = \
 tparse_SOURCES = tparse.c
 tbrw_stats_SOURCES = tbrw_stats.c
 tproc_SOURCES = tproc.c
-tlustre_SOURCES = tlustre.c
+tstats_SOURCES = tstats.c
+trecov_SOURCES = trecov.c
