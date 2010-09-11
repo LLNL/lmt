@@ -37,7 +37,8 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 check_PROGRAMS = tparse$(EXEEXT) tproc$(EXEEXT) tbrw_stats$(EXEEXT) \
-	tstats$(EXEEXT) trecov$(EXEEXT) tosc$(EXEEXT) tlnet$(EXEEXT)
+	tstats$(EXEEXT) trecov$(EXEEXT) tosc$(EXEEXT) tlnet$(EXEEXT) \
+	tuuid$(EXEEXT)
 subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -95,6 +96,12 @@ tstats_LDADD = $(LDADD)
 tstats_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
+tuuid_SOURCES = tuuid.c
+tuuid_OBJECTS = tuuid.$(OBJEXT)
+tuuid_LDADD = $(LDADD)
+tuuid_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
+	$(top_builddir)/libproc/libproc.la \
+	$(top_builddir)/liblsd/liblsd.la
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -108,10 +115,10 @@ LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(tbrw_stats_SOURCES) tlnet.c $(tosc_SOURCES) \
 	$(tparse_SOURCES) $(tproc_SOURCES) $(trecov_SOURCES) \
-	$(tstats_SOURCES)
+	$(tstats_SOURCES) tuuid.c
 DIST_SOURCES = $(tbrw_stats_SOURCES) tlnet.c $(tosc_SOURCES) \
 	$(tparse_SOURCES) $(tproc_SOURCES) $(trecov_SOURCES) \
-	$(tstats_SOURCES)
+	$(tstats_SOURCES) tuuid.c
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -270,7 +277,8 @@ TESTS = \
 	t05-parse-stats \
 	t06-parse-recovery \
 	t07-parse-oscinfo \
-	t08-parse-lnet
+	t08-parse-lnet \
+	t09-parse-uuid
 
 XFAIL_TESTS = 
 CLEANFILES = *.out *.diff
@@ -350,6 +358,9 @@ trecov$(EXEEXT): $(trecov_OBJECTS) $(trecov_DEPENDENCIES)
 tstats$(EXEEXT): $(tstats_OBJECTS) $(tstats_DEPENDENCIES) 
 	@rm -f tstats$(EXEEXT)
 	$(LINK) $(tstats_LDFLAGS) $(tstats_OBJECTS) $(tstats_LDADD) $(LIBS)
+tuuid$(EXEEXT): $(tuuid_OBJECTS) $(tuuid_DEPENDENCIES) 
+	@rm -f tuuid$(EXEEXT)
+	$(LINK) $(tuuid_LDFLAGS) $(tuuid_OBJECTS) $(tuuid_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -364,6 +375,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tproc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/trecov.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tstats.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tuuid.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

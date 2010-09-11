@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+TEST=$(basename $0 | cut -d- -f1)
+# test $(id -u) == 0 || exit 77 #skip if not root
+
+# Set up fake proc directory for test
+tmpdir=$(mktemp -d)
+mkdir -p $tmpdir/fs/lustre/mds/lsb-MDT0000/
+cp proc.mdt.uuid $tmpdir/fs/lustre/mds/lsb-MDT0000/uuid
+mkdir -p $tmpdir/fs/lustre/obdfilter/lsb-OST0000/
+cp proc.ost.uuid $tmpdir/fs/lustre/obdfilter/lsb-OST0000/uuid
+
+./tuuid $tmpdir/ >$TEST.out 2>&1
+
+[ -n "$tmpdir" ] && rm -rf $tmpdir
+
+diff $TEST.exp $TEST.out >$TEST.diff
+

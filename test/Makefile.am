@@ -5,7 +5,8 @@ check_PROGRAMS = \
 	tstats \
 	trecov \
 	tosc \
-	tlnet
+	tlnet \
+	tuuid
 
 TESTS_ENVIRONMENT = env
 
@@ -18,7 +19,8 @@ TESTS = \
 	t05-parse-stats \
 	t06-parse-recovery \
 	t07-parse-oscinfo \
-	t08-parse-lnet
+	t08-parse-lnet \
+	t09-parse-uuid
 
 XFAIL_TESTS =
 
