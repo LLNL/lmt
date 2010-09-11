@@ -124,6 +124,7 @@ static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
 static void _sort_ostlist (List ost_data, sort_t s);
+static char *_find_first_fs (void);
 
 /* Hardwired display geometry.
  */
@@ -148,7 +149,7 @@ static const struct option longopts[] = {
 static void
 usage (void)
 {
-    fprintf (stderr, "Usage: ltop -f FS [-c config] [-t SECS] [-s SECS]\n");
+    fprintf (stderr, "Usage: ltop [OPTIONS] -f FS\n");
     exit (1);
 }
 
@@ -191,10 +192,14 @@ main (int argc, char *argv[])
                 usage ();
         }
     }
-    if (optind < argc || !fs)
+    if (optind < argc)
         usage();
     if (lmt_conf_init (1, conffile) < 0) /* FIXME: needed? */
         exit (1);
+    if (!fs)
+        fs = _find_first_fs();
+    if (!fs)
+        msg_exit ("No live mdt data found.  Try using -f option.");
 
     /* Poll cerebro for data, then sort the ost data for display.
      * If either the mds or any ost's are up, then ostcount > 0.
@@ -1070,6 +1075,53 @@ _poll_mdt (char *fs, List mdt_data, int stale_secs)
     list_iterator_destroy (itr);
     list_destroy (l);
 }
+
+static char *
+_find_first_fs (void)
+{
+    cmetric_t c;
+    List mdops, mdtinfo, l = NULL;
+    char *s, *val, *mdsname, *mdtname;
+    float pct_cpu, pct_mem;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+    ListIterator itr, itr2;
+    float vers;
+    char *p, *ret = NULL;
+
+    if (lmt_cbr_get_metrics ("lmt_mdt", &l) < 0)
+        return ret;
+    itr = list_iterator_create (l);
+    while ((c = list_next (itr))) {
+        if (!(val = lmt_cbr_get_val (c)))
+            continue;
+        if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
+            continue; 
+        if (lmt_mdt_decode_v1 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+            continue;
+        free (mdsname);
+        itr2 = list_iterator_create (mdtinfo);
+        while ((s = list_next (itr2))) {
+            if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
+                                           &inodes_total, &kbytes_free,
+                                           &kbytes_total, &mdops) == 0) {
+                ret = xstrdup (mdtname);
+                if ((p = strchr (ret, '-')))
+                    *p = '\0';
+                free (mdtname);
+                list_destroy (mdops);
+                break;
+            }
+        }
+        list_iterator_destroy (itr2);
+        list_destroy (mdtinfo);
+    }
+    list_iterator_destroy (itr);
+    list_destroy (l);
+
+    return ret;
+}
+
 
 /* Re-create oss_data, one record per oss, with data aggregated from
  * the OST's on that OSS.
