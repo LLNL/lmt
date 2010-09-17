@@ -72,7 +72,7 @@ lmt_metric_oss_get_value(unsigned int *metric_value_type,
 
         if (!common_metric_lmt_isoss()) {
                 /* cerebro_err_debug("not an oss node"); */
-                return CEREBRO_ERR_INTERNAL;
+                return 0;
         }
 
         buflen = CEREBRO_MAX_DATA_STRING_LEN / sizeof(char);

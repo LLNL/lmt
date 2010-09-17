@@ -207,7 +207,7 @@ lmt_metric_ost_get_value(unsigned int *metric_value_type,
 			 unsigned int *metric_value_len,
 			 void **metric_value)
 {
-        cerebro_err_debug("do nothing");
+        //cerebro_err_debug("do nothing");
         return CEREBRO_ERR_INTERNAL;
 }
 

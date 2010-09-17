@@ -131,7 +131,7 @@ lmt_metric_mds_setup(void)
 
         /* Open the mds directory */
         if ((dirp = opendir(LMT_MDS_DIRNAME)) == NULL) {
-                cerebro_err_debug("couldn't open '%s'", LMT_MDS_DIRNAME);
+                //cerebro_err_debug("couldn't open '%s'", LMT_MDS_DIRNAME);
                 return 0;
         }
 
@@ -146,7 +146,7 @@ nextentry:
 
         /* This should not happen */
         if (dp == NULL) {
-                cerebro_err_debug("could not read mds directory.");
+                //cerebro_err_debug("could not read mds directory.");
                 rc = 0;
                 goto err;
         }
@@ -206,7 +206,7 @@ lmt_metric_mds_get_value(unsigned int *metric_value_type,
 
         if (!common_metric_lmt_ismds()) {
                 /* cerebro_err_debug("not an mds node"); */
-		return CEREBRO_ERR_INTERNAL;
+		return 0;
         }
 
         /* If we have not setup the mds path

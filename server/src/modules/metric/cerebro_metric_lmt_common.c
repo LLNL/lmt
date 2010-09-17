@@ -769,7 +769,7 @@ common_metric_lmt_isost(void)
         int numosts = 0;
 
         if ((dirp = opendir(LMT_OST_DIRNAME)) == NULL) {
-                cerebro_err_debug("couldn't open '%s'", LMT_OST_DIRNAME);
+                //cerebro_err_debug("couldn't open '%s'", LMT_OST_DIRNAME);
                 return 0;
         }
         
