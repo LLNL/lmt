@@ -1,4 +1,4 @@
-.TH CREATE_LMTCONFIG 8 LMT LLNL CREATE_LMTCONFIG
+.TH ltop 1 "@META_DATA@" "@META_ALIAS@" "@META_NAME@"
 .SH NAME
 create_lmtconfig \- set up the LMT MySQL database
 .SH SYNOPSIS
