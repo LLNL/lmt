@@ -5,9 +5,10 @@ sbin_SCRIPTS = \
 noinst_SCRIPTS = \
 	upgrade_lmtconfig-1.1
 
-scriptlibdir = @libexecdir@/@PACKAGE@
+scriptlibdir = @X_DATADIR@/@PACKAGE@
 
-scriptlib_DATA = create_schema-1.1.sql
+scriptlib_DATA = \
+	create_schema-1.1.sql
 
 man8_MANS = \
 	create_lmtconfig.8

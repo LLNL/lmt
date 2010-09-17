@@ -86,5 +86,8 @@ AC_CONFIG_FILES( \
   etc/Makefile \
   etc/lmt.conf \
   utils/ltop.1 \
+  scripts/Makefile \
+  scripts/create_lmtconfig \
+  scripts/create_lmtconfig.8 \
 )
 AC_OUTPUT

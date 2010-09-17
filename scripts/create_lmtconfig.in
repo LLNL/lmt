@@ -43,8 +43,8 @@ my %options = (
         createdatabase => "",
         updaterootpw => 0,
         configfile => "",
-        ldevfile => "/etc/ldev.conf",
-        schema => "/usr/share/lmt/etc/create_schema-1.1.sql",
+        ldevfile => "@X_SYSCONFDIR@/ldev.conf",
+        schema => "@X_DATADIR@/@PACKAGE@/create_schema-1.1.sql",
     );
 my $prog = basename($0);
 my $usage = <<EOF;

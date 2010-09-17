@@ -52,13 +52,14 @@ my @tables = $lmt->getTableList();
 my $prompt = "$filesys> ";
 my $where = "";
 
-my $term = new Term::ReadLine::Perl 'LMT Shell';
+#my $term = new Term::ReadLine::Perl 'LMT Shell';
+my $term = new Term::ReadLine 'LMT Shell';
 
 $readline::rl_completion_function = "main::completion";
 
 while ( defined (my $cmd = $term->readline($prompt)) ) {
 
-    $term->AddHistory($cmd);	## normally this is done implictly
+#    $term->AddHistory($cmd);	## normally this is done implictly
 #    my @args = split /\s+/, $cmd;
 
     my @args=smartSplit($cmd);

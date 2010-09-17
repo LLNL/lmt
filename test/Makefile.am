@@ -21,7 +21,8 @@ TESTS = \
 	t07-parse-oscinfo \
 	t08-parse-lnet \
 	t09-parse-uuid \
-	t10-lmtconfig-sanity
+	t10-lmtconfig-sanity \
+	t11-lmtconfig-sanity
 
 XFAIL_TESTS =
 
