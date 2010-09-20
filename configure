@@ -23341,7 +23341,23 @@ _ACEOF
 ##
 # Epilogue
 ##
-                                                                                                                                                                ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf utils/ltop.1 scripts/Makefile scripts/create_lmtconfig scripts/create_lmtconfig.8"
+                                                                                                                                                      ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf utils/ltop.1 scripts/Makefile scripts/create_lmtconfig.8"
+
+
+          ac_config_files="$ac_config_files scripts/create_lmtconfig"
+
+          ac_config_files="$ac_config_files perl/lmtsh"
+
+          ac_config_files="$ac_config_files perl/lmt_update_fs_agg"
+
+          ac_config_files="$ac_config_files perl/lmt_update_mds_agg"
+
+          ac_config_files="$ac_config_files perl/lmt_update_ost_agg"
+
+          ac_config_files="$ac_config_files perl/lmt_update_other_agg"
+
+          ac_config_files="$ac_config_files perl/lmt_update_router_agg"
+
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -23948,8 +23964,14 @@ do
   "etc/lmt.conf" ) CONFIG_FILES="$CONFIG_FILES etc/lmt.conf" ;;
   "utils/ltop.1" ) CONFIG_FILES="$CONFIG_FILES utils/ltop.1" ;;
   "scripts/Makefile" ) CONFIG_FILES="$CONFIG_FILES scripts/Makefile" ;;
-  "scripts/create_lmtconfig" ) CONFIG_FILES="$CONFIG_FILES scripts/create_lmtconfig" ;;
   "scripts/create_lmtconfig.8" ) CONFIG_FILES="$CONFIG_FILES scripts/create_lmtconfig.8" ;;
+  "scripts/create_lmtconfig" ) CONFIG_FILES="$CONFIG_FILES scripts/create_lmtconfig" ;;
+  "perl/lmtsh" ) CONFIG_FILES="$CONFIG_FILES perl/lmtsh" ;;
+  "perl/lmt_update_fs_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_fs_agg" ;;
+  "perl/lmt_update_mds_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_mds_agg" ;;
+  "perl/lmt_update_ost_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_ost_agg" ;;
+  "perl/lmt_update_other_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_other_agg" ;;
+  "perl/lmt_update_router_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_router_agg" ;;
   "depfiles" ) CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
   "config/config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config/config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
@@ -24389,6 +24411,23 @@ s,@INSTALL@,$ac_INSTALL,;t t
     rm -f $tmp/out
   fi
 
+  # Run the commands associated with the file.
+  case $ac_file in
+    scripts/create_lmtconfig ) \
+       chmod +x scripts/create_lmtconfig ;;
+    perl/lmtsh ) \
+       chmod +x perl/lmtsh ;;
+    perl/lmt_update_fs_agg ) \
+       chmod +x perl/lmt_update_fs_agg ;;
+    perl/lmt_update_mds_agg ) \
+       chmod +x perl/lmt_update_mds_agg ;;
+    perl/lmt_update_ost_agg ) \
+       chmod +x perl/lmt_update_ost_agg ;;
+    perl/lmt_update_other_agg ) \
+       chmod +x perl/lmt_update_other_agg ;;
+    perl/lmt_update_router_agg ) \
+       chmod +x perl/lmt_update_router_agg ;;
+  esac
 done
 _ACEOF
 cat >>$CONFIG_STATUS <<\_ACEOF

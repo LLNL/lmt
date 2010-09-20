@@ -254,6 +254,9 @@ lmtdiagnose_LDADD = $(common_ldadd) $(am__append_1)
 man1_MANS = \
 	ltop.1
 
+CLEANFILES = \
+	ltop.1
+
 all: all-am
 
 .SUFFIXES:
@@ -520,6 +523,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)

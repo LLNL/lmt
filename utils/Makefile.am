@@ -24,3 +24,6 @@ endif
 
 man1_MANS = \
 	ltop.1
+
+CLEANFILES = \
+	ltop.1

@@ -3,6 +3,10 @@
 -- Note: this file is parsed by an embedded LUA interpreter
 --
 
+lmt_cbr_debug = 0
+
+lmt_proto_debug = 0
+
 lmt_db_debug = 0
 
 lmt_db_host = nil

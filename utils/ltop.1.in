@@ -2,7 +2,7 @@
 .SH NAME
 ltop \- display live information about a Lustre file system
 .SH SYNOPSIS
-.B "ltop -f FSNAME [-t SECS]"
+.B "ltop [OPTIONS]"
 .SH DESCRIPTION
 .B ltop
 displays information about a live Lustre file system monitored by LMT.
@@ -12,9 +12,8 @@ accepts the following command line options:
 .TP
 .I "-f FSNAME"
 Monitor the file system named FSNAME.
-You may monitor only one file system per
-.B ltop
-session.
+You may monitor only one file system per \fBltop\fR session.
+The default is to monitor the first file system found.
 .TP
 .I "-t SECS"
 Change the display refresh period from the default of two seconds.

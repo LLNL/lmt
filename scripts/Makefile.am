@@ -12,3 +12,7 @@ scriptlib_DATA = \
 
 man8_MANS = \
 	create_lmtconfig.8
+
+CLEANFILES = \
+	create_lmtconfig.8 \
+	create_lmtconfig

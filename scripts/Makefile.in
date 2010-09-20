@@ -53,7 +53,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
-CONFIG_CLEAN_FILES = create_lmtconfig create_lmtconfig.8
+CONFIG_CLEAN_FILES = create_lmtconfig.8 create_lmtconfig
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man8dir)" \
 	"$(DESTDIR)$(scriptlibdir)"
 sbinSCRIPT_INSTALL = $(INSTALL_SCRIPT)
@@ -231,6 +231,10 @@ scriptlib_DATA = \
 man8_MANS = \
 	create_lmtconfig.8
 
+CLEANFILES = \
+	create_lmtconfig.8 \
+	create_lmtconfig
+
 all: all-am
 
 .SUFFIXES:
@@ -263,9 +267,9 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-create_lmtconfig: $(top_builddir)/config.status $(srcdir)/create_lmtconfig.in
-	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 create_lmtconfig.8: $(top_builddir)/config.status $(srcdir)/create_lmtconfig.8.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+create_lmtconfig: $(top_builddir)/config.status $(srcdir)/create_lmtconfig.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 install-sbinSCRIPTS: $(sbin_SCRIPTS)
 	@$(NORMAL_INSTALL)
@@ -416,6 +420,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)

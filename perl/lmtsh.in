@@ -15,8 +15,7 @@
 
 BEGIN {
     $ENV{PERL_READLINE_NOWARN} = 1;
-    push @INC, "/usr/share/lmt/lib/perl";
-    push @INC, "../lib/perl";
+    push @INC, "@X_DATADIR@/@PACKAGE@";
 }
 
 use strict;

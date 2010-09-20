@@ -17,8 +17,7 @@
 #===============================================================================
 
 BEGIN {
-    push @INC, "/usr/share/lmt/lib/perl";
-    push @INC, "../lib/perl";
+    push @INC, "@X_DATADIR@/@PACKAGE@";
 }
 
 use strict;

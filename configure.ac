@@ -87,7 +87,22 @@ AC_CONFIG_FILES( \
   etc/lmt.conf \
   utils/ltop.1 \
   scripts/Makefile \
-  scripts/create_lmtconfig \
   scripts/create_lmtconfig.8 \
 )
+
+AC_CONFIG_FILES([scripts/create_lmtconfig], \
+       [chmod +x scripts/create_lmtconfig])
+AC_CONFIG_FILES([perl/lmtsh], \
+       [chmod +x perl/lmtsh])
+AC_CONFIG_FILES([perl/lmt_update_fs_agg], \
+       [chmod +x perl/lmt_update_fs_agg])
+AC_CONFIG_FILES([perl/lmt_update_mds_agg], \
+       [chmod +x perl/lmt_update_mds_agg])
+AC_CONFIG_FILES([perl/lmt_update_ost_agg], \
+       [chmod +x perl/lmt_update_ost_agg])
+AC_CONFIG_FILES([perl/lmt_update_other_agg], \
+       [chmod +x perl/lmt_update_other_agg])
+AC_CONFIG_FILES([perl/lmt_update_router_agg], \
+       [chmod +x perl/lmt_update_router_agg])
+
 AC_OUTPUT
