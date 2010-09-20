@@ -59,11 +59,11 @@ main (int argc, char *argv[])
 
     if (proc_meminfo (ctx, &ktot, &kfree) < 0)
         err_exit ("proc_meminfo");
-    msg ("memory: %luK total, %luK free", ktot, kfree);
+    msg ("memory: %"PRIu64"K total, %"PRIu64"K free", ktot, kfree);
 
     if (proc_stat2 (ctx, &usage, &total) < 0)
         err_exit ("proc_stat2");
-    msg ("cpu: %lu usage, %lu total", usage, total);
+    msg ("cpu: %"PRIu64" usage, %"PRIu64" total", usage, total);
 
     proc_destroy (ctx);
 

@@ -53,7 +53,8 @@ dump_brw_stats (pctx_t ctx, char *name, brw_t t, char *desc)
         err_exit ("error reading %s", desc);
     msg ("%s", desc);
     for (i = 0; i < h->bincount; i++)
-        msg ("%lu: %lu, %lu", h->bin[i].x, h->bin[i].yr, h->bin[i].yw);
+        msg ("%"PRIu64": %"PRIu64", %"PRIu64,
+             h->bin[i].x, h->bin[i].yr, h->bin[i].yw);
     histogram_destroy (h); 
 }
 
