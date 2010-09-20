@@ -2,6 +2,9 @@ Name:
 Version: 
 Release: 
 
+# TODO: lmt-client subpackage for lwatch + oltop
+# TODO: lmt-utils subpackage for ltop (once ltop can read proc directly)
+
 License: GPL
 Group: Applications/System
 Summary: Lustre Montitoring Tool
@@ -55,14 +58,17 @@ make install DESTDIR=$RPM_BUILD_ROOT
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%dir %{_sysconfdir}/lmt
-%config(noreplace) %{_sysconfdir}/lmt/lmt.conf
 
 %files server
 %defattr(-,root,root)
 %{_libdir}/cerebro/cerebro_monitor_lmt*
 %{_sbindir}/*
+%{_bindir}/*
 %{_mandir}/man1/*
+%{_mandir}/man8/*
+%{_datadir}/lmt/*
+%dir %{_sysconfdir}/lmt
+%config(noreplace) %{_sysconfdir}/lmt/lmt.conf
 
 %files server-agent
 %{_libdir}/cerebro/cerebro_metric_lmt*
