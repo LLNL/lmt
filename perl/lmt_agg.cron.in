@@ -60,7 +60,7 @@ do
    esac
 done
 
-[ -n "$FILESYSTEMS" ] || FILESYSTEMS=`$lmtDir/lmtsh -l`
+[ -n "$FILESYSTEMS" ] || FILESYSTEMS=`@X_SBINDIR@/lmtsh -l`
 if [ -z "$FILESYSTEMS" ]
 then
     echo "*** Error: must specify at least one filesystem name"

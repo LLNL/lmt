@@ -60,11 +60,12 @@ CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES = LMT.pm lmtsh lmt_update_fs_agg lmt_update_mds_agg \
 	lmt_update_ost_agg lmt_update_other_agg lmt_update_router_agg \
 	lmt_agg.cron
-am__installdirs = "$(DESTDIR)$(cronlibdir)" \
+am__installdirs = "$(DESTDIR)$(cronlibdir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"
 cronlibSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+sbinSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 scriptlibSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-SCRIPTS = $(cronlib_SCRIPTS) $(scriptlib_SCRIPTS)
+SCRIPTS = $(cronlib_SCRIPTS) $(sbin_SCRIPTS) $(scriptlib_SCRIPTS)
 SOURCES =
 DIST_SOURCES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -224,14 +225,16 @@ target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
 scriptlibdir = @X_DATADIR@/@PACKAGE@
 cronlibdir = @X_DATADIR@/@PACKAGE@/cron
+sbin_SCRIPTS = \
+	lmtsh
+
 scriptlib_SCRIPTS = \
 	lmt_update_fs_agg \
 	lmt_update_mds_agg \
 	lmt_update_ost_agg \
 	lmt_update_other_agg \
 	lmt_update_router_agg \
-	lmtcf \
-	lmtsh
+	lmtcf
 
 scriptlib_DATA = \
 	LMT.pm
@@ -315,6 +318,25 @@ uninstall-cronlibSCRIPTS:
 	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
 	  echo " rm -f '$(DESTDIR)$(cronlibdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(cronlibdir)/$$f"; \
+	done
+install-sbinSCRIPTS: $(sbin_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	test -z "$(sbindir)" || $(mkdir_p) "$(DESTDIR)$(sbindir)"
+	@list='$(sbin_SCRIPTS)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  if test -f $$d$$p; then \
+	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	    echo " $(sbinSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(sbindir)/$$f'"; \
+	    $(sbinSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(sbindir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-sbinSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(sbin_SCRIPTS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	  echo " rm -f '$(DESTDIR)$(sbindir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(sbindir)/$$f"; \
 	done
 install-scriptlibSCRIPTS: $(scriptlib_SCRIPTS)
 	@$(NORMAL_INSTALL)
@@ -400,7 +422,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(SCRIPTS) $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(cronlibdir)" "$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"; do \
+	for dir in "$(DESTDIR)$(cronlibdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: install-am
@@ -449,7 +471,7 @@ info-am:
 install-data-am: install-cronlibSCRIPTS install-scriptlibDATA \
 	install-scriptlibSCRIPTS
 
-install-exec-am:
+install-exec-am: install-sbinSCRIPTS
 
 install-info: install-info-am
 
@@ -474,19 +496,21 @@ ps: ps-am
 ps-am:
 
 uninstall-am: uninstall-cronlibSCRIPTS uninstall-info-am \
-	uninstall-scriptlibDATA uninstall-scriptlibSCRIPTS
+	uninstall-sbinSCRIPTS uninstall-scriptlibDATA \
+	uninstall-scriptlibSCRIPTS
 
 .PHONY: all all-am check check-am clean clean-generic clean-libtool \
 	distclean distclean-generic distclean-libtool distdir dvi \
 	dvi-am html html-am info info-am install install-am \
 	install-cronlibSCRIPTS install-data install-data-am \
 	install-exec install-exec-am install-info install-info-am \
-	install-man install-scriptlibDATA install-scriptlibSCRIPTS \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	uninstall uninstall-am uninstall-cronlibSCRIPTS \
-	uninstall-info-am uninstall-scriptlibDATA \
+	install-man install-sbinSCRIPTS install-scriptlibDATA \
+	install-scriptlibSCRIPTS install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am uninstall uninstall-am \
+	uninstall-cronlibSCRIPTS uninstall-info-am \
+	uninstall-sbinSCRIPTS uninstall-scriptlibDATA \
 	uninstall-scriptlibSCRIPTS
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
