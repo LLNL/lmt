@@ -22,7 +22,6 @@ use Time::Local;
 
 #  Class Variables...
 my $DBH             = undef;		# Database handle
-my $BOOTSTRAPPED    = 0;		# Have we read bootstrapping info yet?
 my $CONNECTED       = 0;		# Have we connected to a DB?
 my $ACTIVE_DB       = "";		# Active DBI DB string
 my $ACTIVE_FILESYSTEM = "";		# Name of active filesystem
@@ -68,7 +67,6 @@ sub _init {
     $self->{CONNECTED} = 0;
     $self->{ACTIVE_FILESYSTEM} = "";
     $self->{CONFIG} = \%cfHash;
-    $self->{BOOTSTRAPPED} = 1;
 }
 
 ###############################
@@ -284,10 +282,10 @@ sub getFilesystemIdFromName {
 ###############################
 sub getFilesystemList {
     my $self = shift;
-    my @databases = ();
+    my @filesystems = ();
 
-    #die ("[LMT::getFilesystemList] -- not initialized\n")
-    #    if ($self->{BOOTSTRAPPED} == 1);
+    die ("[LMT::getFilesystemList] - System not bootstrapped\n")
+        if (not $self->{CONFIG});
     my %fsinfo = %{$self->{CONFIG}};
 
     my $db = "DBI:mysql:host=$fsinfo{dbhost};port=$fsinfo{dbport}";
@@ -303,11 +301,11 @@ sub getFilesystemList {
         if (not $getkey->execute);
     while (my @row = $getkey->fetchrow) {
         $_ = $row[0];
-        push @databases, $_ if (s/^filesystem_//);
+        push @filesystems, $_ if (s/^filesystem_//);
     }
     $dbh->disconnect();
 
-    return @databases;
+    return @filesystems;
 }
 
 ###############################

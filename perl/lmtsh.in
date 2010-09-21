@@ -11,6 +11,7 @@
 #
 #  Modification History:
 #       02/17/2007 - jwl: Initial version.
+#       09/21/2010 - jg:  Use new lmt.conf.
 #===============================================================================
 
 BEGIN {
@@ -31,7 +32,7 @@ my @commands = qw/cat clr dt fs getwindow head ost t tail ts ts1 tsn vo vt help/
 
 $| = 1;
 
-Usage() if (not getopts('c:dhvf:'));
+Usage() if (not getopts('c:dhvf:l'));
 
 my $verbose   = (defined $main::opt_v) ? 1 : 0;
 my $debug     = (defined $main::opt_d) ? 1 : 0;
@@ -46,6 +47,12 @@ my @filesystems = $lmt->getFilesystemList();
 $filesys = $filesystems[0] if (not defined($filesys));
 $lmt->connect($filesys) or die ("Could not connect to FS: $filesys\n");
 $lmt->dieOnError(0);
+
+if (defined $main::opt_l) {
+    map { print "$_\n" } @filesystems;
+    exit 0;
+}
+
 my @tables = $lmt->getTableList();
 
 my $prompt = "$filesys> ";
@@ -57,7 +64,7 @@ $readline::rl_completion_function = "main::completion";
 
 while ( defined (my $cmd = $term->readline($prompt)) ) {
 
-    $term->AddHistory($cmd);	## normally this is done implictly
+#    $term->AddHistory($cmd);	## normally this is done implictly
 #    my @args = split /\s+/, $cmd;
 
     my @args=smartSplit($cmd);
@@ -442,12 +449,13 @@ sub smartSplit {
 
 sub Usage {
     print<<EOF;
-Usage: $0 [-d] [-v] [-f filesys]
+Usage: $0 [-l] [-d] [-v] [-f filesys]
 
   -d          Debug mode
   -v          Verbose mode
   -f filesys  Connect to filesys (default is first found)
   -c config   Use alternate config file
+  -l          List file systems and exit
 
 EOF
 
