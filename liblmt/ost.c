@@ -51,37 +51,6 @@
 #include "util.h"
 #include "lmtconf.h"
 
-typedef struct {
-    uint64_t    usage[2];
-    uint64_t    total[2];
-    int         valid;      /* number of valid samples [0,1,2] */
-} usage_t;
-
-static int
-_get_cpu_usage (pctx_t ctx, double *fp)
-{
-    static usage_t u = { .valid = 0 };
-
-    u.usage[0] = u.usage[1];
-    u.total[0] = u.total[1];
-
-    if (proc_stat2 (ctx, &u.usage[1], &u.total[1]) < 0) {
-        if (u.valid > 0)
-            u.valid--;
-        if (lmt_conf_get_proto_debug ())
-            err ("error reading cpu usage from proc");
-    } else {
-        if (u.valid < 2)
-            u.valid++;
-    }
-    if (u.valid == 2) {
-        *fp = fabs ((double)(u.usage[1] - u.usage[0]) 
-                  / (double)(u.total[1] - u.total[0])) * 100.0;
-        return 0;
-    }
-    return -1;
-}
-
 static int
 _get_mem_usage (pctx_t ctx, double *fp)
 {
@@ -225,6 +194,7 @@ done:
 int
 lmt_ost_string_v2 (pctx_t ctx, char *s, int len)
 {
+    static uint64_t cpuused = 0, cputot = 0;
     ListIterator itr = NULL;
     List ostlist = NULL;
     struct utsname uts;
@@ -242,8 +212,11 @@ lmt_ost_string_v2 (pctx_t ctx, char *s, int len)
         err ("uname");
         goto done;
     }
-    if (_get_cpu_usage (ctx, &cpupct) < 0)
+    if (proc_stat2 (ctx, &cpuused, &cputot, &cpupct) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading cpu usage from proc");
         goto done;
+    }
     if (_get_mem_usage (ctx, &mempct) < 0)
         goto done;
     n = snprintf (s, len, "2;%s;%f;%f;",

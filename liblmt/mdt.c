@@ -145,37 +145,6 @@ static const char *optab[] = {
 };
 const int optablen = sizeof (optab) / sizeof(optab[0]);
 
-typedef struct {
-    uint64_t    usage[2];
-    uint64_t    total[2];
-    int         valid;      /* number of valid samples [0,1,2] */
-} usage_t;
-
-static int
-_get_cpu_usage (pctx_t ctx, double *fp)
-{
-    static usage_t u = { .valid = 0 };
-
-    u.usage[0] = u.usage[1];
-    u.total[0] = u.total[1];
-
-    if (proc_stat2 (ctx, &u.usage[1], &u.total[1]) < 0) {
-        if (u.valid > 0)
-            u.valid--;
-        if (lmt_conf_get_proto_debug ())
-            err ("error reading cpu usage from proc");
-    } else {
-        if (u.valid < 2)
-            u.valid++;
-    }
-    if (u.valid == 2) {
-        *fp = fabs ((double)(u.usage[1] - u.usage[0]) 
-                  / (double)(u.total[1] - u.total[0])) * 100.0;
-        return 0;
-    }
-    return -1;
-}
-
 static int
 _get_mem_usage (pctx_t ctx, double *fp)
 {
@@ -266,9 +235,10 @@ done:
 int
 lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
 {
+    static uint64_t cpuused = 0, cputot = 0;
     struct utsname uts;
     int n, used, retval = -1;
-    double mempct, cpupct;
+    double cpupct, mempct;
     List mdtlist = NULL;
     ListIterator itr = NULL;
     char *name;
@@ -283,7 +253,9 @@ lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
         err ("uname");
         goto done;
     }
-    if (_get_cpu_usage (ctx, &cpupct) < 0) {
+    if (proc_stat2 (ctx, &cpuused, &cputot, &cpupct) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading cpu usage from proc");
         goto done;
     }
     if (_get_mem_usage (ctx, &mempct) < 0) {

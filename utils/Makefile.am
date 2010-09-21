@@ -3,7 +3,8 @@ AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt -I../liblmtdb
 
 bin_PROGRAMS = ltop
-noinst_PROGRAMS = lmtmetric lmtdiagnose
+sbin_PROGRAMS = lmtmetric
+noinst_PROGRAMS = lmtdiagnose
 
 common_ldadd = \
 	$(top_builddir)/liblmt/liblmt.la \

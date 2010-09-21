@@ -71,21 +71,33 @@ proc_stat (pctx_t ctx, uint64_t *usrp, uint64_t *nicep, uint64_t *sysp,
     return 0;
 }
 
-/* Summarize proc_stat () values as two sums.  We can use these values in
- * a manner similar to top(1) to compute a percent utilization:
- * pct_util = abs (delta usage / delta total) * 100.0.
+/* Compute percent utilization.
+ * Initialize usage and total to zero, and first call will return percent
+ * cpu utilization since boot.  Subsequent calls will return percent cpu
+ * utilization since last call.
  */
 int
-proc_stat2 (pctx_t ctx, uint64_t *usagep, uint64_t *totalp)
+proc_stat2 (pctx_t ctx, uint64_t *usagep, uint64_t *totalp, double *pctp)
 {
     uint64_t usr, nice, sys, idle, iowait, irq, softirq;
+    uint64_t usage, ousage = usagep ? *usagep : 0;
+    uint64_t total, ototal = totalp ? *totalp : 0;
 
     if (proc_stat (ctx, &usr, &nice, &sys, &idle, &iowait, &irq, &softirq) < 0)
         return -1;
+    usage = usr + nice + sys + irq + softirq;
+    total = usr + nice + sys + idle + iowait + irq + softirq;
+
+    if (pctp) {
+        if (total - ototal > 0)
+            *pctp = (double)(usage - ousage) / (total - ototal) * 100.0; 
+        else
+            *pctp = 0;
+    }
     if (usagep)
-        *usagep = usr + nice + sys + irq + softirq;
+        *usagep = usage;
     if (totalp)
-        *totalp = usr + nice + sys + idle + iowait + irq + softirq;
+        *totalp = total;
     return 0;
 }
 

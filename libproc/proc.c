@@ -52,6 +52,7 @@ struct proc_ctx_struct {
     int     pctx_pathlen;
     FILE    *pctx_fp;
     DIR     *pctx_dp;    
+    void    *pctx_stat_pvt;    
 };
 
 pctx_t
@@ -66,6 +67,7 @@ proc_create (const char *root)
     ctx->pctx_pathlen = sizeof (ctx->pctx_root) - strlen (ctx->pctx_root);
     ctx->pctx_fp = NULL;
     ctx->pctx_dp = NULL;
+    ctx->pctx_stat_pvt = NULL;
     ctx->pctx_magic = PCTX_MAGIC;
 
     return ctx;

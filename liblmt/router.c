@@ -58,31 +58,6 @@ typedef struct {
 } usage_t;
 
 static int
-_get_cpu_usage (pctx_t ctx, double *fp)
-{
-    static usage_t u = { .valid = 0 };
-
-    u.usage[0] = u.usage[1];
-    u.total[0] = u.total[1];
-
-    if (proc_stat2 (ctx, &u.usage[1], &u.total[1]) < 0) {
-        if (u.valid > 0)
-            u.valid--;
-        if (lmt_conf_get_proto_debug ())
-            err ("error reading cpu usage from proc");
-    } else {
-        if (u.valid < 2)
-            u.valid++;
-    }
-    if (u.valid == 2) {
-        *fp = fabs ((double)(u.usage[1] - u.usage[0]) 
-                  / (double)(u.total[1] - u.total[0])) * 100.0;
-        return 0;
-    }
-    return -1;
-}
-
-static int
 _get_mem_usage (pctx_t ctx, double *fp)
 {
     uint64_t kfree, ktot;
@@ -99,6 +74,7 @@ _get_mem_usage (pctx_t ctx, double *fp)
 int
 lmt_router_string_v1 (pctx_t ctx, char *s, int len)
 {
+    static uint64_t cpuusage = 0, cputot = 0;
     int retval = -1;
     struct utsname uts;
     double mempct, cpupct;
@@ -115,7 +91,9 @@ lmt_router_string_v1 (pctx_t ctx, char *s, int len)
         err ("uname");
         goto done;
     }
-    if (_get_cpu_usage (ctx, &cpupct) < 0) {
+    if (proc_stat2 (ctx, &cpuusage, &cputot, &cpupct) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading cpu usage from proc");
         goto done;
     }
     if (_get_mem_usage (ctx, &mempct) < 0) {

@@ -49,6 +49,8 @@
 #include "error.h"
 
 #include "proc.h"
+#include "stat.h"
+#include "meminfo.h"
 
 #include "lmtconf.h"
 #include "ost.h"
@@ -69,14 +71,16 @@ static const struct option longopts[] = {
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
 
+static int _sysstat (pctx_t ctx, char *buf, int len);
+
 static void
 usage()
 {
     fprintf (stderr,
 "Usage: lmtmetric [OPTIONS]\n"
-"   -m,--metric NAME            select ost|mdt|osc|router [no default]\n"
-"   -r,--proc-root DIR          select proc root [/proc]\n"
-"   -t,--update-period SECS     [2s]\n"
+"   -m,--metric NAME            select ost|mdt|osc|router|sysstat\n"
+"   -r,--proc-root DIR          select proc root other than /proc\n"
+"   -t,--update-period SECS     [default: run once]\n"
     );
     exit (1);
 }
@@ -88,7 +92,7 @@ main (int argc, char *argv[])
     char buf[CEREBRO_MAX_DATA_STRING_LEN];
     char *proc_root = "/proc";
     char *metric = NULL;
-    unsigned long update_period = 2;
+    unsigned long update_period = 0;
     int c, n = 0;
 
     err_init (argv[0]);
@@ -113,17 +117,19 @@ main (int argc, char *argv[])
     }
     if (optind < argc)
         usage();
+    if (metric && strcmp (metric, "ost") && strcmp (metric, "mdt")
+               && strcmp (metric, "osc") && strcmp (metric, "router"))
+        usage();
     if (!metric)
-        usage();
-    if (strcmp (metric, "ost") && strcmp (metric, "mdt")
-      && strcmp (metric, "osc") && strcmp (metric, "router"))
-        usage();
+        metric = "sysstat";
 
     if (!(ctx = proc_create (proc_root)))
         err_exit ("proc_create");
 
-    while (1) {
-        if (!strcmp (metric, "ost"))
+    do {
+        if (!strcmp (metric, "sysstat"))
+            n = _sysstat (ctx, buf, sizeof (buf));
+        else if (!strcmp (metric, "ost"))
             n = lmt_ost_string_v2 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "mdt"))
             n = lmt_mdt_string_v1 (ctx, buf, sizeof (buf));
@@ -135,11 +141,31 @@ main (int argc, char *argv[])
             printf ("%s: %s\n", metric, strerror(errno));
         else
             printf ("%s: %s\n", metric, buf);
-        sleep (update_period);
-    }
+        if (update_period > 0)
+            sleep (update_period);
+    } while (update_period > 0);
 
     proc_destroy (ctx);
     exit (0);
+}
+
+static int
+_sysstat (pctx_t ctx, char *buf, int len)
+{
+    static uint64_t cpuusage = 0, cputot = 0;
+    double cpupct, mempct;
+    uint64_t ktot, kfree;
+    int ret = -1;
+
+    if (proc_stat2 (ctx, &cpuusage, &cputot, &cpupct) < 0)
+        goto done;
+    if (proc_meminfo (ctx, &ktot, &kfree) < 0)
+        goto done;
+    mempct = ((double)(ktot - kfree) / (double)(ktot)) * 100.0;
+    snprintf (buf, len, "cpu_util: %.2f%% mem_util: %.2f%%", cpupct, mempct);
+    ret = 0;
+done:
+    return ret;
 }
 
 /*

@@ -49,7 +49,7 @@ main (int argc, char *argv[])
 {
     pctx_t ctx;
     uint64_t ktot, kfree;
-    uint64_t usage, total;
+    uint64_t usage = 0, total = 0;
 
     err_init (argv[0]);
     if (argc != 2)
@@ -61,7 +61,7 @@ main (int argc, char *argv[])
         err_exit ("proc_meminfo");
     msg ("memory: %"PRIu64"K total, %"PRIu64"K free", ktot, kfree);
 
-    if (proc_stat2 (ctx, &usage, &total) < 0)
+    if (proc_stat2 (ctx, &usage, &total, NULL) < 0)
         err_exit ("proc_stat2");
     msg ("cpu: %"PRIu64" usage, %"PRIu64" total", usage, total);
 
