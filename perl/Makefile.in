@@ -44,8 +44,7 @@ DIST_COMMON = $(srcdir)/LMT.pm.in $(srcdir)/Makefile.am \
 	$(srcdir)/lmt_update_mds_agg.in \
 	$(srcdir)/lmt_update_ost_agg.in \
 	$(srcdir)/lmt_update_other_agg.in \
-	$(srcdir)/lmt_update_router_agg.in $(srcdir)/lmtcf.in \
-	$(srcdir)/lmtsh.in
+	$(srcdir)/lmt_update_router_agg.in $(srcdir)/lmtsh.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_cerebro.m4 \
 	$(top_srcdir)/config/x_ac_check_cond_lib.m4 \
@@ -59,8 +58,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES = LMT.pm lmtsh lmt_update_fs_agg lmt_update_mds_agg \
-	lmt_update_ost_agg lmt_update_other_agg lmt_update_router_agg \
-	lmtcf
+	lmt_update_ost_agg lmt_update_other_agg lmt_update_router_agg
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptlibdir)" \
 	"$(DESTDIR)$(scriptlibdir)"
 sbinSCRIPT_INSTALL = $(INSTALL_SCRIPT)
@@ -249,8 +247,7 @@ CLEANFILES = \
         lmt_update_ost_agg \
         lmt_update_other_agg \
         lmt_update_router_agg \
-	LMT.pm \
-	lmtcf
+	LMT.pm
 
 all: all-am
 
@@ -297,8 +294,6 @@ lmt_update_ost_agg: $(top_builddir)/config.status $(srcdir)/lmt_update_ost_agg.i
 lmt_update_other_agg: $(top_builddir)/config.status $(srcdir)/lmt_update_other_agg.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 lmt_update_router_agg: $(top_builddir)/config.status $(srcdir)/lmt_update_router_agg.in
-	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
-lmtcf: $(top_builddir)/config.status $(srcdir)/lmtcf.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 install-sbinSCRIPTS: $(sbin_SCRIPTS)
 	@$(NORMAL_INSTALL)

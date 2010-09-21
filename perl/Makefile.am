@@ -27,5 +27,4 @@ CLEANFILES = \
         lmt_update_ost_agg \
         lmt_update_other_agg \
         lmt_update_router_agg \
-	LMT.pm \
-	lmtcf
+	LMT.pm

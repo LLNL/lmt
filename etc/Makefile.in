@@ -212,6 +212,7 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 pkgsysconfdir = $(sysconfdir)/lmt
 pkgsysconf_DATA = lmt.conf
+CLEANFILES = lmt.conf
 all: all-am
 
 .SUFFIXES:
@@ -331,6 +332,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)

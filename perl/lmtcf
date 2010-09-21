@@ -6,7 +6,7 @@ local function keyval (key, val)
     if val == nil then
         val = ""
     end 
-    io.write (string.format ("%s: %s\n", key, val))
+    io.write (string.format ("%s:%s\n", key, val))
 end
 
 

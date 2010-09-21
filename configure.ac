@@ -88,6 +88,8 @@ AC_CONFIG_FILES( \
   utils/ltop.1 \
   scripts/Makefile \
   scripts/create_lmtconfig.8 \
+  perl/Makefile \
+  perl/LMT.pm \
 )
 
 AC_CONFIG_FILES([scripts/create_lmtconfig], \

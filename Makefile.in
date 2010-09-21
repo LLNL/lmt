@@ -41,15 +41,9 @@ target_triplet = @target@
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/config/config.h.in \
 	$(top_srcdir)/configure $(top_srcdir)/liblmtdb/Makefile.in \
-	$(top_srcdir)/perl/lmt_update_fs_agg.in \
-	$(top_srcdir)/perl/lmt_update_mds_agg.in \
-	$(top_srcdir)/perl/lmt_update_ost_agg.in \
-	$(top_srcdir)/perl/lmt_update_other_agg.in \
-	$(top_srcdir)/perl/lmt_update_router_agg.in \
-	$(top_srcdir)/perl/lmtsh.in AUTHORS COPYING ChangeLog INSTALL \
-	NEWS config/compile config/config.guess config/config.sub \
-	config/depcomp config/install-sh config/ltmain.sh \
-	config/missing
+	AUTHORS COPYING ChangeLog INSTALL NEWS config/compile \
+	config/config.guess config/config.sub config/depcomp \
+	config/install-sh config/ltmain.sh config/missing
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_cerebro.m4 \
@@ -65,10 +59,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno configure.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
-CONFIG_CLEAN_FILES = liblmtdb/Makefile perl/lmtsh \
-	perl/lmt_update_fs_agg perl/lmt_update_mds_agg \
-	perl/lmt_update_ost_agg perl/lmt_update_other_agg \
-	perl/lmt_update_router_agg
+CONFIG_CLEAN_FILES = liblmtdb/Makefile
 SOURCES =
 DIST_SOURCES =
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
@@ -293,18 +284,6 @@ $(top_srcdir)/config/config.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 distclean-hdr:
 	-rm -f config/config.h config/stamp-h1
 liblmtdb/Makefile: $(top_builddir)/config.status $(top_srcdir)/liblmtdb/Makefile.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-perl/lmtsh: $(top_builddir)/config.status $(top_srcdir)/perl/lmtsh.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-perl/lmt_update_fs_agg: $(top_builddir)/config.status $(top_srcdir)/perl/lmt_update_fs_agg.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-perl/lmt_update_mds_agg: $(top_builddir)/config.status $(top_srcdir)/perl/lmt_update_mds_agg.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-perl/lmt_update_ost_agg: $(top_builddir)/config.status $(top_srcdir)/perl/lmt_update_ost_agg.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-perl/lmt_update_other_agg: $(top_builddir)/config.status $(top_srcdir)/perl/lmt_update_other_agg.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-perl/lmt_update_router_agg: $(top_builddir)/config.status $(top_srcdir)/perl/lmt_update_router_agg.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 
 mostlyclean-libtool:
