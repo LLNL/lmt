@@ -280,6 +280,37 @@ sub getFilesystemIdFromName {
 }
 
 ###############################
+#  Method: getFilesystemList
+###############################
+sub getFilesystemList {
+    my $self = shift;
+    my @databases = ();
+
+    #die ("[LMT::getFilesystemList] -- not initialized\n")
+    #    if ($self->{BOOTSTRAPPED} == 1);
+    my %fsinfo = %{$self->{CONFIG}};
+
+    my $db = "DBI:mysql:host=$fsinfo{dbhost};port=$fsinfo{dbport}";
+    my $dbh = DBI->connect($db, $fsinfo{dbuser}, $fsinfo{dbauth},
+                                {'RaiseError' => 1});
+    die ("[LMT::getFilesystemList] Could not connect to database\n")
+        if (not $dbh);
+
+    my $getkey = $dbh->prepare("SHOW DATABASES");
+    die ("$DBI::errstr\n")
+        if (not $getkey);
+    die ("execute SHOW DATABASES: $DBI::errstr\n")
+        if (not $getkey->execute);
+    while (my @row = $getkey->fetchrow) {
+        $_ = $row[0];
+        push @databases, $_ if (s/^filesystem_//);
+    }
+    $dbh->disconnect();
+
+    return @databases;
+}
+
+###############################
 #  Method: getTableList
 ###############################
 sub getTableList {
@@ -807,7 +838,7 @@ sub _parseConf {
     my $file = shift;
     my %fsinfo =();
 
-    if (open HELPER, "@X_DATADIR@/@PROGRAM@/lmtcf $file|") {
+    if (open HELPER, "@X_DATADIR@/@PACKAGE@/lmtcf $file|") {
         while (<HELPER>) {
             chomp;
             my ($key, $val) = split /:/;

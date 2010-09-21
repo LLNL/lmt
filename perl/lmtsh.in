@@ -38,11 +38,12 @@ my $debug     = (defined $main::opt_d) ? 1 : 0;
 my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
 my $config    = (defined $main::opt_c) ? $main::opt_c : undef;
 Usage() if (defined $main::opt_h);
-Usage() if (not defined $filesys);
 
 
 my $lmt = LMT->new($config);
+my @filesystems = $lmt->getFilesystemList();
 
+$filesys = $filesystems[0] if (not defined($filesys));
 $lmt->connect($filesys) or die ("Could not connect to FS: $filesys\n");
 $lmt->dieOnError(0);
 my @tables = $lmt->getTableList();
@@ -50,14 +51,13 @@ my @tables = $lmt->getTableList();
 my $prompt = "$filesys> ";
 my $where = "";
 
-#my $term = new Term::ReadLine::Perl 'LMT Shell';
 my $term = new Term::ReadLine 'LMT Shell';
 
 $readline::rl_completion_function = "main::completion";
 
 while ( defined (my $cmd = $term->readline($prompt)) ) {
 
-#    $term->AddHistory($cmd);	## normally this is done implictly
+    $term->AddHistory($cmd);	## normally this is done implictly
 #    my @args = split /\s+/, $cmd;
 
     my @args=smartSplit($cmd);
@@ -70,16 +70,22 @@ while ( defined (my $cmd = $term->readline($prompt)) ) {
 
     if (/^f[s]{0,1}$/) {
 	#----------------------------------------------------------------------
-	# Switch to given filesys
+	# List all filesystems (if no args given), or switch to given filesys
 	#----------------------------------------------------------------------
 	if (scalar(@args) == 0) {
-	    print "Specify a file system\n";
+	    print "Available filesystems:\n";
+	    foreach my $t (@filesystems) {
+		print "\t$t\n";
+	    }
 	} else {
 	    my $fs = shift @args;
-
-	    $lmt->disconnect();
-	    $lmt->connect($fs);
-	    $prompt = "lmt-$fs> ";
+	    if (grep /^$fs$/, @filesystems) {
+		$lmt->disconnect();
+		$lmt->connect($fs);
+		$prompt = "lmt-$fs> ";
+	    } else {
+		print "Unknown filesystem: $fs\n";
+	    }
 	}
     } elsif (/^t$/) {
 	#----------------------------------------------------------------------
@@ -378,7 +384,7 @@ Available commands:
   cat table           : Print contents of table
   clr table           : Clear contents of table; 'agg' to clear all agg tables
   dt t1 t2            : Show diff in seconds between two timestamps (or ts ids)
-  fs filesys          : or connect to given file system
+  fs [filesys]        : List available filesystems, or connect to given one
   getwindow table startTime endTime|+interval field(s)
                       : Get window of data between startTime (ts|tsid) and
                          endTime (ts or tsid or +interval), returning field(s)
@@ -436,12 +442,12 @@ sub smartSplit {
 
 sub Usage {
     print<<EOF;
-Usage: $0 [-d] [-v] [-f filesys] [-c filename]
+Usage: $0 [-d] [-v] [-f filesys]
 
   -d          Debug mode
   -v          Verbose mode
-  -f filesys  Connect to filesys
-  -c filename Use alternate lmt.conf file
+  -f filesys  Connect to filesys (default is first found)
+  -c config   Use alternate config file
 
 EOF
 
