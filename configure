@@ -23358,6 +23358,8 @@ _ACEOF
 
           ac_config_files="$ac_config_files perl/lmt_update_router_agg"
 
+          ac_config_files="$ac_config_files perl/lmt_agg.cron"
+
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -23974,6 +23976,7 @@ do
   "perl/lmt_update_ost_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_ost_agg" ;;
   "perl/lmt_update_other_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_other_agg" ;;
   "perl/lmt_update_router_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_router_agg" ;;
+  "perl/lmt_agg.cron" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_agg.cron" ;;
   "depfiles" ) CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
   "config/config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config/config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
@@ -24429,6 +24432,8 @@ s,@INSTALL@,$ac_INSTALL,;t t
        chmod +x perl/lmt_update_other_agg ;;
     perl/lmt_update_router_agg ) \
        chmod +x perl/lmt_update_router_agg ;;
+    perl/lmt_agg.cron ) \
+       chmod +x perl/lmt_agg.cron ;;
   esac
 done
 _ACEOF

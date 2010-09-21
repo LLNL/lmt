@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #===============================================================================
-#                                    lmt_agg.sh
+#                                    lmt_agg.cron
 #-------------------------------------------------------------------------------
 #  Purpose:     Runs the various aggregate generation scripts
 #  Notes:       
@@ -23,11 +23,11 @@
 #===============================================================================
 
 # Unless overridden with -bindir...
-lmtDir="/usr/sbin"
+lmtDir="@X_DATADIR@/@PACKAGE@"
 # Unless overridden with -logdir...
-logDir="/var/tmp"
+logDir="${TMPDIR:-/var/tmp}"
 # Unless overridden with -c...
-lmtrc="/usr/share/lmt/cron/lmtrc"
+conffile="@X_SYSCONFDIR@/@PACKAGE@/lmt.conf"
 
 keeplog=0
 
@@ -60,7 +60,8 @@ do
    esac
 done
 
-if [ -z $FILESYSTEMS ]
+[ -n "$FILESYSTEMS" ] || FILESYSTEMS=`$lmtDir/lmtsh -l`
+if [ -z "$FILESYSTEMS" ]
 then
     echo "*** Error: must specify at least one filesystem name"
     exit 1
@@ -70,17 +71,6 @@ if [ ! -r "$lmtDir/lmt_update_ost_agg" ]
 then
     echo "***  Error: Could not locate lmt_update_ost_agg script in dir: $lmtDir"
     exit 1
-fi
-
-if [ ! $lmtDir="/usr/sbin" ]
-then
-    if [ -z $PERL5LIB ]
-    then
-	PERL5LIB="$lmtDir/../lib/perl"
-    else
-	PERL5LIB="${PERL5LIB}:$lmtDir/../lib/perl"
-    fi
-    export PERL5LIB
 fi
 
 for filesys in $FILESYSTEMS

@@ -106,5 +106,7 @@ AC_CONFIG_FILES([perl/lmt_update_other_agg], \
        [chmod +x perl/lmt_update_other_agg])
 AC_CONFIG_FILES([perl/lmt_update_router_agg], \
        [chmod +x perl/lmt_update_router_agg])
+AC_CONFIG_FILES([perl/lmt_agg.cron], \
+       [chmod +x perl/lmt_agg.cron])
 
 AC_OUTPUT

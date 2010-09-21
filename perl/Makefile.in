@@ -40,8 +40,8 @@ host_triplet = @host@
 target_triplet = @target@
 subdir = perl
 DIST_COMMON = $(srcdir)/LMT.pm.in $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/lmt_update_fs_agg.in \
-	$(srcdir)/lmt_update_mds_agg.in \
+	$(srcdir)/Makefile.in $(srcdir)/lmt_agg.cron.in \
+	$(srcdir)/lmt_update_fs_agg.in $(srcdir)/lmt_update_mds_agg.in \
 	$(srcdir)/lmt_update_ost_agg.in \
 	$(srcdir)/lmt_update_other_agg.in \
 	$(srcdir)/lmt_update_router_agg.in $(srcdir)/lmtsh.in
@@ -58,12 +58,13 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES = LMT.pm lmtsh lmt_update_fs_agg lmt_update_mds_agg \
-	lmt_update_ost_agg lmt_update_other_agg lmt_update_router_agg
-am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptlibdir)" \
-	"$(DESTDIR)$(scriptlibdir)"
-sbinSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+	lmt_update_ost_agg lmt_update_other_agg lmt_update_router_agg \
+	lmt_agg.cron
+am__installdirs = "$(DESTDIR)$(cronlibdir)" \
+	"$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"
+cronlibSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 scriptlibSCRIPT_INSTALL = $(INSTALL_SCRIPT)
-SCRIPTS = $(noinst_SCRIPTS) $(sbin_SCRIPTS) $(scriptlib_SCRIPTS)
+SCRIPTS = $(cronlib_SCRIPTS) $(scriptlib_SCRIPTS)
 SOURCES =
 DIST_SOURCES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -221,27 +222,26 @@ target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
-noinst_SCRIPTS = \
-	lmt_agg.sh \
-	lmt_agg.cron
-
-sbin_SCRIPTS = \
-	lmtsh
-
+scriptlibdir = @X_DATADIR@/@PACKAGE@
+cronlibdir = @X_DATADIR@/@PACKAGE@/cron
 scriptlib_SCRIPTS = \
 	lmt_update_fs_agg \
 	lmt_update_mds_agg \
 	lmt_update_ost_agg \
 	lmt_update_other_agg \
 	lmt_update_router_agg \
-	lmtcf
+	lmtcf \
+	lmtsh
 
-scriptlibdir = @X_DATADIR@/@PACKAGE@
 scriptlib_DATA = \
 	LMT.pm
 
+cronlib_SCRIPTS = \
+	lmt_agg.cron
+
 CLEANFILES = \
 	lmtsh \
+	lmt_agg.cron \
         lmt_update_fs_agg \
         lmt_update_mds_agg \
         lmt_update_ost_agg \
@@ -295,24 +295,26 @@ lmt_update_other_agg: $(top_builddir)/config.status $(srcdir)/lmt_update_other_a
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 lmt_update_router_agg: $(top_builddir)/config.status $(srcdir)/lmt_update_router_agg.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
-install-sbinSCRIPTS: $(sbin_SCRIPTS)
+lmt_agg.cron: $(top_builddir)/config.status $(srcdir)/lmt_agg.cron.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+install-cronlibSCRIPTS: $(cronlib_SCRIPTS)
 	@$(NORMAL_INSTALL)
-	test -z "$(sbindir)" || $(mkdir_p) "$(DESTDIR)$(sbindir)"
-	@list='$(sbin_SCRIPTS)'; for p in $$list; do \
+	test -z "$(cronlibdir)" || $(mkdir_p) "$(DESTDIR)$(cronlibdir)"
+	@list='$(cronlib_SCRIPTS)'; for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  if test -f $$d$$p; then \
 	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
-	    echo " $(sbinSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(sbindir)/$$f'"; \
-	    $(sbinSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(sbindir)/$$f"; \
+	    echo " $(cronlibSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(cronlibdir)/$$f'"; \
+	    $(cronlibSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(cronlibdir)/$$f"; \
 	  else :; fi; \
 	done
 
-uninstall-sbinSCRIPTS:
+uninstall-cronlibSCRIPTS:
 	@$(NORMAL_UNINSTALL)
-	@list='$(sbin_SCRIPTS)'; for p in $$list; do \
+	@list='$(cronlib_SCRIPTS)'; for p in $$list; do \
 	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
-	  echo " rm -f '$(DESTDIR)$(sbindir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(sbindir)/$$f"; \
+	  echo " rm -f '$(DESTDIR)$(cronlibdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(cronlibdir)/$$f"; \
 	done
 install-scriptlibSCRIPTS: $(scriptlib_SCRIPTS)
 	@$(NORMAL_INSTALL)
@@ -398,7 +400,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(SCRIPTS) $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"; do \
+	for dir in "$(DESTDIR)$(cronlibdir)" "$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: install-am
@@ -444,9 +446,10 @@ info: info-am
 
 info-am:
 
-install-data-am: install-scriptlibDATA install-scriptlibSCRIPTS
+install-data-am: install-cronlibSCRIPTS install-scriptlibDATA \
+	install-scriptlibSCRIPTS
 
-install-exec-am: install-sbinSCRIPTS
+install-exec-am:
 
 install-info: install-info-am
 
@@ -470,20 +473,21 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-info-am uninstall-sbinSCRIPTS \
+uninstall-am: uninstall-cronlibSCRIPTS uninstall-info-am \
 	uninstall-scriptlibDATA uninstall-scriptlibSCRIPTS
 
 .PHONY: all all-am check check-am clean clean-generic clean-libtool \
 	distclean distclean-generic distclean-libtool distdir dvi \
 	dvi-am html html-am info info-am install install-am \
-	install-data install-data-am install-exec install-exec-am \
-	install-info install-info-am install-man install-sbinSCRIPTS \
-	install-scriptlibDATA install-scriptlibSCRIPTS install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-generic \
-	mostlyclean-libtool pdf pdf-am ps ps-am uninstall uninstall-am \
-	uninstall-info-am uninstall-sbinSCRIPTS \
-	uninstall-scriptlibDATA uninstall-scriptlibSCRIPTS
+	install-cronlibSCRIPTS install-data install-data-am \
+	install-exec install-exec-am install-info install-info-am \
+	install-man install-scriptlibDATA install-scriptlibSCRIPTS \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	uninstall uninstall-am uninstall-cronlibSCRIPTS \
+	uninstall-info-am uninstall-scriptlibDATA \
+	uninstall-scriptlibSCRIPTS
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
