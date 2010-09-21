@@ -36,7 +36,7 @@ my $doMds     = (defined $main::opt_m) ? 1 : 0;
 my $doRouter  = (defined $main::opt_r) ? 1 : 0;
 my $replaceAll= (defined $main::opt_R) ? 1 : 0;
 my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
-my $config    = (defined $main::opt_c) ? $main::opt_c : "$ENV{HOME}/.lmtrc";
+my $config    = (defined $main::opt_c) ? $main::opt_c : undef;
 
 Usage("Must specify filesystem") if (not defined($filesys));
 

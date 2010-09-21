@@ -36,14 +36,13 @@ Usage() if (not getopts('c:dhvf:'));
 my $verbose   = (defined $main::opt_v) ? 1 : 0;
 my $debug     = (defined $main::opt_d) ? 1 : 0;
 my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
-my $config    = (defined $main::opt_c) ? $main::opt_c : "$ENV{HOME}/.lmtrc";
+my $config    = (defined $main::opt_c) ? $main::opt_c : undef;
 Usage() if (defined $main::opt_h);
+Usage() if (not defined $filesys);
 
 
 my $lmt = LMT->new($config);
-my @filesystems = $lmt->getFilesystemList();
 
-$filesys = $filesystems[0] if (not defined($filesys));
 $lmt->connect($filesys) or die ("Could not connect to FS: $filesys\n");
 $lmt->dieOnError(0);
 my @tables = $lmt->getTableList();
@@ -71,22 +70,16 @@ while ( defined (my $cmd = $term->readline($prompt)) ) {
 
     if (/^f[s]{0,1}$/) {
 	#----------------------------------------------------------------------
-	# List all filesystems (if no args given), or switch to given filesys
+	# Switch to given filesys
 	#----------------------------------------------------------------------
 	if (scalar(@args) == 0) {
-	    print "Available filesystems:\n";
-	    foreach my $t (@filesystems) {
-		print "\t$t\n";
-	    }
+	    print "Specify a file system\n";
 	} else {
 	    my $fs = shift @args;
-	    if (grep /^$fs$/, @filesystems) {
-		$lmt->disconnect();
-		$lmt->connect($fs);
-		$prompt = "lmt-$fs> ";
-	    } else {
-		print "Unknown filesystem: $fs\n";
-	    }
+
+	    $lmt->disconnect();
+	    $lmt->connect($fs);
+	    $prompt = "lmt-$fs> ";
 	}
     } elsif (/^t$/) {
 	#----------------------------------------------------------------------
@@ -385,7 +378,7 @@ Available commands:
   cat table           : Print contents of table
   clr table           : Clear contents of table; 'agg' to clear all agg tables
   dt t1 t2            : Show diff in seconds between two timestamps (or ts ids)
-  fs [filesys]        : List available filesystems, or connect to given one
+  fs filesys          : or connect to given file system
   getwindow table startTime endTime|+interval field(s)
                       : Get window of data between startTime (ts|tsid) and
                          endTime (ts or tsid or +interval), returning field(s)
@@ -443,11 +436,12 @@ sub smartSplit {
 
 sub Usage {
     print<<EOF;
-Usage: $0 [-d] [-v] [-f filesys]
+Usage: $0 [-d] [-v] [-f filesys] [-c filename]
 
   -d          Debug mode
   -v          Verbose mode
-  -f filesys  Connect to filesys (default is ti1)
+  -f filesys  Connect to filesys
+  -c filename Use alternate lmt.conf file
 
 EOF
 

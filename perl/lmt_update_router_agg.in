@@ -34,7 +34,7 @@ my $debug     = (defined $main::opt_d) ? 1 : 0;
 my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
 my $hourlyTable=(defined $main::opt_t) ? $main::opt_t : "ROUTER_AGGREGATE_HOUR";
 my $rawTable   =(defined $main::opt_r) ? $main::opt_r : "ROUTER_DATA";
-my $config    = (defined $main::opt_c) ? $main::opt_c : "$ENV{HOME}/.lmtrc";
+my $config    = (defined $main::opt_c) ? $main::opt_c : undef;
 
 Usage("Must specify filesystem") if (not defined($filesys));
 

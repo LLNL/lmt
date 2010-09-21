@@ -10,6 +10,7 @@
 #
 #  Modification History:
 #       02/17/2007 - jwl: Initial version.
+#       09/20/2010 - jg:  Use new lmt.conf file instead of old lmtrc
 #===============================================================================
 package LMT;
 
@@ -25,8 +26,7 @@ my $BOOTSTRAPPED    = 0;		# Have we read bootstrapping info yet?
 my $CONNECTED       = 0;		# Have we connected to a DB?
 my $ACTIVE_DB       = "";		# Active DBI DB string
 my $ACTIVE_FILESYSTEM = "";		# Name of active filesystem
-my %FILESYS_HASHES  = ();		# Info about available filesystems
-my @FILESYS_NAMES   = ();		# Names of avail filesystems, in original order
+my %CONFIG = ();		        # Configuration
 
 my $DIE_ON_ERROR    = 1;		# Die if an error is encountered
 my $VERBOSE         = 0;		# Basic diagnostics?
@@ -53,27 +53,21 @@ sub new {
 ###############################
 sub _init {
     my $self = shift;
-    my $lmtrc = shift;
+    my $cf = shift;
 
-    # Get bootstrap info from ~/.lmtrc if not supplied on exec line
-    $lmtrc = "$ENV{HOME}/.lmtrc"
-      if (not $lmtrc or not -r $lmtrc);
+    # Get bootstrap info from system lmt.conf if not supplied on exec line
+    $cf = "@X_SYSCONFDIR@/@PACKAGE@/lmt.conf"
+      if (not $cf);
 
-    my %fsHash = _parseConf($lmtrc, "filesys.0");
+    my %cfHash = _parseConf($cf);
 	
-    die ("[LMT:init] Missing configuration file or configuration info: $lmtrc\n")
-      if (not %fsHash);
+    die ("[LMT:init] Missing configuration file or configuration info: $cf\n")
+      if (not %cfHash);
 
     $self->{ACTIVE_DB} = "";
     $self->{CONNECTED} = 0;
     $self->{ACTIVE_FILESYSTEM} = "";
-
-    # Store filesys info for items listed in lmtrc
-    foreach my $key (sort keys %fsHash) {
-	my %h = %{$fsHash{$key}};
-	push @{$self->{FILESYS_NAMES}}, $h{dbname};
-	$self->{FILESYS_HASHES}->{$h{dbname}} = \%h;
-    }
+    $self->{CONFIG} = \%cfHash;
     $self->{BOOTSTRAPPED} = 1;
 }
 
@@ -96,10 +90,10 @@ sub connect {
 	$fsinfo{dbauth} = $connectInfo{auth};
     } else {
 	# Connect using info from bootstramp DB
-	die ("[LMT::connect] - System not bootstrapped\n") if (not $self->{FILESYS_HASHES});
-	die ("[LMT::connect] - Unknown filesystem: $filesys\n")
-	    if (not defined $self->{FILESYS_HASHES}{$filesys});
-	%fsinfo = %{$self->{FILESYS_HASHES}{$filesys}};
+	die ("[LMT::connect] - System not bootstrapped\n") if (not $self->{CONFIG});
+	%fsinfo = %{$self->{CONFIG}};
+        $fsinfo{name} = $filesys;
+        $fsinfo{dbname} = "filesystem_" . $filesys;
     }
     
     my $db = "DBI:mysql:database=$fsinfo{dbname};host=$fsinfo{dbhost};port=$fsinfo{dbport}";
@@ -266,15 +260,6 @@ sub getActiveFilesystem {
     my $self = shift;
 
     return $self->{ACTIVE_FILESYSTEM};
-}
-
-###############################
-#  Method: getFilesystemList
-###############################
-sub getFilesystemList {
-    my $self = shift;
-    
-    return @{$self->{FILESYS_NAMES}};
 }
 
 ###############################
@@ -820,31 +805,17 @@ sub generateGetDataWindowQuery {
 ###############################
 sub _parseConf {
     my $file = shift;
+    my %fsinfo =();
 
-    my %filesysHash=(); # Hash of hash refs - one per filesystem
-    
-    if (not $file or not -r $file) {
-	print STDERR "[LMT::_parseConf] Could not access configuration file: $file\n";
-	return ();
+    if (open HELPER, "@X_DATADIR@/@PROGRAM@/lmtcf $file|") {
+        while (<HELPER>) {
+            chomp;
+            my ($key, $val) = split /:/;
+            $fsinfo{$key} = $val;
+        }
+        close HELPER;
     }
-
-    my %out=();
-    open (CONF,"$file") || die ("[LMT::_parseConf] Could not open config file: $file\n");
-    while (<CONF>) {
-	next unless (/^filesys/); # ...and anything in other sections.
-	chomp;
-
-	my ($k,$v) = split(/=/, $_, 2);
-	my ($section,$num,$keyword) = split(/\./, $k, 3);
-
-	if (not defined($filesysHash{$num})) {
-	    my %h=();
-	    $filesysHash{$num} = *%{h};
-	}
-	$filesysHash{$num}->{$keyword} = $v;
-    }
-    close CONF;
-    return %filesysHash;
+    return %fsinfo;
 }
 
 sub max {

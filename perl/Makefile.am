@@ -12,7 +12,8 @@ scriptlib_SCRIPTS = \
 	lmt_update_mds_agg \
 	lmt_update_ost_agg \
 	lmt_update_other_agg \
-	lmt_update_router_agg
+	lmt_update_router_agg \
+	lmtcf
 
 scriptlibdir = @X_DATADIR@/@PACKAGE@
 
@@ -25,4 +26,6 @@ CLEANFILES = \
         lmt_update_mds_agg \
         lmt_update_ost_agg \
         lmt_update_other_agg \
-        lmt_update_router_agg
+        lmt_update_router_agg \
+	LMT.pm \
+	lmtcf
