@@ -62,8 +62,9 @@ rm -rf $RPM_BUILD_ROOT
 %files server
 %defattr(-,root,root)
 %{_libdir}/cerebro/cerebro_monitor_lmt*
-%{_sbindir}/*
-%{_bindir}/*
+%{_sbindir}/lmtsh
+%{_sbindir}/create_lmtconfig
+%{_bindir}/ltop
 %{_mandir}/man1/*
 %{_mandir}/man8/*
 %{_datadir}/lmt/*
@@ -72,3 +73,4 @@ rm -rf $RPM_BUILD_ROOT
 
 %files server-agent
 %{_libdir}/cerebro/cerebro_metric_lmt*
+%{_sbindir}/lmtmetric
