@@ -111,9 +111,8 @@ typedef enum {
     SORT_LGR, SORT_LCR, SORT_CONN,
 } sort_t;
 
-static void _poll_osc (char *fs, List ost_data, int stale_secs);
-static void _poll_ost (char *fs, List ost_data, int stale_secs);
-static void _poll_mdt (char *fs, List mdt_data, int stale_secs);
+static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
+                           int stale_secs);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
                                  List ost_data, int stale_secs);
 static void _update_display_ost (WINDOW *win, List ost_data, int minost,
@@ -204,9 +203,7 @@ main (int argc, char *argv[])
     /* Poll cerebro for data, then sort the ost data for display.
      * If either the mds or any ost's are up, then ostcount > 0.
      */
-    _poll_osc (fs, ost_data, stale_secs);
-    _poll_ost (fs, ost_data, stale_secs);
-    _poll_mdt (fs, mdt_data, stale_secs);
+    _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
     _sort_ostlist (ost_data, sortby);
     assert (ostview);
     if ((ostcount = list_count (ost_data)) == 0)
@@ -330,9 +327,7 @@ main (int argc, char *argv[])
                 break;
         }
         if (time (NULL) - last_sample >= sample_period) {
-            _poll_osc (fs, ost_data, stale_secs);
-            _poll_ost (fs, ost_data, stale_secs);
-            _poll_mdt (fs, mdt_data, stale_secs);
+            _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
             if (!ostview)
                 _summarize_ost (ost_data, oss_data, stale_secs);
             ostcount = list_count (ostview ? ost_data : oss_data);
@@ -778,13 +773,28 @@ _copy_oststat (oststat_t *o1)
     return o;
 }
 
+/* Match an OST or MDT target against a file system name.
+ * Target names are assumed to be of the form fs-OSTxxxx or fs-MDTxxxx.
+ */
+static int
+_fsmatch (char *name, char *fs)
+{
+    char *p = strchr (name, '-');
+    int len = p ? p - name : strlen (name);
+
+    if (strlen (fs) == len && strncmp (name, fs, len) == 0)
+        return 1;
+    return 0;
+}
+
 /* Update oststat_t record (oscstate field) in ost_data list for
  * specified ostname.  Create an entry if one doesn't exist.
  * FIXME(design): we only keep one OSC state per OST, but possibly multiple
  * MDT's are reporting it under CMD and last in wins.
  */
 static void
-_update_osc (char *name, char *state, List ost_data, int stale_secs)
+_update_osc (char *name, char *state, List ost_data,
+             time_t tnow, time_t trcv, int stale_secs)
 {
     oststat_t *o;
 
@@ -792,19 +802,47 @@ _update_osc (char *name, char *state, List ost_data, int stale_secs)
         o = _create_oststat (name, stale_secs);
         list_append (ost_data, o);
     }
-    strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
+    if (tnow - trcv > stale_secs)
+        strncpy (o->oscstate, "", sizeof (o->oscstate) - 1);
+    else    
+        strncpy (o->oscstate, state, sizeof (o->oscstate) - 1);
+}
+
+static void
+_decode_osc_v1 (char *val, char *fs, List ost_data,
+             time_t tnow, time_t trcv, int stale_secs)
+{
+    char *s, *mdsname, *oscname, *oscstate;
+    List oscinfo;
+    ListIterator itr;
+
+    if (lmt_osc_decode_v1 (val, &mdsname, &oscinfo) < 0)
+        return;
+    itr = list_iterator_create (oscinfo);
+    while ((s = list_next (itr))) {
+        if (lmt_osc_decode_v1_oscinfo (s, &oscname, &oscstate) >= 0) {
+            if (_fsmatch (oscname, fs))
+                _update_osc (oscname, oscstate, ost_data,
+                             tnow, trcv, stale_secs);
+            free (oscname);
+            free (oscstate);
+        }
+    }
+    list_iterator_destroy (itr);
+    list_destroy (oscinfo);
+    free (mdsname);
 }
 
 /* Update oststat_t record in ost_data list for specified ostname.
  * Create an entry if one doesn't exist.
  */
 static void
-_update_ost (char *ostname, char *ossname, time_t t,
-             uint64_t read_bytes, uint64_t write_bytes, uint64_t iops,
-             uint64_t num_exports, uint64_t lock_count, uint64_t grant_rate,
-             uint64_t cancel_rate, uint64_t connect,
-             char *recov_status, uint64_t kbytes_free, uint64_t kbytes_total,
-             int stale_secs, List ost_data)
+_update_ost (char *ostname, char *ossname, uint64_t read_bytes,
+             uint64_t write_bytes, uint64_t iops, uint64_t num_exports,
+             uint64_t lock_count, uint64_t grant_rate, uint64_t cancel_rate,
+             uint64_t connect, char *recov_status, uint64_t kbytes_free,
+             uint64_t kbytes_total, List ost_data,
+             time_t tnow, time_t trcv, int stale_secs)
 {
     oststat_t *o;
 
@@ -812,7 +850,7 @@ _update_ost (char *ostname, char *ossname, time_t t,
         o = _create_oststat (ostname, stale_secs);
         list_append (ost_data, o);
     }
-    if (o->ost_metric_timestamp < t) {
+    if (o->ost_metric_timestamp < trcv) {
         if (strcmp (ossname, o->ossname) != 0) { /* failover/failback */
             sample_invalidate (o->rbytes);
             sample_invalidate (o->wbytes);
@@ -823,29 +861,72 @@ _update_ost (char *ostname, char *ossname, time_t t,
             sample_invalidate (o->kbytes_total);
             snprintf (o->ossname, sizeof (o->ossname), "%s", ossname);
         }
-        o->ost_metric_timestamp = t;
-        sample_update (o->rbytes, (double)read_bytes, t);
-        sample_update (o->wbytes, (double)write_bytes, t);
-        sample_update (o->iops, (double)iops, t);
-        sample_update (o->num_exports, (double)num_exports, t);
-        sample_update (o->lock_count, (double)lock_count, t);
-        sample_update (o->grant_rate, (double)grant_rate, t);
-        sample_update (o->cancel_rate, (double)cancel_rate, t);
-        sample_update (o->connect, (double)connect, t);
-        sample_update (o->kbytes_free, (double)kbytes_free, t);
-        sample_update (o->kbytes_total, (double)kbytes_total, t);
+        o->ost_metric_timestamp = trcv;
+        sample_update (o->rbytes, (double)read_bytes, trcv);
+        sample_update (o->wbytes, (double)write_bytes, trcv);
+        sample_update (o->iops, (double)iops, trcv);
+        sample_update (o->num_exports, (double)num_exports, trcv);
+        sample_update (o->lock_count, (double)lock_count, trcv);
+        sample_update (o->grant_rate, (double)grant_rate, trcv);
+        sample_update (o->cancel_rate, (double)cancel_rate, trcv);
+        sample_update (o->connect, (double)connect, trcv);
+        sample_update (o->kbytes_free, (double)kbytes_free, trcv);
+        sample_update (o->kbytes_total, (double)kbytes_total, trcv);
         snprintf (o->recov_status, sizeof(o->recov_status), "%s", recov_status);
     }
+}
+
+static void
+_decode_ost_v2 (char *val, char *fs, List ost_data,
+                time_t tnow, time_t trcv, int stale_secs)
+{
+    List ostinfo;
+    char *s, *ossname, *ostname, *recov_status;
+    float pct_cpu, pct_mem;
+    uint64_t read_bytes, write_bytes;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+    uint64_t iops, num_exports;
+    uint64_t lock_count, grant_rate, cancel_rate;
+    uint64_t connect, reconnect;
+    ListIterator itr;
+    
+    if (lmt_ost_decode_v2 (val, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
+        return;
+    itr = list_iterator_create (ostinfo);
+    while ((s = list_next (itr))) {
+        if (lmt_ost_decode_v2_ostinfo (s, &ostname,
+                                       &read_bytes, &write_bytes,
+                                       &kbytes_free, &kbytes_total,
+                                       &inodes_free, &inodes_total, &iops,
+                                       &num_exports, &lock_count,
+                                       &grant_rate, &cancel_rate,
+                                       &connect, &reconnect,
+                                       &recov_status) == 0) {
+            if (_fsmatch (ostname, fs)) {
+                _update_ost (ostname, ossname, read_bytes, write_bytes,
+                             iops, num_exports, lock_count, grant_rate,
+                             cancel_rate, connect + reconnect, recov_status,
+                             kbytes_free, kbytes_total, ost_data,
+                             tnow, trcv, stale_secs);
+            }
+            free (ostname);
+            free (recov_status);
+        }
+    }
+    list_iterator_destroy (itr);
+    list_destroy (ostinfo);
+    free (ossname);
 }
 
 /* Update mdtstat_t record in mdt_data list for specified mdtname.
  * Create an entry if one doesn't exist.
  */
 static void
-_update_mdt (char *mdtname, char *mdsname, time_t t,
-             uint64_t inodes_free, uint64_t inodes_total,
-             uint64_t kbytes_free, uint64_t kbytes_total, List mdops,
-             int stale_secs, List mdt_data)
+_update_mdt (char *mdtname, char *mdsname, uint64_t inodes_free,
+             uint64_t inodes_total, uint64_t kbytes_free,
+             uint64_t kbytes_total, List mdops, List mdt_data,
+             time_t tnow, time_t trcv, int stale_secs)
 {
     char *opname, *s;
     ListIterator itr;
@@ -856,7 +937,7 @@ _update_mdt (char *mdtname, char *mdsname, time_t t,
         m = _create_mdtstat (mdtname, stale_secs);
         list_append (mdt_data, m);
     }
-    if (m->mdt_metric_timestamp < t) {
+    if (m->mdt_metric_timestamp < trcv) {
         if (strcmp (mdsname, m->mdsname) != 0) { /* failover/failback */
             sample_invalidate (m->inodes_free);
             sample_invalidate (m->inodes_total);
@@ -873,35 +954,35 @@ _update_mdt (char *mdtname, char *mdsname, time_t t,
             sample_invalidate (m->getxattr);
             snprintf (m->mdsname, sizeof (m->mdsname), "%s", mdsname);
         }
-        m->mdt_metric_timestamp = t;
-        sample_update (m->inodes_free, (double)inodes_free, t);
-        sample_update (m->inodes_total, (double)inodes_total, t);
+        m->mdt_metric_timestamp = trcv;
+        sample_update (m->inodes_free, (double)inodes_free, trcv);
+        sample_update (m->inodes_total, (double)inodes_total, trcv);
         itr = list_iterator_create (mdops);
         while ((s = list_next (itr))) {
             if (lmt_mdt_decode_v1_mdops (s, &opname,
                                     &samples, &sum, &sumsquares) == 0) {
                 if (!strcmp (opname, "open"))
-                    sample_update (m->open, (double)samples, t);
+                    sample_update (m->open, (double)samples, trcv);
                 else if (!strcmp (opname, "close"))
-                    sample_update (m->close, (double)samples, t);
+                    sample_update (m->close, (double)samples, trcv);
                 else if (!strcmp (opname, "getattr"))
-                    sample_update (m->getattr, (double)samples, t);
+                    sample_update (m->getattr, (double)samples, trcv);
                 else if (!strcmp (opname, "setattr"))
-                    sample_update (m->setattr, (double)samples, t);
+                    sample_update (m->setattr, (double)samples, trcv);
                 else if (!strcmp (opname, "link"))
-                    sample_update (m->link, (double)samples, t);
+                    sample_update (m->link, (double)samples, trcv);
                 else if (!strcmp (opname, "unlink"))
-                    sample_update (m->unlink, (double)samples, t);
+                    sample_update (m->unlink, (double)samples, trcv);
                 else if (!strcmp (opname, "mkdir"))
-                    sample_update (m->mkdir, (double)samples, t);
+                    sample_update (m->mkdir, (double)samples, trcv);
                 else if (!strcmp (opname, "rmdir"))
-                    sample_update (m->rmdir, (double)samples, t);
+                    sample_update (m->rmdir, (double)samples, trcv);
                 else if (!strcmp (opname, "statfs"))
-                    sample_update (m->statfs, (double)samples, t);
+                    sample_update (m->statfs, (double)samples, trcv);
                 else if (!strcmp (opname, "rename"))
-                    sample_update (m->rename, (double)samples, t);
+                    sample_update (m->rename, (double)samples, trcv);
                 else if (!strcmp (opname, "getxattr"))
-                    sample_update (m->getxattr, (double)samples, t);
+                    sample_update (m->getxattr, (double)samples, trcv);
                 free (opname);
             }
         }
@@ -909,168 +990,65 @@ _update_mdt (char *mdtname, char *mdsname, time_t t,
     }
 }
 
-/* Match an OST or MDT target against a file system name.
- * Target names are assumed to be of the form fs-OSTxxxx or fs-MDTxxxx.
- */
-static int
-_fsmatch (char *name, char *fs)
-{
-    char *p = strchr (name, '-');
-    int len = p ? p - name : strlen (name);
-
-    if (strlen (fs) == len && strncmp (name, fs, len) == 0)
-        return 1;
-    return 0;
-}
-
-/* Obtain lmt_osc records from cerebro and update ost_data.
- * Note that this is a way to get a list of all the OST's
- * when starting up, even if they have never reported in to cerebro.
- */
 static void
-_poll_osc (char *fs, List ost_data, int stale_secs)
+_decode_mdt_v1 (char *val, char *fs, List mdt_data,
+                time_t tnow, time_t trcv, int stale_secs)
 {
-    cmetric_t c;
-    List oscinfo, l = NULL;
-    char *s, *val, *mdsname, *oscname, *oscstate;
-    ListIterator itr, itr2;
-    float vers;
-    time_t t, now = time (NULL);
-
-    if (lmt_cbr_get_metrics ("lmt_osc", &l) < 0)
-        return;
-    itr = list_iterator_create (l);
-    while ((c = list_next (itr))) {
-        t = lmt_cbr_get_time (c);
-        if (!(val = lmt_cbr_get_val (c)))
-            continue;
-        if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
-            continue; 
-        if (lmt_osc_decode_v1 (val, &mdsname, &oscinfo) < 0)
-            continue;
-        free (mdsname);
-        itr2 = list_iterator_create (oscinfo);
-        while ((s = list_next (itr2))) {
-            if (lmt_osc_decode_v1_oscinfo (s, &oscname, &oscstate) == 0) {
-                if (_fsmatch (oscname, fs)) {
-                    if (now - t > stale_secs)
-                        _update_osc (oscname, "", ost_data, stale_secs);
-                    else
-                        _update_osc (oscname, oscstate, ost_data, stale_secs);
-                }
-                free (oscname);
-                free (oscstate);
-            }
-        }
-        list_iterator_destroy (itr2);
-        list_destroy (oscinfo);
-    }
-    list_iterator_destroy (itr);
-    list_destroy (l);
-}
-
-/* Obtain lmt_ost records from cerebro and update ost_data.
- */
-static void
-_poll_ost (char *fs, List ost_data, int stale_secs)
-{
-    cmetric_t c;
-    List ostinfo, l = NULL;
-    char *s, *val, *ossname, *ostname, *recov_status;
-    float pct_cpu, pct_mem;
-    uint64_t read_bytes, write_bytes;
-    uint64_t kbytes_free, kbytes_total;
-    uint64_t inodes_free, inodes_total;
-    uint64_t iops, num_exports;
-    uint64_t lock_count, grant_rate, cancel_rate;
-    uint64_t connect, reconnect;
-    ListIterator itr, itr2;
-    float vers;
-    time_t t;
-    
-    if (lmt_cbr_get_metrics ("lmt_ost", &l) < 0)
-        return;
-    itr = list_iterator_create (l);
-    while ((c = list_next (itr))) {
-        if (!(val = lmt_cbr_get_val (c)))
-            continue;
-        if (sscanf (val, "%f;", &vers) != 1 || vers != 2)
-            continue; 
-        t = lmt_cbr_get_time (c);
-        if (lmt_ost_decode_v2 (val, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
-            continue;
-        itr2 = list_iterator_create (ostinfo);
-        while ((s = list_next (itr2))) {
-            if (lmt_ost_decode_v2_ostinfo (s, &ostname,
-                                           &read_bytes, &write_bytes,
-                                           &kbytes_free, &kbytes_total,
-                                           &inodes_free, &inodes_total, &iops,
-                                           &num_exports, &lock_count,
-                                           &grant_rate, &cancel_rate,
-                                           &connect, &reconnect,
-                                           &recov_status) == 0) {
-                if (_fsmatch (ostname, fs)) {
-                    _update_ost (ostname, ossname, t, read_bytes, write_bytes,
-                                 iops, num_exports, lock_count, grant_rate,
-                                 cancel_rate, connect + reconnect,
-                                 recov_status, kbytes_free, kbytes_total,
-                                 stale_secs, ost_data);
-                }
-                free (ostname);
-                free (recov_status);
-            }
-        }
-        list_iterator_destroy (itr2);
-        list_destroy (ostinfo);
-        free (ossname);
-    }
-    list_iterator_destroy (itr);
-    list_destroy (l);
-}
-
-/* Obtain lmt_mdt records from cerebro and update mdt_data.
- */
-static void
-_poll_mdt (char *fs, List mdt_data, int stale_secs)
-{
-    cmetric_t c;
-    List mdops, mdtinfo, l = NULL;
-    char *s, *val, *mdsname, *mdtname;
+    List mdops, mdtinfo;
+    char *s, *mdsname, *mdtname;
     float pct_cpu, pct_mem;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
-    ListIterator itr, itr2;
-    float vers;
-    time_t t;
+    ListIterator itr;
 
-    if (lmt_cbr_get_metrics ("lmt_mdt", &l) < 0)
+    if (lmt_mdt_decode_v1 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+        return;
+    itr = list_iterator_create (mdtinfo);
+    while ((s = list_next (itr))) {
+        if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
+                                       &inodes_total, &kbytes_free,
+                                       &kbytes_total, &mdops) == 0) {
+            if (_fsmatch (mdtname, fs)) {
+                _update_mdt (mdtname, mdsname, inodes_free, inodes_total,
+                             kbytes_free, kbytes_total, mdops, mdt_data,
+                             tnow, trcv, stale_secs);
+            }
+            free (mdtname);
+            list_destroy (mdops);
+        }
+    }
+    list_iterator_destroy (itr);
+    list_destroy (mdtinfo);
+    free (mdsname);
+}
+
+static void
+_poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs)
+{
+    time_t trcv, tnow = time (NULL);
+    cmetric_t c;
+    List l = NULL;
+    char *s, *name;
+    ListIterator itr;
+    float vers;
+
+    if (lmt_cbr_get_metrics ("lmt_mdt,lmt_ost,lmt_osc", &l) < 0)
         return;
     itr = list_iterator_create (l);
     while ((c = list_next (itr))) {
-        if (!(val = lmt_cbr_get_val (c)))
+        if (!(name = lmt_cbr_get_name (c)))
             continue;
-        if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
-            continue; 
-        t = lmt_cbr_get_time (c);
-        if (lmt_mdt_decode_v1 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+        if (!(s = lmt_cbr_get_val (c)))
             continue;
-        free (mdsname);
-        itr2 = list_iterator_create (mdtinfo);
-        while ((s = list_next (itr2))) {
-            if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
-                                           &inodes_total, &kbytes_free,
-                                           &kbytes_total, &mdops) == 0) {
-                if (_fsmatch (mdtname, fs)) {
-                    _update_mdt (mdtname, mdsname, t, inodes_free, inodes_total,
-                                 kbytes_free, kbytes_total, mdops, stale_secs,
-                                 mdt_data);
-                }
-                free (mdtname);
-                list_destroy (mdops);
-            }
-        }
-        list_iterator_destroy (itr2);
-        list_destroy (mdtinfo);
+        if (sscanf (s, "%f;", &vers) != 1)
+            continue;
+        trcv = lmt_cbr_get_time (c);
+        if (!strcmp (name, "lmt_mdt") && vers == 1)
+            _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
+        else if (!strcmp (name, "lmt_ost") && vers == 2)
+            _decode_ost_v2 (s, fs, ost_data, tnow, trcv, stale_secs);
+        else if (!strcmp (name, "lmt_osc") && vers == 1)
+            _decode_osc_v1 (s, fs, ost_data, tnow, trcv, stale_secs);
     }
     list_iterator_destroy (itr);
     list_destroy (l);
