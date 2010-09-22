@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
@@ -112,9 +113,9 @@ typedef enum {
 } sort_t;
 
 static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
-                           int stale_secs);
+                           int stale_secs, FILE *recf);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
-                                 List ost_data, int stale_secs);
+                                 List ost_data, int stale_secs, FILE *recf);
 static void _update_display_ost (WINDOW *win, List ost_data, int minost,
                                  int selost, int stale_secs);
 static void _destroy_oststat (oststat_t *o);
@@ -124,6 +125,8 @@ static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
 static void _sort_ostlist (List ost_data, sort_t s, time_t tnow);
 static char *_find_first_fs (void);
+static void _record (FILE *f, time_t tnow, time_t trcv, char *node,
+                     char *name, char *s);
 
 /* Hardwired display geometry.
  */
@@ -131,7 +134,7 @@ static char *_find_first_fs (void);
 #define OSTWIN_H_LINES  1       /* header lines in ostwin */
 #define HDRLINES    (TOPWIN_LINES + OSTWIN_H_LINES)
 
-#define OPTIONS "f:c:t:s:"
+#define OPTIONS "f:c:t:s:r:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
@@ -139,6 +142,7 @@ static const struct option longopts[] = {
     {"config-file",     required_argument,  0, 'c'},
     {"sample-period",   required_argument,  0, 't'},
     {"stale-secs",      required_argument,  0, 's'},
+    {"record",          required_argument,  0, 'r'},
     {0, 0, 0, 0},
 };
 #else
@@ -174,6 +178,8 @@ main (int argc, char *argv[])
     List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
     List oss_data = list_create ((ListDelF)_destroy_oststat);
     time_t tcycle, last_sample = 0;
+    char *recpath = "ltop.log";
+    FILE *recf = NULL;
 
     err_init (argv[0]);
     optind = 0;
@@ -193,6 +199,11 @@ main (int argc, char *argv[])
             case 's':   /* --stale-secs SECS */
                 stale_secs = strtoul (optarg, NULL, 10);
                 break;
+            case 'r':   /* --record FILE */
+                recpath = optarg;
+                if (!(recf = fopen (recpath, "w+")))
+                    err_exit ("error opening %s for writing", recpath);
+                break;
             default:
                 usage ();
         }
@@ -209,7 +220,7 @@ main (int argc, char *argv[])
     /* Poll cerebro for data, then sort the ost data for display.
      * If either the mds or any ost's are up, then ostcount > 0.
      */
-    _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
+    _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf);
     tcycle = time (NULL);
     _sort_ostlist (ost_data, sortby, tcycle);
     assert (ostview);
@@ -236,7 +247,7 @@ main (int argc, char *argv[])
      *   create oss_data (summary of ost_data), [repeat]
      */
     while (!isendwin ()) {
-        _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs);
+        _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs, recf);
         _update_display_ost (ostwin, ostview ? ost_data : oss_data,
                              minost, selost, stale_secs);
         switch (getch ()) {
@@ -330,11 +341,18 @@ main (int argc, char *argv[])
                 sortby = SORT_CONN;
                 resort = 1;
                 break;
+            case 'R':               /* R - toggle record mode */
+                if (recf) {
+                    (void)fclose (recf);
+                    recf = NULL;
+                } else
+                    recf = fopen (recpath, "w+");
+                break; 
             case ERR:               /* timeout */
                 break;
         }
         if (time (NULL) - last_sample >= sample_period) {
-            _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
+            _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf);
             if (!ostview)
                 _summarize_ost (ost_data, oss_data, stale_secs);
             ostcount = list_count (ostview ? ost_data : oss_data);
@@ -355,7 +373,13 @@ main (int argc, char *argv[])
     list_destroy (ost_data);
     list_destroy (mdt_data);
     list_destroy (oss_data);
-
+    
+    if (recf) {
+        if (fclose (recf) == EOF)
+            err ("Error closing %s", recpath);
+        else
+            msg ("Log recorded in %s", recpath);
+    }
     msg ("Goodbye");
     exit (0);
 }
@@ -366,7 +390,7 @@ main (int argc, char *argv[])
  */
 static void
 _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
-                     int stale_secs)
+                     int stale_secs, FILE *recf)
 {
     time_t trcv = 0, tnow = time (NULL);
     int x = 0;
@@ -411,7 +435,13 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
 
     wclear (win);
 
-    mvwprintw (win, x++, 0, "Filesystem: %s", fs);
+    mvwprintw (win, x, 0, "Filesystem: %s", fs);
+    if (recf) {
+        wattron (win, A_REVERSE);
+        mvwprintw (win, x, 70, "RECORDING");
+        wattroff (win, A_REVERSE);
+    }
+    x++;
     if (tnow - trcv > stale_secs)
         return;
     mvwprintw (win, x++, 0,
@@ -999,12 +1029,13 @@ _decode_mdt_v1 (char *val, char *fs, List mdt_data,
 }
 
 static void
-_poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs)
+_poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
+               FILE *recf)
 {
     time_t trcv, tnow = time (NULL);
     cmetric_t c;
     List l = NULL;
-    char *s, *name;
+    char *s, *name, *node;
     ListIterator itr;
     float vers;
 
@@ -1014,11 +1045,15 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs)
     while ((c = list_next (itr))) {
         if (!(name = lmt_cbr_get_name (c)))
             continue;
+        if (!(node = lmt_cbr_get_nodename (c)))
+            continue;
         if (!(s = lmt_cbr_get_val (c)))
             continue;
         if (sscanf (s, "%f;", &vers) != 1)
             continue;
         trcv = lmt_cbr_get_time (c);
+        if (recf)
+            _record (recf, tnow, trcv, node, name, s);
         if (!strcmp (name, "lmt_mdt") && vers == 1)
             _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_ost") && vers == 2)
@@ -1223,6 +1258,16 @@ _sort_ostlist (List ost_data, sort_t s, time_t tnow)
     }
     sort_tnow = tnow;
     list_sort (ost_data, c);
+}
+
+/* Write cerebro data to the log file.
+ * N.B. don't have a sensible way to handle write errors so ignore them.
+ */
+static void
+_record (FILE *f, time_t tnow, time_t trcv, char *node, char *name, char *s)
+{
+    (void)fprintf (f, "%"PRIu64" %"PRIu64" %s %s %s\n",
+                   (uint64_t)tnow, (uint64_t)trcv, node, name, s);
 }
 
 /*
