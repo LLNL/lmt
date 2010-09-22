@@ -70,7 +70,8 @@
 #endif
 
 typedef struct {
-    char name[5];
+    char fsname[17];
+    char name[17];
     char oscstate[2];
     sample_t rbytes;
     sample_t wbytes;
@@ -89,7 +90,8 @@ typedef struct {
 } oststat_t;
 
 typedef struct {
-    char name[5];
+    char fsname[17];
+    char name[17];
     sample_t inodes_free;
     sample_t inodes_total;
     sample_t open;
@@ -113,20 +115,23 @@ typedef enum {
 } sort_t;
 
 static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
-                           int stale_secs, FILE *recf);
+                           int stale_secs, FILE *recf, time_t *tp);
+static void _play_file (char *fs, List mdt_data, List ost_data,
+                        int stale_secs, FILE *playf, time_t *tp);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
-                                 List ost_data, int stale_secs, FILE *recf);
+                                 List ost_data, int stale_secs, FILE *recf,
+                                 FILE *playf, time_t tnow, int pause);
 static void _update_display_ost (WINDOW *win, List ost_data, int minost,
-                                 int selost, int stale_secs);
+                                 int selost, int stale_secs, time_t tnow);
 static void _destroy_oststat (oststat_t *o);
 static void _destroy_mdtstat (mdtstat_t *m);
 static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
 static void _sort_ostlist (List ost_data, sort_t s, time_t tnow);
-static char *_find_first_fs (void);
-static void _record (FILE *f, time_t tnow, time_t trcv, char *node,
-                     char *name, char *s);
+static char *_find_first_fs (FILE *playf, int stale_secs);
+static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
+                          char *name, char *s);
 
 /* Hardwired display geometry.
  */
@@ -134,7 +139,7 @@ static void _record (FILE *f, time_t tnow, time_t trcv, char *node,
 #define OSTWIN_H_LINES  1       /* header lines in ostwin */
 #define HDRLINES    (TOPWIN_LINES + OSTWIN_H_LINES)
 
-#define OPTIONS "f:c:t:s:r:"
+#define OPTIONS "f:c:t:s:r:p:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
@@ -143,6 +148,7 @@ static const struct option longopts[] = {
     {"sample-period",   required_argument,  0, 't'},
     {"stale-secs",      required_argument,  0, 's'},
     {"record",          required_argument,  0, 'r'},
+    {"play",            required_argument,  0, 'p'},
     {0, 0, 0, 0},
 };
 #else
@@ -172,6 +178,7 @@ main (int argc, char *argv[])
     int ostview = 1, resort = 0;
     sort_t sortby = SORT_OST;
     char *fs = NULL;
+    int sopt = 0;
     int sample_period = 2; /* seconds */
     int stale_secs = 12; /* seconds */
     List ost_data = list_create ((ListDelF)_destroy_oststat);
@@ -180,6 +187,8 @@ main (int argc, char *argv[])
     time_t tcycle, last_sample = 0;
     char *recpath = "ltop.log";
     FILE *recf = NULL;
+    FILE *playf = NULL;
+    int pause = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -195,6 +204,7 @@ main (int argc, char *argv[])
                 break;
             case 't':   /* --sample-period SECS */
                 sample_period = strtoul (optarg, NULL, 10);
+                sopt = 1;
                 break;
             case 's':   /* --stale-secs SECS */
                 stale_secs = strtoul (optarg, NULL, 10);
@@ -204,6 +214,10 @@ main (int argc, char *argv[])
                 if (!(recf = fopen (recpath, "w+")))
                     err_exit ("error opening %s for writing", recpath);
                 break;
+            case 'p':   /* --play FILE */
+                if (!(playf = fopen (optarg, "r")))
+                    err_exit ("error opening %s for reading", optarg);
+                break;
             default:
                 usage ();
         }
@@ -212,16 +226,24 @@ main (int argc, char *argv[])
         usage();
     if (lmt_conf_init (1, conffile) < 0) /* FIXME: needed? */
         exit (1);
+    if (playf && sopt)
+        msg_exit ("--sample-period and --play cannot be used together");
+    if (playf && recf)
+        msg_exit ("--record and --play cannot be used together");
     if (!fs)
-        fs = _find_first_fs();
+        fs = _find_first_fs(playf, stale_secs);
     if (!fs)
-        msg_exit ("No live mdt data found.  Try using -f option.");
+        msg_exit ("No live file system data found.  Try using -f option.");
 
     /* Poll cerebro for data, then sort the ost data for display.
      * If either the mds or any ost's are up, then ostcount > 0.
      */
-    _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf);
-    tcycle = time (NULL);
+    if (playf) {
+        _play_file (fs, mdt_data, ost_data, stale_secs, playf, &tcycle);
+        if (feof (playf))
+            msg_exit ("premature end of file on playback file");
+    } else
+        _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf, &tcycle);
     _sort_ostlist (ost_data, sortby, tcycle);
     assert (ostview);
     if ((ostcount = list_count (ost_data)) == 0)
@@ -247,9 +269,10 @@ main (int argc, char *argv[])
      *   create oss_data (summary of ost_data), [repeat]
      */
     while (!isendwin ()) {
-        _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs, recf);
+        _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs, recf,
+                             playf, tcycle, pause);
         _update_display_ost (ostwin, ostview ? ost_data : oss_data,
-                             minost, selost, stale_secs);
+                             minost, selost, stale_secs, tcycle);
         switch (getch ()) {
             case KEY_DC:            /* Delete - turn off highlighting */
                 selost = -1;
@@ -342,17 +365,29 @@ main (int argc, char *argv[])
                 resort = 1;
                 break;
             case 'R':               /* R - toggle record mode */
-                if (recf) {
-                    (void)fclose (recf);
-                    recf = NULL;
-                } else
-                    recf = fopen (recpath, "w+");
-                break; 
+                if (!playf) {
+                    if (recf) {
+                        (void)fclose (recf);
+                        recf = NULL;
+                    } else
+                        recf = fopen (recpath, "w+");
+                }
+                break;
+            case 'p':               /* p - pause playback */
+                pause = !pause;
+                break;
             case ERR:               /* timeout */
                 break;
         }
         if (time (NULL) - last_sample >= sample_period) {
-            _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf);
+            if (!pause) {
+                if (playf)
+                    _play_file (fs, mdt_data, ost_data, stale_secs, playf,
+                                &tcycle);
+                else
+                    _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf,
+                                   &tcycle);
+            }
             if (!ostview)
                 _summarize_ost (ost_data, oss_data, stale_secs);
             ostcount = list_count (ostview ? ost_data : oss_data);
@@ -363,7 +398,6 @@ main (int argc, char *argv[])
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
 
         if (resort) {
-            tcycle = time (NULL);
             _sort_ostlist (ost_data, sortby, tcycle); 
             _sort_ostlist (oss_data, sortby, tcycle); 
             resort = 0;
@@ -390,9 +424,10 @@ main (int argc, char *argv[])
  */
 static void
 _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
-                     int stale_secs, FILE *recf)
+                     int stale_secs, FILE *recf, FILE *playf, time_t tnow,
+                     int pause)
 {
-    time_t trcv = 0, tnow = time (NULL);
+    time_t trcv = 0;
     int x = 0;
     ListIterator itr;
     double rmbps = 0, wmbps = 0, iops = 0;
@@ -436,9 +471,27 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     wclear (win);
 
     mvwprintw (win, x, 0, "Filesystem: %s", fs);
-    if (recf) {
+    if (pause) {
         wattron (win, A_REVERSE);
-        mvwprintw (win, x, 70, "RECORDING");
+        mvwprintw (win, x, 73, "PAUSED");
+        wattroff (win, A_REVERSE);
+    } else if (recf) {
+        wattron (win, A_REVERSE);
+        if (ferror (recf))
+            mvwprintw (win, x, 68, "WRITE ERROR");
+        else
+            mvwprintw (win, x, 70, "RECORDING");
+        wattroff (win, A_REVERSE);
+    } else if (playf) {
+        char *ts = ctime (&tnow);
+
+        wattron (win, A_REVERSE);
+        if (ferror (playf))
+            mvwprintw (win, x, 69, "READ ERROR");
+        else if (feof (playf))
+            mvwprintw (win, x, 68, "END OF FILE");
+        else
+            mvwprintw (win, x, 55, "%*s", strlen (ts) - 1, ts);
         wattroff (win, A_REVERSE);
     }
     x++;
@@ -479,12 +532,11 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
  */
 static void
 _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
-                     int stale_secs)
+                     int stale_secs, time_t tnow)
 {
     ListIterator itr;
     oststat_t *o;
     int x = 0;
-    time_t tnow = time (NULL);
     int skipost = minost;
 
     wclear (win);
@@ -555,6 +607,7 @@ _create_mdtstat (char *name, int stale_secs)
 
     memset (m, 0, sizeof (*m));
     strncpy (m->name, mdtx ? mdtx + 4 : name, sizeof(m->name) - 1);
+    strncpy (m->fsname, name, mdtx ? mdtx - name : sizeof (m->fsname) - 1);
     m->inodes_free =  sample_create (stale_secs);
     m->inodes_total = sample_create (stale_secs);
     m->open =         sample_create (stale_secs);
@@ -726,6 +779,7 @@ _create_oststat (char *name, int stale_secs)
 
     memset (o, 0, sizeof (*o));
     strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
+    strncpy (o->fsname, name, ostx ? ostx - name : sizeof (o->fsname) - 1);
     *o->oscstate = '\0';
     o->rbytes =       sample_create (stale_secs);
     o->wbytes =       sample_create (stale_secs);
@@ -827,7 +881,7 @@ _decode_osc_v1 (char *val, char *fs, List ost_data,
     itr = list_iterator_create (oscinfo);
     while ((s = list_next (itr))) {
         if (lmt_osc_decode_v1_oscinfo (s, &oscname, &oscstate) >= 0) {
-            if (_fsmatch (oscname, fs))
+            if (!fs || _fsmatch (oscname, fs))
                 _update_osc (oscname, oscstate, ost_data,
                              tnow, trcv, stale_secs);
             free (oscname);
@@ -909,7 +963,7 @@ _decode_ost_v2 (char *val, char *fs, List ost_data,
                                        &grant_rate, &cancel_rate,
                                        &connect, &reconnect,
                                        &recov_status) == 0) {
-            if (_fsmatch (ostname, fs)) {
+            if (!fs || _fsmatch (ostname, fs)) {
                 _update_ost (ostname, ossname, read_bytes, write_bytes,
                              iops, num_exports, lock_count, grant_rate,
                              cancel_rate, connect + reconnect, recov_status,
@@ -1014,7 +1068,7 @@ _decode_mdt_v1 (char *val, char *fs, List mdt_data,
         if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
                                        &inodes_total, &kbytes_free,
                                        &kbytes_total, &mdops) == 0) {
-            if (_fsmatch (mdtname, fs)) {
+            if (!fs || _fsmatch (mdtname, fs)) {
                 _update_mdt (mdtname, mdsname, inodes_free, inodes_total,
                              kbytes_free, kbytes_total, mdops, mdt_data,
                              tnow, trcv, stale_secs);
@@ -1030,7 +1084,7 @@ _decode_mdt_v1 (char *val, char *fs, List mdt_data,
 
 static void
 _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
-               FILE *recf)
+               FILE *recf, time_t *tp)
 {
     time_t trcv, tnow = time (NULL);
     cmetric_t c;
@@ -1053,7 +1107,7 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
             continue;
         trcv = lmt_cbr_get_time (c);
         if (recf)
-            _record (recf, tnow, trcv, node, name, s);
+            _record_file (recf, tnow, trcv, node, name, s);
         if (!strcmp (name, "lmt_mdt") && vers == 1)
             _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_ost") && vers == 2)
@@ -1063,50 +1117,97 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
     }
     list_iterator_destroy (itr);
     list_destroy (l);
+    if (tp)
+        *tp = tnow;
 }
 
-static char *
-_find_first_fs (void)
+/* Write a cerebro metric record and some other info to a line in a file.
+ * Ignore any errors here since we really can't do much.
+ * (can check with ferror () elsewhere).
+ */
+static void
+_record_file (FILE *f, time_t tnow, time_t trcv, char *node,
+              char *name, char *s)
 {
-    cmetric_t c;
-    List mdops, mdtinfo, l = NULL;
-    char *s, *val, *mdsname, *mdtname;
-    float pct_cpu, pct_mem;
-    uint64_t kbytes_free, kbytes_total;
-    uint64_t inodes_free, inodes_total;
-    ListIterator itr, itr2;
-    float vers;
-    char *p, *ret = NULL;
+    (void)fprintf (f, "%"PRIu64" %"PRIu64" %s %s %s\n",
+                   (uint64_t)tnow, (uint64_t)trcv, node, name, s);
+}
 
-    if (lmt_cbr_get_metrics ("lmt_mdt", &l) < 0)
-        return ret;
-    itr = list_iterator_create (l);
-    while ((c = list_next (itr))) {
-        if (!(val = lmt_cbr_get_val (c)))
-            continue;
-        if (sscanf (val, "%f;", &vers) != 1 || vers != 1)
-            continue; 
-        if (lmt_mdt_decode_v1 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
-            continue;
-        free (mdsname);
-        itr2 = list_iterator_create (mdtinfo);
-        while ((s = list_next (itr2))) {
-            if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
-                                           &inodes_total, &kbytes_free,
-                                           &kbytes_total, &mdops) == 0) {
-                ret = xstrdup (mdtname);
-                if ((p = strchr (ret, '-')))
-                    *p = '\0';
-                free (mdtname);
-                list_destroy (mdops);
-                break;
-            }
+/* Analagous to _poll_cerebro (), except input is taken from a file
+ * written by _record_file ().   The wall clock time recorded in the first
+ * field records into batches.  This function reads only one batch, and
+ * places the wall clock time in *tp for use elsehwere.
+ */
+static void
+_play_file (char *fs, List mdt_data, List ost_data, int stale_secs,
+            FILE *f, time_t *tp)
+{
+    static char s[65536];
+    float vers;
+    uint64_t tnow, trcv, tmark = 0;
+    char node[64], name[16];
+    fpos_t pos;
+
+    if (feof (f) || ferror (f))
+        return;
+    while (fscanf (f, "%"PRIu64" %"PRIu64" %64s %16s %65536[^\n]\n",
+                   &tnow, &trcv, node, name, s) == 5) {
+        if (tmark != 0 && tmark != tnow) {
+            if (fsetpos (f, &pos) < 0) /* rewind! */
+                err_exit ("fsetpos failed on playback file");
+            break;
         }
-        list_iterator_destroy (itr2);
-        list_destroy (mdtinfo);
+        if (sscanf (s, "%f;", &vers) != 1)
+            msg_exit ("Parse error reading metric version in playback file");
+        if (!strcmp (name, "lmt_mdt") && vers == 1)
+            _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
+        else if (!strcmp (name, "lmt_ost") && vers == 2)
+            _decode_ost_v2 (s, fs, ost_data, tnow, trcv, stale_secs);
+        else if (!strcmp (name, "lmt_osc") && vers == 1)
+            _decode_osc_v1 (s, fs, ost_data, tnow, trcv, stale_secs);
+        if (fgetpos (f, &pos) < 0)
+            err_exit ("fgetpos failed on playback file");
+        tmark = tnow;
     }
+    if (ferror (f))
+        err_exit ("Error reading playback file");
+    if (tmark == 0)
+        msg_exit ("Error parsing playback file");
+    if (tp)
+        *tp = tmark;
+}
+
+/* Peek at the data to find a default file system to monitor.
+ */
+static char *
+_find_first_fs (FILE *playf, int stale_secs)
+{
+    List ost_data = list_create ((ListDelF)_destroy_oststat);
+    List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
+    ListIterator itr;
+    mdtstat_t *m;
+    oststat_t *o;
+    char *ret = NULL;
+
+    if (playf) {
+        _play_file (NULL, mdt_data, ost_data, stale_secs, playf, NULL);
+        if (fseek (playf, 0, SEEK_SET) < 0)
+            err_exit ("error rewinding playback file");
+    } else
+        _poll_cerebro (NULL, mdt_data, ost_data, stale_secs, NULL, NULL);
+
+    itr = list_iterator_create (mdt_data);
+    while (!ret && (m = list_next (itr)))
+        ret = xstrdup (m->fsname);
     list_iterator_destroy (itr);
-    list_destroy (l);
+
+    itr = list_iterator_create (ost_data);
+    while (!ret && (o = list_next (itr)))
+        ret = xstrdup (o->fsname);
+    list_iterator_destroy (itr);
+
+    list_destroy (ost_data);
+    list_destroy (mdt_data);
 
     return ret;
 }
@@ -1258,16 +1359,6 @@ _sort_ostlist (List ost_data, sort_t s, time_t tnow)
     }
     sort_tnow = tnow;
     list_sort (ost_data, c);
-}
-
-/* Write cerebro data to the log file.
- * N.B. don't have a sensible way to handle write errors so ignore them.
- */
-static void
-_record (FILE *f, time_t tnow, time_t trcv, char *node, char *name, char *s)
-{
-    (void)fprintf (f, "%"PRIu64" %"PRIu64" %s %s %s\n",
-                   (uint64_t)tnow, (uint64_t)trcv, node, name, s);
 }
 
 /*
