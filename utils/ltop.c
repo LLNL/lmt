@@ -122,7 +122,7 @@ static void _destroy_mdtstat (mdtstat_t *m);
 static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
-static void _sort_ostlist (List ost_data, sort_t s);
+static void _sort_ostlist (List ost_data, sort_t s, time_t tnow);
 static char *_find_first_fs (void);
 
 /* Hardwired display geometry.
@@ -144,6 +144,12 @@ static const struct option longopts[] = {
 #else
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
+
+/* N.B. This global is used ONLY for the purpose of allowing
+ * _sort_ostlist () to pass the current time to its various sorting
+ * functions.
+ */
+static time_t sort_tnow = 0;
 
 static void
 usage (void)
@@ -167,7 +173,7 @@ main (int argc, char *argv[])
     List ost_data = list_create ((ListDelF)_destroy_oststat);
     List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
     List oss_data = list_create ((ListDelF)_destroy_oststat);
-    time_t last_sample = 0;
+    time_t tcycle, last_sample = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -204,7 +210,8 @@ main (int argc, char *argv[])
      * If either the mds or any ost's are up, then ostcount > 0.
      */
     _poll_cerebro (fs, mdt_data, ost_data, stale_secs);
-    _sort_ostlist (ost_data, sortby);
+    tcycle = time (NULL);
+    _sort_ostlist (ost_data, sortby, tcycle);
     assert (ostview);
     if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
@@ -338,8 +345,9 @@ main (int argc, char *argv[])
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
 
         if (resort) {
-            _sort_ostlist (ost_data, sortby); 
-            _sort_ostlist (oss_data, sortby); 
+            tcycle = time (NULL);
+            _sort_ostlist (ost_data, sortby, tcycle); 
+            _sort_ostlist (oss_data, sortby, tcycle); 
             resort = 0;
         }
     }
@@ -360,7 +368,7 @@ static void
 _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                      int stale_secs)
 {
-    time_t t = 0, now = time (NULL);
+    time_t trcv = 0, tnow = time (NULL);
     int x = 0;
     ListIterator itr;
     double rmbps = 0, wmbps = 0, iops = 0;
@@ -374,37 +382,37 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
-        rmbps         += sample_rate (o->rbytes) / (1024*1024);
-        wmbps         += sample_rate (o->wbytes) / (1024*1024);    
-        iops          += sample_rate (o->iops);
-        tbytes_free   += sample_val (o->kbytes_free) / (1024*1024*1024);
-        tbytes_total  += sample_val (o->kbytes_total) / (1024*1024*1024);
+        rmbps         += sample_rate (o->rbytes, tnow) / (1024*1024);
+        wmbps         += sample_rate (o->wbytes, tnow) / (1024*1024);    
+        iops          += sample_rate (o->iops, tnow);
+        tbytes_free   += sample_val (o->kbytes_free, tnow) / (1024*1024*1024);
+        tbytes_total  += sample_val (o->kbytes_total, tnow) / (1024*1024*1024);
     }
     list_iterator_destroy (itr);
     itr = list_iterator_create (mdt_data);
     while ((m = list_next (itr))) {
-        open          += sample_rate (m->open);
-        close         += sample_rate (m->close);
-        getattr       += sample_rate (m->getattr);
-        setattr       += sample_rate (m->setattr);
-        link          += sample_rate (m->link);
-        unlink        += sample_rate (m->unlink);
-        rmdir         += sample_rate (m->rmdir);
-        mkdir         += sample_rate (m->mkdir);
-        statfs        += sample_rate (m->statfs);
-        rename        += sample_rate (m->rename);
-        getxattr      += sample_rate (m->getxattr);
-        minodes_free  += sample_val (m->inodes_free) / (1024*1024);
-        minodes_total += sample_val (m->inodes_total) / (1024*1024);
-        if (m->mdt_metric_timestamp > t)
-            t = m->mdt_metric_timestamp;
+        open          += sample_rate (m->open, tnow);
+        close         += sample_rate (m->close, tnow);
+        getattr       += sample_rate (m->getattr, tnow);
+        setattr       += sample_rate (m->setattr, tnow);
+        link          += sample_rate (m->link, tnow);
+        unlink        += sample_rate (m->unlink, tnow);
+        rmdir         += sample_rate (m->rmdir, tnow);
+        mkdir         += sample_rate (m->mkdir, tnow);
+        statfs        += sample_rate (m->statfs, tnow);
+        rename        += sample_rate (m->rename, tnow);
+        getxattr      += sample_rate (m->getxattr, tnow);
+        minodes_free  += sample_val (m->inodes_free, tnow) / (1024*1024);
+        minodes_total += sample_val (m->inodes_total, tnow) / (1024*1024);
+        if (m->mdt_metric_timestamp > trcv)
+            trcv = m->mdt_metric_timestamp;
     }
     list_iterator_destroy (itr);
 
     wclear (win);
 
     mvwprintw (win, x++, 0, "Filesystem: %s", fs);
-    if (now - t > stale_secs)
+    if (tnow - trcv > stale_secs)
         return;
     mvwprintw (win, x++, 0,
       "    Inodes: %10.3fm total, %10.3fm used (%3.0f%%), %10.3fm free",
@@ -446,7 +454,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     ListIterator itr;
     oststat_t *o;
     int x = 0;
-    time_t now = time (NULL);
+    time_t tnow = time (NULL);
     int skipost = minost;
 
     wclear (win);
@@ -466,7 +474,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         if (o->tag)
             wattron (win, A_UNDERLINE);
         /* available info is expired */
-        if ((now - o->ost_metric_timestamp) > stale_secs) {
+        if ((tnow - o->ost_metric_timestamp) > stale_secs) {
             mvwprintw (win, x, 0, "%4.4s %1.1s", o->name, o->oscstate);
         /* ost is in recovery - display recovery stats */
         } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
@@ -477,14 +485,14 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             mvwprintw (win, x, 0,
               "%4.4s %1.1s %10.10s %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f",
                        o->name, o->oscstate, o->ossname,
-                       sample_val (o->num_exports),
-                       sample_rate (o->connect),
-                       sample_rate (o->rbytes) / (1024*1024),
-                       sample_rate (o->wbytes) / (1024*1024),
-                       sample_rate (o->iops),
-                       sample_val (o->lock_count),
-                       sample_val (o->grant_rate),
-                       sample_val (o->cancel_rate));
+                       sample_val (o->num_exports, tnow),
+                       sample_rate (o->connect, tnow),
+                       sample_rate (o->rbytes, tnow) / (1024*1024),
+                       sample_rate (o->wbytes, tnow) / (1024*1024),
+                       sample_rate (o->iops, tnow),
+                       sample_val (o->lock_count, tnow),
+                       sample_val (o->grant_rate, tnow),
+                       sample_val (o->cancel_rate, tnow));
         }
         if (x - 1 + minost == selost)
             wattroff(win, A_REVERSE);
@@ -619,11 +627,7 @@ _cmp_oststat_byost (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_byexp (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_val (o1->num_exports);
-    double v2 = sample_val (o2->num_exports);
-
-    return (v1 > v2 ? 1
-          : v1 < v2 ? -1 : 0);
+    return sample_val_cmp (o1->num_exports, o2->num_exports, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by lock count (descending order).
@@ -631,11 +635,7 @@ _cmp_oststat_byexp (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_bylocks (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_val (o1->lock_count);
-    double v2 = sample_val (o2->lock_count);
-
-    return (v1 < v2 ? 1
-          : v1 > v2 ? -1 : 0);
+    return -1 * sample_val_cmp (o1->lock_count, o2->lock_count, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by lock grant rate (descending order).
@@ -643,11 +643,7 @@ _cmp_oststat_bylocks (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_bylgr (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_val (o1->grant_rate);
-    double v2 = sample_val (o2->grant_rate);
-
-    return (v1 < v2 ? 1
-          : v1 > v2 ? -1 : 0);
+    return -1 * sample_val_cmp (o1->grant_rate, o2->grant_rate, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by lock cancel rate (descending order).
@@ -655,11 +651,7 @@ _cmp_oststat_bylgr (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_bylcr (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_val (o1->cancel_rate);
-    double v2 = sample_val (o2->cancel_rate);
-
-    return (v1 < v2 ? 1
-          : v1 > v2 ? -1 : 0);
+    return -1 * sample_val_cmp (o1->cancel_rate, o2->cancel_rate, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by (re-)connect rate (descending order).
@@ -667,11 +659,7 @@ _cmp_oststat_bylcr (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_byconn (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_val (o1->connect);
-    double v2 = sample_val (o2->connect);
-
-    return (v1 < v2 ? 1
-          : v1 > v2 ? -1 : 0);
+    return -1 * sample_val_cmp (o1->connect, o2->connect, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by iops (descending order).
@@ -679,11 +667,7 @@ _cmp_oststat_byconn (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_byiops (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_rate (o1->iops);
-    double v2 = sample_rate (o2->iops);
-
-    return (v1 < v2 ? 1
-          : v1 > v2 ? -1 : 0);
+    return -1 * sample_rate_cmp (o1->iops, o2->iops, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by read b/w (descending order).
@@ -691,11 +675,7 @@ _cmp_oststat_byiops (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_byrbw (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_rate (o1->rbytes);
-    double v2 = sample_rate (o2->rbytes);
-
-    return (v1 < v2 ? 1
-          : v1 > v2 ? -1 : 0);
+    return -1 * sample_rate_cmp (o1->rbytes, o2->rbytes, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by write b/w (descending order).
@@ -703,11 +683,7 @@ _cmp_oststat_byrbw (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_bywbw (oststat_t *o1, oststat_t *o2)
 {
-    double v1 = sample_rate (o1->wbytes);
-    double v2 = sample_rate (o2->wbytes);
-
-    return (v1 < v2 ? 1
-          : v1 > v2 ? -1 : 0);
+    return -1 * sample_rate_cmp (o1->wbytes, o2->wbytes, sort_tnow);
 }
 
 /* Create an oststat record.
@@ -1100,7 +1076,6 @@ _find_first_fs (void)
     return ret;
 }
 
-
 /* Re-create oss_data, one record per oss, with data aggregated from
  * the OST's on that OSS.
  */
@@ -1210,7 +1185,7 @@ _tag_nth_ost (List ost_data, int selost, List ost_data2)
 }
 
 static void
-_sort_ostlist (List ost_data, sort_t s)
+_sort_ostlist (List ost_data, sort_t s, time_t tnow)
 {
     ListCmpF c = NULL;
 
@@ -1246,6 +1221,7 @@ _sort_ostlist (List ost_data, sort_t s)
             c = (ListCmpF)_cmp_oststat_byconn;
             break;
     }
+    sort_tnow = tnow;
     list_sort (ost_data, c);
 }
 

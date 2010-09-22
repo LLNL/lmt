@@ -165,11 +165,11 @@ sample_min (sample_t s1, sample_t s2)
  * Returns 0 if expired, or < 2 valid data points.
  */
 double
-sample_rate (sample_t s)
+sample_rate (sample_t s, time_t tnow)
 {
     double val = 0;
 
-    if (s->valid == 2 && (time (NULL) - s->time[1]) <= s->stale_secs)
+    if (s->valid == 2 && (tnow - s->time[1]) <= s->stale_secs)
         val = (s->val[1] - s->val[0]) / (s->time[1] - s->time[0]);
     if (val < 0)
         val = 0;
@@ -180,11 +180,33 @@ sample_rate (sample_t s)
  * Returns 0 if expired or < 1 valid data point.
  */
 double
-sample_val (sample_t s)
+sample_val (sample_t s, time_t tnow)
 {
-    if (s->valid > 0 && (time (NULL) - s->time[1]) <= s->stale_secs)
+    if (s->valid > 0 && (tnow - s->time[1]) <= s->stale_secs)
         return s->val[1];
     return 0;
+}
+
+/* Compare sample values for sorting.
+ */
+int
+sample_val_cmp (sample_t s1, sample_t s2, time_t tnow)
+{
+    double v1 = sample_val (s1, tnow);
+    double v2 = sample_val (s2, tnow);
+
+    return (v1 == v2 ? 0 : v1 < v2 ? -1 : 0);
+}
+
+/* Compare rate values for sorting.
+ */
+int
+sample_rate_cmp (sample_t s1, sample_t s2, time_t tnow)
+{
+    double v1 = sample_rate (s1, tnow);
+    double v2 = sample_rate (s2, tnow);
+
+    return (v1 == v2 ? 0 : v1 < v2 ? -1 : 0);
 }
 
 /*
