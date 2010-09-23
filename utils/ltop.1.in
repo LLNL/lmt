@@ -17,6 +17,13 @@ The default is to monitor the first file system found.
 .TP
 .I "-t SECS"
 Change the display refresh period from the default of two seconds.
+.TP
+.I "-r FILE"
+Log raw data from the session to FILE, so it can be played back with \fI\-p\fR.
+.TP
+.I "-p FILE"
+Play back raw data from FILE recorded with \fI\-r\fR or with the
+interactive \fIR\fR command.
 .SH "OST FIELD DESCRIPTIONS"
 .TP
 \fIOST\fR
@@ -121,6 +128,14 @@ Tag/untag OST/OSS under cursor.  Tagged OST/OSS's are underlined.
 .TP
 \fIDEL\fR
 Park cursor and clear all tags.
+.TP
+\fIR\fR
+Toggle record mode on/off.  Unless a file name was specified with the
+\fI\-r\fR command line option, a file named \fIltop.log\fR will be used.
+.TP
+\fIp\fR
+Pause data collection/playback.
+.TP
 .SH "VI KEY BINDINGS"
 For convenience to
 .B vi
