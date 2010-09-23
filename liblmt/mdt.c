@@ -51,16 +51,36 @@
 #include "util.h"
 #include "lmtconf.h"
 
-typedef struct {
-    int num;
-    char *name;
-} optab_t;
-
-/* This is the hardwired order of ops in both mdt_v1 and mds_v2 (count=81)
- * FIXME: needs audit for validity of all fields in current lustre code,
- * and relevance to monitoring goals.  Preserve this list for legacy support.
+/* This is the hardwired order of ops in mdt_v1 (count=21)
  */
-static const char *optab[] = {
+static const char *optab_mdt_v1[] = {
+    "open",
+    "close",
+    "mknod",
+    "link",
+    "unlink",
+    "mkdir",
+    "rmdir",
+    "rename",
+    "getxattr",
+    "process_config",
+    "connect",
+    "reconnect",
+    "disconnect",
+    "statfs",
+    "create",
+    "destroy",
+    "setattr",
+    "getattr",
+    "llog_init",
+    "notify",
+    "quotactl",
+};
+
+/* LEGACY
+ * This is the hardwired order of ops in mds_v2 (count=81)
+ */
+static const char *optab_mds_v2[] = {
     "open",                     // 0
     "close",
     "mknod",
@@ -143,7 +163,8 @@ static const char *optab[] = {
 	"register_lock_cancel_cb",  // 80
 	"unregister_lock_cancel_cb",
 };
-const int optablen = sizeof (optab) / sizeof(optab[0]);
+const int optablen_mds_v2 = sizeof (optab_mds_v2) / sizeof(optab_mds_v2[0]);
+const int optablen_mdt_v1 = sizeof (optab_mdt_v1) / sizeof(optab_mdt_v1[0]);
 
 static int
 _get_mem_usage (pctx_t ctx, double *fp)
@@ -218,9 +239,9 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
      * as required by schema 1.1.  Substitute zeroes if not found.
      * N.B. lustre-1.8.2: sum and sumsquare appear to be missing from proc.
      */
-    for (i = 0; i < optablen; i++) {
+    for (i = 0; i < optablen_mdt_v1; i++) {
         used = strlen (s);
-        if (_get_mdtop (stats, optab[i], s + used, len - used) < 0)
+        if (_get_mdtop (stats, optab_mdt_v1[i], s + used, len - used) < 0)
             goto done;
     }
     retval = 0;
@@ -288,7 +309,7 @@ int
 lmt_mdt_decode_v1 (const char *s, char **mdsnamep, float *pct_cpup,
                    float *pct_memp, List *mdtinfop)
 {
-    const int mdtfields = 5 + 3 * optablen;
+    const int mdtfields = 5 + 3 * optablen_mdt_v1;
     int retval = -1;
     char *mdsname = xmalloc (strlen(s) + 1);
     char *cpy = NULL;
@@ -353,13 +374,13 @@ lmt_mdt_decode_v1_mdtinfo (const char *s, char **mdtnamep,
         goto done;
     }
     while ((cpy = strskipcpy (&s, 3, ';'))) {
-        if (i >= optablen) {
+        if (i >= optablen_mdt_v1) {
             if (lmt_conf_get_proto_debug ())
-                msg ("lmt_mdt_v1: parse error: operation out of range");
+                msg ("lmt_mdt_v1: parse error: too many mdops");
             free (cpy);
             goto done;
         }
-        strappendfield (&cpy, optab[i++], ';');
+        strappendfield (&cpy, optab_mdt_v1[i++], ';');
         list_append (mdops, cpy);
     }
     if (strlen (s) > 0) {
@@ -442,13 +463,13 @@ int lmt_mds_decode_v2 (const char *s, char **mdsnamep, char **mdtnamep,
         goto done;
     }
     while ((cpy = strskipcpy (&s, 3, ';'))) {
-        if (i >= optablen) {
+        if (i >= optablen_mds_v2) {
             if (lmt_conf_get_proto_debug ())
-                msg ("lmt_mds_v2: parse error: operation out of range");
+                msg ("lmt_mds_v2: parse error: too many mdops");
             free (cpy);
             goto done;
         }
-        strappendfield (&cpy, optab[i++], ';');
+        strappendfield (&cpy, optab_mds_v2[i++], ';');
         if (!list_append (mdops, cpy)) {
             free (cpy);
             goto done;

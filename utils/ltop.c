@@ -70,43 +70,43 @@
 #endif
 
 typedef struct {
-    char fsname[17];
-    char name[17];
-    char oscstate[2];
-    sample_t rbytes;
-    sample_t wbytes;
-    sample_t iops;
-    sample_t num_exports;
-    sample_t lock_count;
-    sample_t grant_rate;
-    sample_t cancel_rate;
-    sample_t connect;
-    sample_t kbytes_free;
-    sample_t kbytes_total;
-    char recov_status[32];
-    time_t ost_metric_timestamp;
-    char ossname[MAXHOSTNAMELEN];
-    int tag;
+    char fsname[17];            /* file system name */
+    char name[17];              /* target index (4 hex digits) */
+    char oscstate[2];           /* single char state (blank if unknown) */
+    sample_t rbytes;            /* read bytes/sec */
+    sample_t wbytes;            /* write bytes/sec */
+    sample_t iops;              /* io operations (r/w) per second */
+    sample_t num_exports;       /* export count */
+    sample_t lock_count;        /* lock count */
+    sample_t grant_rate;        /* lock grant rate (LGR) */
+    sample_t cancel_rate;       /* lock cancel rate (LCR) */
+    sample_t connect;           /* connect+reconnect per second */
+    sample_t kbytes_free;       /* free space (kbytes) */
+    sample_t kbytes_total;      /* total space (kbytes) */
+    char recov_status[32];      /* free form string representing recov status */
+    time_t ost_metric_timestamp;/* cerebro timestamp for ost metric (not osc) */
+    char ossname[MAXHOSTNAMELEN];/* oss hostname */
+    int tag;                    /* display this ost line underlined */
 } oststat_t;
 
 typedef struct {
-    char fsname[17];
-    char name[17];
-    sample_t inodes_free;
-    sample_t inodes_total;
-    sample_t open;
-    sample_t close;
-    sample_t getattr;
-    sample_t setattr;
-    sample_t link;
-    sample_t unlink;
-    sample_t mkdir;
-    sample_t rmdir;
-    sample_t statfs;
-    sample_t rename;
-    sample_t getxattr;
-    time_t mdt_metric_timestamp;
-    char mdsname[MAXHOSTNAMELEN];
+    char fsname[17];            /* file system name */
+    char name[17];              /* target index (4 hex digitis) */
+    sample_t inodes_free;       /* free inode count */
+    sample_t inodes_total;      /* total inode count */
+    sample_t open;              /* open ops/sec */
+    sample_t close;             /* close ops/sec */
+    sample_t getattr;           /* getattr ops/sec */
+    sample_t setattr;           /* setattr ops/sec */
+    sample_t link;              /* link ops/sec */
+    sample_t unlink;            /* unlink ops/sec */
+    sample_t mkdir;             /* mkdir ops/sec */
+    sample_t rmdir;             /* rmdir ops/sec */
+    sample_t statfs;            /* statfs ops/sec */
+    sample_t rename;            /* rename ops/sec */
+    sample_t getxattr;          /* getxattr ops/sec */
+    time_t mdt_metric_timestamp;/* cerebro timestamp for mdt metric */
+    char mdsname[MAXHOSTNAMELEN];/* mds hostname */
 } mdtstat_t;
 
 typedef enum {
@@ -117,7 +117,7 @@ typedef enum {
 static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
                            int stale_secs, FILE *recf, time_t *tp);
 static void _play_file (char *fs, List mdt_data, List ost_data,
-                        int stale_secs, FILE *playf, time_t *tp);
+                        int stale_secs, FILE *playf, time_t *tp, int *tdiffp);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
                                  List ost_data, int stale_secs, FILE *recf,
                                  FILE *playf, time_t tnow, int pause);
@@ -133,7 +133,7 @@ static char *_find_first_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
 
-/* Hardwired display geometry.
+/* Hardwired display geometry.  We also assume 80 chars wide.
  */
 #define TOPWIN_LINES    7       /* lines in topwin */
 #define OSTWIN_H_LINES  1       /* header lines in ostwin */
@@ -164,7 +164,7 @@ static time_t sort_tnow = 0;
 static void
 usage (void)
 {
-    fprintf (stderr, "Usage: ltop [OPTIONS] -f FS\n");
+    fprintf (stderr, "Usage: ltop [OPTIONS]\n");
     exit (1);
 }
 
@@ -239,7 +239,8 @@ main (int argc, char *argv[])
      * If either the mds or any ost's are up, then ostcount > 0.
      */
     if (playf) {
-        _play_file (fs, mdt_data, ost_data, stale_secs, playf, &tcycle);
+        _play_file (fs, mdt_data, ost_data, stale_secs, playf, &tcycle,
+                    &sample_period);
         if (feof (playf))
             msg_exit ("premature end of file on playback file");
     } else
@@ -383,7 +384,7 @@ main (int argc, char *argv[])
             if (!pause) {
                 if (playf)
                     _play_file (fs, mdt_data, ost_data, stale_secs, playf,
-                                &tcycle);
+                                &tcycle, &sample_period);
                 else
                     _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf,
                                    &tcycle);
@@ -1122,8 +1123,7 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
 }
 
 /* Write a cerebro metric record and some other info to a line in a file.
- * Ignore any errors here since we really can't do much.
- * (can check with ferror () elsewhere).
+ * Ignore any errors, check with ferror () elsewhere.
  */
 static void
 _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
@@ -1135,18 +1135,19 @@ _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
 
 /* Analagous to _poll_cerebro (), except input is taken from a file
  * written by _record_file ().   The wall clock time recorded in the first
- * field records into batches.  This function reads only one batch, and
- * places the wall clock time in *tp for use elsehwere.
+ * field groups records into batches.  This function reads only one batch,
+ * and places its wall clock time in *tp.
  */
 static void
 _play_file (char *fs, List mdt_data, List ost_data, int stale_secs,
-            FILE *f, time_t *tp)
+            FILE *f, time_t *tp, int *tdiffp)
 {
     static char s[65536];
     float vers;
     uint64_t tnow, trcv, tmark = 0;
     char node[64], name[16];
     fpos_t pos;
+    int tdiff = 0;
 
     if (feof (f) || ferror (f))
         return;
@@ -1155,6 +1156,7 @@ _play_file (char *fs, List mdt_data, List ost_data, int stale_secs,
         if (tmark != 0 && tmark != tnow) {
             if (fsetpos (f, &pos) < 0) /* rewind! */
                 err_exit ("fsetpos failed on playback file");
+            tdiff = tnow - tmark;
             break;
         }
         if (sscanf (s, "%f;", &vers) != 1)
@@ -1175,6 +1177,8 @@ _play_file (char *fs, List mdt_data, List ost_data, int stale_secs,
         msg_exit ("Error parsing playback file");
     if (tp)
         *tp = tmark;
+    if (tdiffp && !feof (f))
+        *tdiffp = tdiff;
 }
 
 /* Peek at the data to find a default file system to monitor.
@@ -1190,7 +1194,7 @@ _find_first_fs (FILE *playf, int stale_secs)
     char *ret = NULL;
 
     if (playf) {
-        _play_file (NULL, mdt_data, ost_data, stale_secs, playf, NULL);
+        _play_file (NULL, mdt_data, ost_data, stale_secs, playf, NULL, NULL);
         if (fseek (playf, 0, SEEK_SET) < 0)
             err_exit ("error rewinding playback file");
     } else
