@@ -195,7 +195,7 @@ sample_val_cmp (sample_t s1, sample_t s2, time_t tnow)
     double v1 = sample_val (s1, tnow);
     double v2 = sample_val (s2, tnow);
 
-    return (v1 == v2 ? 0 : v1 < v2 ? -1 : 0);
+    return (v1 == v2 ? 0 : v1 < v2 ? -1 : 1);
 }
 
 /* Compare rate values for sorting.
@@ -206,7 +206,7 @@ sample_rate_cmp (sample_t s1, sample_t s2, time_t tnow)
     double v1 = sample_rate (s1, tnow);
     double v2 = sample_rate (s2, tnow);
 
-    return (v1 == v2 ? 0 : v1 < v2 ? -1 : 0);
+    return (v1 == v2 ? 0 : v1 < v2 ? -1 : 1);
 }
 
 /*
