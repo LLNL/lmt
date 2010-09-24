@@ -230,6 +230,10 @@ main (int argc, char *argv[])
         msg_exit ("--sample-period and --play cannot be used together");
     if (playf && recf)
         msg_exit ("--record and --play cannot be used together");
+#if ! HAVE_CEREBRO_H
+    if (!playf)
+	msg_exit ("ltop was not built with cerebro support, use -p option");
+#endif
     if (!fs)
         fs = _find_first_fs(playf, stale_secs);
     if (!fs)
@@ -1094,7 +1098,9 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
     ListIterator itr;
     float vers;
 
+#if HAVE_CEREBRO_H
     if (lmt_cbr_get_metrics ("lmt_mdt,lmt_ost,lmt_osc", &l) < 0)
+#endif
         return;
     itr = list_iterator_create (l);
     while ((c = list_next (itr))) {
