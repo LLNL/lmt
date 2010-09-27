@@ -64,8 +64,6 @@ public class Database {
   private static final boolean localDebug = Boolean.getBoolean("Database.debug");
   private static final boolean debug = Boolean.getBoolean("debug") || localDebug;
 
-  public static final String GLOBAL_LMTRC_FILE_NAME="/usr/share/lmt/etc/lmtrc";
-
   public static final int ASC = 1;
   public static final int DESC = 2;
 
@@ -6086,23 +6084,8 @@ public class Database {
     }
 
 
-    //
-    // Read global lmtrc file.
-    //
-
-    final File globalRcFile = new File(Database.GLOBAL_LMTRC_FILE_NAME);
-
-    if (globalRcFile.exists()) {
-      Database.loadLmtrcInfo(globalRcFile, Database.lmtrcList);
-      Database.lmtrcPath = globalRcFile.getPath();
-      return;
-    }
-
-    
     throw new Exception(
-      "Could find neither global resource file " +
-       globalRcFile.getPath() +
-      ", nor local resource file " +
+      "Could not find local resource file " +
        rcFile.getPath() + ".");    
 
   } // loadLmtrc
