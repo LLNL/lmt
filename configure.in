@@ -3,6 +3,13 @@
 
 AC_PREREQ(2.57)
 AC_INIT(LMT-CLIENT, 2.x, BUG-REPORT-ADDRESS)
+AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_SRCDIR([NEWS])
+AC_CANONICAL_SYSTEM
+
+AM_INIT_AUTOMAKE(LMT-CLIENT, 2.x)
+AM_CONFIG_HEADER([config/config.h])
+AM_MAINTAINER_MODE
 
 dnl JL Custom stuff
 AC_ARG_WITH(ant,   [  --with-ant   override ant   executable location: --with-ant=/path/to/ant])
