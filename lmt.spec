@@ -2,7 +2,6 @@ Name:
 Version: 
 Release: 
 
-# TODO: lmt-client subpackage for lwatch + oltop
 # TODO: lmt-utils subpackage for ltop (once ltop can read proc directly)
 
 License: GPL
@@ -12,17 +11,10 @@ URL: http://sourceforge.net/projects/lmt/
 Packager: Jim Garlick <garlick@llnl.gov>
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-#BuildRequires: ant, ant-nodeps
 BuildRequires: mysql, mysql-devel
 BuildRequires: cerebro >= 1.3-5
 BuildRequires: ncurses-devel
 BuildRequires: lua-devel
-%if 0%{?ch4}
-#BuildRequires: java-1.5.0-ibm-devel, java-1.5.0-ibm
-#BuildRequires: glibc >= 2.5-18
-%else
-#BuildRequires: jre >= 1.4.2, java-devel >= 1.4.2
-%endif
 #%define __spec_install_post /usr/lib/rpm/brp-compress || :
 %define debug_package %{nil}
 
