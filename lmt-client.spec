@@ -11,15 +11,14 @@ Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: ant, ant-nodeps
 #BuildRequires: mysql, mysql-devel
-#BuildRequires: ncurses-devel
+BuildRequires: ncurses-devel
 %if 0%{?ch4}
 BuildRequires: java-1.5.0-ibm-devel, java-1.5.0-ibm
 BuildRequires: glibc >= 2.5-18
 %else
 BuildRequires: jre >= 1.4.2, java-devel >= 1.4.2
 %endif
-Requires: jre >= 1.4.2
-# Requires: ncurses
+Requires: jre >= 1.4.2, ncurses
 %define __spec_install_post /usr/lib/rpm/brp-compress || :
 %define debug_package %{nil}
 
