@@ -78,6 +78,7 @@ _get_metric_value (unsigned int *metric_value_type,
     retval = 0;
 done:
     proc_destroy (ctx);
+    if (retval != 0)
         free (buf);
     return retval;  /* 0 indicates metric_value is valid */
 }
