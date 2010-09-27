@@ -1,9 +1,0 @@
-# LMT Configuration File
-
-filesys.1.name=<insert_fsname_here>
-filesys.1.mountname=<insert_/path/to/mountpoint_here>
-filesys.1.dbhost=<insert_db_host_ip_here>
-filesys.1.dbport=<insert_db_port_here>
-filesys.1.dbuser=<insert_db_client_username_here>
-filesys.1.dbauth=
-filesys.1.dbname=<insert_db_name_here>
