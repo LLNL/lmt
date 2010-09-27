@@ -1,6 +1,6 @@
-Chris Morrone (lmt 1.x Python versions)
-Herb Wartens (cerebro modules, database utilities, security, etc)
-Neil O'Neil (Java clients)
-Jeff Long (Java clients)
-Paul Spencer (Java clients)
-Jim Garlick (current maintainer)
+LMT is the work of several people at LLNL:
+
+1.x python version: Chris Morrone
+initial 2.0 cerebro/mysql code: Herb Wartens
+2.0 java clients: Neil O'Neil, Jeff Long, and Paul Spencer
+3.0 rewritten cerebro/msyql/utilities: Jim Garlick

@@ -1,0 +1,178 @@
+.TH ltop 1 "@META_DATA@" "@META_ALIAS@" "@META_NAME@"
+.SH NAME
+create_lmtconfig \- set up the LMT MySQL database
+.SH SYNOPSIS
+.B "create_lmtconfig [-ra] [-d FS] [-f config-file] [-F ldev-file]"
+.SH DESCRIPTION
+.B create_lmtconfig
+prints out a SQL script on standard output that performs setup functions
+for an LMT2 database, schema version 1.1.
+Each filesystem has its own database and you can have multiple filesystems
+configured for a particular MySQL installation.
+.SH OPTIONS
+.B create_lmtconfig
+accepts the following options:
+.TP
+.I "-r"
+Create the MySQL root user account (generates a random password for the
+root user).
+.TP
+.I "-a"
+Create the MySQL users lwatchadmin (read/write account),
+lwatchclient (read-only account).
+.TP
+.I "-d FS"
+Create the MySQL database for FS using either /etc/ldev.conf (default)
+or a config file specified with \fI-f config-file\fR.
+.TP
+.I "-f config-file"
+Retrieve the database configuration for FS from config-file instead of
+/etc/ldev.conf.  See CONFIGURATION FILE below for the file syntax.
+.TP
+.I "-F ldev-file"
+Specify an alternate path to /etc/ldev.conf.
+See LDEV.CONF FILE below for the file syntax.
+.SH LDEV.CONF FILE
+The /etc/ldev.conf file format is one OST/MDT per line, with the following
+space separated columns: OSS/MDS hostname, failover hostname
+(or ``-'' as a placeholder), disk label (from which we can parse file
+system name, device type, and index), device path.
+Comments that begin with a ``#'' character are ignored.
+.SH CONFIGURATION FILE
+Note that a \fIhostlist\fR refers to a list of hostnames and \fIhostranges\fR
+separated by commas.  A \fIhostrange\fR is a compressed representation of
+list of hostnames that contain numerical suffixes.  See EXAMPLE CONFIGURATION
+below.
+.LP
+The configuration file is broken into three sections:
+\fImds\fR, \fIost\fR, and \fIrouter\fR.
+Each section begins with one of these keywords, and is enclosed
+by curly braces.
+Comments that begin with a ``#'' character are ignored.
+.LP
+The \fImds\fR section defines properties about the metadata server for
+filesystem <fsname>.  One \fImds\fR section is required by LMT.
+The fields that are allowed in this section are:
+.TP
+\fIname <hostrange>\fR (required)
+Specify the set of mds nodes with <hostrange>.
+.TP
+\fIuuid <uuidrange>\fR (required)
+Specify the uuid for the MDT device.
+This must match the name of the first directory found in /proc/fs/lustre/mds
+on the MDS node.  For recent versions of Lustre, this will be the same as
+the disk label, e.g. lc1-MDT0000.
+The number of uuids here must match exactly with the number of hosts
+specified with <hostrange> above.  The first uuid will be paired with
+the first hostname, and so on.  (And currently all the uuids will be
+identical since there can be only one MDT target per file system).
+.TP
+\fIdevice <devicename>\fR (not used by LMT)
+Specify the device that will exist on each mds node.
+.LP
+The \fIost\fR section defines properties of the object storage servers/targets
+for filesystem <fsname>.  One or more \fIost\fR sections are required by LMT.
+The fields that are allowed in this section are:
+.TP
+\fIname <hostrange>\fR (required)
+Specify the set of oss nodes with <hostrange>.
+.TP
+\fIuuid <uuidrange>\fR (required)
+Specify the set of ost uuids as <uuidrange>.
+This must match the directory names found in /proc/fs/lustre/obdfilter.
+For recent versions of Lustre, this will be the same as the disk
+label, e.g. lc1-OST{HEXINDEX}.
+Note that the number of uuids here must match exactly with the total
+number of osts spcified for this system (number of oss nodes * number
+of devices per node).  The first uuid will be paired with the first
+hostname, and so on.
+There are a few special macros that are used here to help define uuids:
+"{HEXINDEX}" is replaced with a 4 digit hexadecimal number that corresponds
+with the ost index for the entire filesystem.
+"{INDEX}" is replaced with an integer that corresponds with the ost index
+on a particular oss.
+"{_INDEX}" is replaced with an integer that corresponds with the ost index
+on a particular oss.  The difference here from {INDEX} is that the integer
+is preceded by un underscore.  If the value for the index is 1 then neither
+the underscore or the integer are printed out.
+.TP
+\fIskip <skipvalue>\fR (required)
+Specify the <skipvalue>.
+This value defines how osts should be allocated across the <hostrange>.
+As an example for a set of nodes that have 3 osts on each oss a
+<skipvalue> of 4 means that node1 will be allocated device1,
+node2 device2, node3 device3, node4 device4, node1 device5, node2 device6,
+and so on...
+.TP
+\fIstartidx <indexvalue>\fR (optional)
+If multiple \fIost\fR sections are used, you must specify the decimal
+starting index to be used in {INDEX}, {HEXINDEX}, and {_INDEX} expansion
+in that section.  The default is zero.
+.TP
+\fInumdevs <count>\fR (required)
+Specify the number of devices (OST's) per OSS.
+.TP
+\fIdevice <deviceset>\fR (not used by LMT)
+Specify the devices that will exist on each oss node.
+Backwards compatability note: if \fIdevice\fR is present and \fInumbdevs\fR is
+not, the number of OST's per OSS will be calculated from <deviceset>.
+The special parameter "{NODENAME}" used here expands to the name of the
+particular oss node.
+.TP
+\fIfoname <hostrange>\fR (not used by LMT)
+Specify the set of failover hosts as <hostrange>.
+.TP
+\fIfodevice <fodeviceset>\fR (not used by LMT)
+Specify the failover devices that will exist on each oss node.
+The special parameter "{FONODENAME}" used here expands to the name of the
+particular failover oss node.
+.LP
+The \fIrouter\fR secion defines properties about the LNET routers for
+filesystem <fsname>.  It it optional and may be omitted if routers
+are not being monitored.
+The fields that are allowed in this section are:
+.TP
+\fIname <hostrange>\fR (required)
+Specify the set of router nodes with <hostrange>.
+There can be only one \fIname\fR field.
+.SH EXAMPLE CONFIGURATION
+Here is an example of a configuration file for \fBcreate_lmtconfig\fR:
+.IP
+.nf
+#
+# lc1.conf - LMT configuration for tycho lc1 file system
+#
+# one MDS node
+mds {
+    name tycho-mds1
+    uuid lc1-MDT0000
+}
+# 8-node scalable unit, each node has 3 luns
+ost {
+    name tycho[1-40]
+    uuid lc1-OST{HEXINDEX}
+    skip 8
+    numdevs 3
+}
+# 2-node scalable unit, each node has 12 luns
+ost {
+    name tycho[41-42]
+    uuid lc1-OST{HEXINDEX}
+    skip 2
+    numdevs 12
+    startidx 120
+}
+router {
+    name alc[4-19],atlas[64-71,504-511,640-647,1080-1087]
+}
+.fi
+.SH EXAMPLE USAGE
+To backup and recreate the database for the \fIlc1\fR file system:
+.IP
+.nf
+mysqldump --user lwatchadmin filesystem_lc1 >backup.sql
+echo 'drop database filesystem_lc1;' | mysql --user lwatchadmin
+create_lmtconfig -d lc1 -f lc1.conf  | mysql --user lwatchadmin
+.fi
+.SH SEE ALSO
+lustre(7)

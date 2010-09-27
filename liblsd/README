@@ -1,0 +1,35 @@
+LSDtools is a set of reusable GPL modules that appear in various open source
+projects developed at LLNL.
+
++-----------------------+
+| liblsd error handling |
++-----------------------+
+
+The project configure script sets the following preprocessor vars in config.h:
+
+  WITH_LSD_FATAL_ERROR_FUNC
+  WITH_LSD_NOMEM_ERROR_FUNC
+
+causing LSD modules call the following functions upon fatal and OOM conditions:
+
+  void lsd_fatal_error (char *file, int line, char *mesg);
+  void *lsd_nomem_error (char *file, int line, char *mesg);
+
+error.c contains the implementation of these functions, both of which print
+an error message and exit.  For cerebro modules, the effect of exiting is
+to terminate the cerebrod.  In general these are "should never happen"
+conditions where drastic measures are justified. 
+
+To ensure that log messages are generated when this happens, some logging
+code was added to error.c as well.  In the cerebro module case, the logging
+destination is set to cerebro's internal logging function, which in turn
+maps to syslog (LOG_DAEMON | LOG_ERROR).  These logging functions are also
+used in liblmt for fatal conditions and configurable debugging.
+
++-------+
+| Other |
++-------+
+
+The project configure script also defines WITH_LSD_LIST_MYSQL_COMPAT.
+This disables some code that LMT doesn't use which conflicts with MySQL
+API routines.

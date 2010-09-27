@@ -1,0 +1,156 @@
+.TH ltop 1 "@META_DATA@" "@META_ALIAS@" "@META_NAME@"
+.SH NAME
+ltop \- display live information about a Lustre file system
+.SH SYNOPSIS
+.B "ltop [OPTIONS]"
+.SH DESCRIPTION
+.B ltop
+displays information about a live Lustre file system monitored by LMT.
+.SH OPTIONS
+.B ltop 
+accepts the following command line options:
+.TP
+.I "-f FSNAME"
+Monitor the file system named FSNAME.
+You may monitor only one file system per \fBltop\fR session.
+The default is to monitor the first file system found.
+.TP
+.I "-t SECS"
+Change the display refresh period from the default of two seconds.
+.TP
+.I "-r FILE"
+Log raw data from the session to FILE, so it can be played back with \fI\-p\fR.
+.TP
+.I "-p FILE"
+Play back raw data from FILE recorded with \fI\-r\fR or with the
+interactive \fIR\fR command.
+.SH "OST FIELD DESCRIPTIONS"
+.TP
+\fIOST\fR
+The ost index, in hex.  In the compressed view (c below), the number of OST's
+on the OSS is displayed in parenthesis.
+.TP
+\fIS\fR
+OSC status.  The MDS's view of the OST is shown here.  The OSC state is
+abbreviated as follows:  \fIC\fR closed, \fIN\fR new, \fID\fR disconn,
+\fIc\fR connecting, \fIr\fR replay, \fIl\fR replay_locks, \fIw\fR replay_wait,
+\fIR\fR recover, \fIF\fR full, \fIE\fR evicted.  The normal state is \fIF\fR.
+.TP
+\fIOSS\fR
+The OSS hostname.
+.TP
+\fIExp\fR
+Export count.  There will be one export for each client mounting the
+file system plus one for the MDS and one for the OST itself.
+.TP
+\fICR\fR
+The number of (re-)connects per second.
+.TP
+\fIrMB/s\fR
+Read megabytes per second.
+.TP
+\fIwMB/s\fR
+Write megabytes per second.
+.TP
+\fIIOPS\fR
+Bulk RPC's per second (read and write combined).
+In an ideal world, all bulk I/O would be 1MB, i.e. equal to the sum of
+\fIrMB/s\fR and \fIwMB/s\fR.
+.TP
+\fILOCKS\fR
+The number of locks on OST resources currently granted.
+.TP
+\fILGR\fR
+The lock grant rate.
+.TP
+\fILCR\fR
+The lock cancellation rate.
+.SH "INTERACTIVE COMMANDS"
+.B ltop
+responds to the following single character commands interactively:
+.TP
+\fIq\fR
+Terminate the
+.B ltop
+program.
+.TP
+\fIPageDown\fR
+Page down through OST information if it won't fit on screen.
+.TP
+\fIPageUp\fR
+Page up through OST information if it won't fit on screen.
+.TP
+\fIc\fR
+Toggle compressed OST view.  The default mode is to display one line per OST.
+In compressed mode, one line per OSS is displayed.  Numerical data is summed
+in the OSS view except for the export count where the minimum export count
+of any OST is displayed.  Also if any of the OST's is in recovery, recovery
+information for that OST will be shown in the OSS view.
+.TP
+\fIt\fR
+Sort by OST index, ascending order (default).
+.TP
+\fIs\fR
+Sort by OSS name, ascending order.
+.TP
+\fIx\fR
+Sort by export count, ascending order.
+.TP
+\fIC\fR
+Sort by (re-)connect rate, descending order.
+.TP
+\fIr\fR
+Sort by read bandwidth, descending order.
+.TP
+\fIw\fR
+Sort by write bandwidth, descending order.
+.TP
+\fIi\fR
+Sort by IOPS, descending order.
+.TP
+\fIl\fR
+Sort by lock count, descending order.
+.TP
+\fIg\fR
+Sort by lock grant rate, descending order.
+.TP
+\fIL\fR
+Sort by lock cancellation rate, descending order.
+.TP
+\fIDOWN\fR
+Move cursor down.
+.TP
+\fIUP\fR
+Move cursor up.
+.TP
+\fISPACE\fR
+Tag/untag OST/OSS under cursor.  Tagged OST/OSS's are underlined.
+.TP
+\fIDEL\fR
+Park cursor and clear all tags.
+.TP
+\fIR\fR
+Toggle record mode on/off.  Unless a file name was specified with the
+\fI\-r\fR command line option, a file named \fIltop.log\fR will be used.
+.TP
+\fIp\fR
+Pause data collection/playback.
+.TP
+.SH "VI KEY BINDINGS"
+For convenience to
+.B vi
+users, the following aliases are defined
+.TP
+\fIj\fR
+Alias for \fIDOWN\fR
+.TP
+\fIk\fR
+Alias for \fIUP\fR
+.TP
+\fIControl-U\fR
+Alias for \fIPageUp\fR
+.TP
+\fIControl-D\fR
+Alias for \fIPageDown\fR
+.SH SEE ALSO
+lustre(7)

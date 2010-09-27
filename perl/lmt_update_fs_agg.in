@@ -1,0 +1,154 @@
+#!/usr/bin/env perl
+#===============================================================================
+#                                 lmt_update_fs_agg
+#-------------------------------------------------------------------------------
+#  Purpose:     Insert filesys totals record for each timestamp for each OST agg.
+#
+#
+#  Author:      Jeff Long, LLNL, 06/07/2007
+#  Notes:       
+#	This is part of LMT2 -- the second generation of Lustre Monitoring
+#	Tools.
+#
+#	This script updates the FILESYSTEM_AGGREGATE_HOUR/DAY/WEEK/MONTH/YEAR
+#	tables with information collected across all OSTs at each timestamp.
+#
+#  Modification History:
+#       06/07/2007 - jwl: Initial version.
+#===============================================================================
+
+BEGIN {
+    push @INC, "@X_DATADIR@/@PACKAGE@";
+}
+
+use strict;
+use Getopt::Std;
+use LMT;
+
+$| = 1;
+
+# Tables from which agg data are read...
+my @tables = qw /OST_AGGREGATE_HOUR  OST_AGGREGATE_DAY OST_AGGREGATE_WEEK
+		 OST_AGGREGATE_MONTH OST_AGGREGATE_YEAR/;
+
+Usage() if (not getopts('c:dvf:r:t:'));
+
+my $verbose   = (defined $main::opt_v) ? 1 : 0;
+my $debug     = (defined $main::opt_d) ? 1 : 0;
+my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
+my $config    = (defined $main::opt_c) ? $main::opt_c : undef;
+
+Usage("Must specify filesystem argument\n") if (not $filesys);
+
+my ($sth, $ref);
+my $lmt = LMT->new($config);
+$lmt->connect($filesys);
+die("Could not connect to $filesys\n") if (not $lmt);
+
+my $fsid = $lmt->getFilesystemIdFromName($filesys); 
+die ("Could not get FILESYSTEM_ID for $filesys\n") if (not $fsid or $fsid < 0);
+
+foreach my $table (@tables) {
+    
+    print "Updating FILESYSTEM_AGGREGATE from $table for $filesys...\n";
+
+    # Get all timestamps from this table
+    my @timestamps = ();
+    $sth = $lmt->execQuery ("select distinct TS_ID from $table");
+    while ($ref = $sth->fetchrow_hashref()) {
+	push @timestamps, $ref->{TS_ID};
+    }
+    @timestamps = sort(@timestamps);
+
+    # Get all variable ids from this table
+    my @varids = ();
+    $sth = $lmt->execQuery ("select distinct VARIABLE_ID from $table");
+    while ($ref = $sth->fetchrow_hashref()) {
+	push @varids, $ref->{VARIABLE_ID};
+    }
+    @varids = sort(@varids);
+
+    # Get all data for each timestamp
+    foreach my $tsid (@timestamps) {
+	# OST summaries
+	my %agg=(); my %min=(); my %max=(); my %avg=(); my %count=();
+
+	$sth = $lmt->execQuery ("select * from $table where TS_ID=?", $tsid);
+	while ($ref = $sth->fetchrow_hashref()) {
+	    my $varid = $ref->{VARIABLE_ID};
+	    $min{$varid} = LMT::min($min{$varid}, $ref->{MINVAL});
+	    $max{$varid} = LMT::max($max{$varid}, $ref->{MAXVAL});
+	    $agg{$varid} += $ref->{AGGREGATE};
+	    $avg{$varid} += $ref->{AVERAGE};
+	    $count{$varid}++;
+	}
+	foreach my $varid (keys %count) {
+	    # Complete average calculation
+	    if ($count{$varid} > 0) {
+		$avg{$varid} = $avg{$varid} / $count{$varid};
+	    }
+	    
+	    # Ready to write records...
+	    my $res = writeVar($lmt, $table, $fsid, $tsid, $varid,
+			       $max{$varid},$min{$varid},$avg{$varid},$agg{$varid});
+#	    print "Writing OST vals: $tsid  for varid=$varid - max=$max{$varid} min=$min{$varid} avg=$avg{$varid} agg=$agg{$varid}\n";
+	}
+    }
+}
+
+
+
+sub Usage {
+    my $msg=shift;
+    print "$msg\n" if ($msg);
+
+    print<<EOF;
+Usage: $0 [-d] [-v] -f filesys
+
+ Where:
+    -d         : Enables debug mode
+    -v         : Enables verbose mode
+    -f filesys : Operates on given filesystem (required)
+EOF
+
+  exit 1;
+}
+
+#
+# writeVar -- Insert record into filesystem aggregate table 
+#
+sub writeVar {
+    my $lmt = shift;
+    my $tableName = shift;
+    my $fsid = shift;
+    my $tsid = shift;
+    my $varid = shift;
+    my ($max,$min,$avg,$agg) = @_;
+
+    $min = 0.0 if ($min == undef);
+    $max = 0.0 if ($max == undef);
+    $avg = 0.0 if ($avg == undef);
+    $agg = 0.0 if ($agg == undef);
+
+    my $outputTable = $tableName;
+    $outputTable =~ s/^[A-Z]+_/FILESYSTEM_/;
+
+    print "[writeVar] Writing record to $outputTable, tsid=$tsid, varid=$varid...\n" if ($debug);
+
+    # Delete previous record
+    my $query = "delete from $outputTable where TS_ID=? and VARIABLE_ID=?";
+    print "[writeVar] Doing delete query:\n$query\n" if ($debug);
+    my $res = $lmt->doQuery($query, $tsid, $varid);
+
+    
+    # Add new record
+    #--------------------
+
+    $query = "insert into $outputTable (FILESYSTEM_ID,TS_ID,VARIABLE_ID,";
+    $query .= "OST_MAXVAL,OST_MINVAL,OST_AVERAGE,OST_AGGREGATE) ";
+    $query .= " values ($fsid,$tsid,$varid,$max,$min,$avg,$agg)";
+
+    print "insert query=\n$query\n" if ($debug);
+    my $res = $lmt->doQuery($query);
+    return $res;
+}

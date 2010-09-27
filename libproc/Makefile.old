@@ -1,0 +1,14 @@
+CFLAGS = -g -Wall -I../liblsd
+OBJS = proc.o stat.o meminfo.o lustre.o
+LIBLSD = ../liblsd/liblsd.a
+
+all: tproc tlustre
+
+tproc: tproc.o $(OBJS)
+	$(CC) $(CFLAGS) -o $@ tproc.o $(OBJS) $(LIBLSD)
+
+tlustre: tlustre.o $(OBJS)
+	$(CC) $(CFLAGS) -o $@ tlustre.o $(OBJS) $(LIBLSD)
+
+clean:
+	rm -f tproc tlustre *.o

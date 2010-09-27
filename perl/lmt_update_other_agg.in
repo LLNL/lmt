@@ -1,0 +1,344 @@
+#!/usr/bin/env perl
+#===============================================================================
+#                                    update_other_agg
+#-------------------------------------------------------------------------------
+#  Purpose:     Update the aggregate-day|week|month|year tables from hourly table.
+#
+#  Author:      Jeff Long, LLNL, 02/17/2007
+#  Notes:       
+#	This is part of LMT2 -- the second generation of Lustre Monitoring
+#	Tools.
+#
+#	This script updates the OST|ROUTER|MDS_AGGREGATE_DAY|WEEK|MONTH|YEAR
+#       tables with information collected from the *_AGGREGATE_HOUR tables.
+#
+#  Modification History:
+#       02/17/2007 - jwl: Initial version.
+#===============================================================================
+
+BEGIN {
+    push @INC, "@X_DATADIR@/@PACKAGE@";
+}
+
+use strict;
+use Date::Manip;
+use Getopt::Std;
+use LMT;
+
+$| = 1;
+
+Usage() if (not getopts('c:domrRvf:t:'));
+
+my $verbose   = (defined $main::opt_v) ? 1 : 0;
+my $debug     = (defined $main::opt_d) ? 1 : 0;
+my $doOst     = (defined $main::opt_o) ? 1 : 0;
+my $doMds     = (defined $main::opt_m) ? 1 : 0;
+my $doRouter  = (defined $main::opt_r) ? 1 : 0;
+my $replaceAll= (defined $main::opt_R) ? 1 : 0;
+my $filesys   = (defined $main::opt_f) ? $main::opt_f : undef;
+my $config    = (defined $main::opt_c) ? $main::opt_c : undef;
+
+Usage("Must specify filesystem") if (not defined($filesys));
+
+#
+# Connect to database associated with given filesystem
+#
+my $lmt = LMT->new($config);
+$lmt->connect($filesys);
+$lmt->verbose($verbose);
+$lmt->debug($debug);
+
+
+if ($doOst) {
+    processAggTables ($lmt, $filesys, "OST_ID",
+		      "OST_AGGREGATE_HOUR", "OST_AGGREGATE_DAY", "OST_AGGREGATE_WEEK",
+		      "OST_AGGREGATE_MONTH", "OST_AGGREGATE_YEAR");
+}
+
+if ($doRouter) {
+    processAggTables ($lmt, $filesys, "ROUTER_ID",
+		      "ROUTER_AGGREGATE_HOUR", "ROUTER_AGGREGATE_DAY", "ROUTER_AGGREGATE_WEEK",
+		      "ROUTER_AGGREGATE_MONTH", "ROUTER_AGGREGATE_YEAR");
+}
+
+if ($doMds) {
+    processAggTables ($lmt, $filesys, "MDS_ID",
+		      "MDS_AGGREGATE_HOUR", "MDS_AGGREGATE_DAY", "MDS_AGGREGATE_WEEK",
+		      "MDS_AGGREGATE_MONTH", "MDS_AGGREGATE_YEAR");
+}
+
+# Disconnect from the database.
+$lmt->disconnect();
+
+exit 0;
+
+
+sub processAggTables {
+    my $lmt = shift;
+    my $filesys = shift;
+    my $idCol = shift;
+    my $hourlyTable = shift;
+    my $dailyTable = shift;
+    my $weeklyTable = shift;
+    my $monthlyTable = shift;
+    my $yearlyTable = shift;
+
+    print "Updating aggregate tables from $hourlyTable for $filesys...\n";
+
+    # Get first timestamp from hourly table
+    my ($firstHourlyTimestamp,$firstHourlyTimestampId) = $lmt->getFirstTimestamp($hourlyTable);
+    my ($finalHourlyTimestamp,$finalHourlyTimestampId) = $lmt->getFinalTimestamp($hourlyTable);
+
+    print "First timestamp to use from hourly data: $firstHourlyTimestamp ($firstHourlyTimestampId)\n";
+    print "Final timestamp to use from hourly data: $finalHourlyTimestamp ($finalHourlyTimestampId)\n";
+
+    # Timestamp is in the form:  2007-01-17 10:30:45
+    # For each aggregate, need to round down the timestamp to the prior day/week/month/year
+
+    my $startTimestamp;
+    my $junk;
+
+    # By-Day
+    ($startTimestamp,$junk) = $lmt->getFinalTimestamp($dailyTable);
+    if (not $startTimestamp or $replaceAll) {
+	$startTimestamp = substr($firstHourlyTimestamp, 0, 11) . "00:00:00",
+    }
+    updateAggTable ($lmt, $idCol, $hourlyTable, $dailyTable,
+		    $startTimestamp, $finalHourlyTimestamp, "1 DAY");
+
+    # By-Week
+    ($startTimestamp,$junk) = $lmt->getFinalTimestamp($weeklyTable);
+    if (not $startTimestamp or $replaceAll) {
+	my $prevSunday = Date_GetPrev($firstHourlyTimestamp, "Sunday", 2, "00:00:00");
+	$startTimestamp = substr($prevSunday, 0, 4) . "-" .
+	                  substr($prevSunday, 4, 2) . "-" .
+	                  substr($prevSunday, 6, 2) . " " .
+	                  substr($prevSunday, 8, 8);
+	print "Weekly first timestamp = $startTimestamp\n";
+    }
+    updateAggTable ($lmt, $idCol, $hourlyTable, $weeklyTable,
+		    $startTimestamp, $finalHourlyTimestamp, "7 DAY");
+#		    $startTimestamp, $finalHourlyTimestamp, "1 WEEK"); # 1 week not supported mysql4
+
+    # By-Month
+    ($startTimestamp,$junk) = $lmt->getFinalTimestamp($monthlyTable);
+    if (not $startTimestamp or $replaceAll) {
+	$startTimestamp = substr($firstHourlyTimestamp, 0, 8) . "01 00:00:00",
+    }
+    updateAggTable ($lmt, $idCol, $hourlyTable, $monthlyTable,
+		    $startTimestamp, $finalHourlyTimestamp, "1 MONTH");
+
+    # By-Year
+    ($startTimestamp,$junk) = $lmt->getFinalTimestamp($yearlyTable);
+    if (not $startTimestamp or $replaceAll) {
+	$startTimestamp = substr($firstHourlyTimestamp, 0, 5) . "01-01 00:00:00",
+    }
+    updateAggTable ($lmt, $idCol, $hourlyTable, $yearlyTable,
+		    $startTimestamp, $finalHourlyTimestamp, "1 YEAR");
+
+}
+
+sub updateAggTable {
+    my $lmt = shift;
+    my $idCol = shift;	# E.g., ostId or routerId
+    my $sourceTableName = shift;
+    my $sinkTableName = shift;
+    my $startTimestamp = shift;
+    my $finalTimestamp = shift;
+    my $interval = shift;
+
+    print "Updating $sinkTableName\n";
+    $finalTimestamp =~ s/[ :-]//g;  # To ease comparisons
+
+    # Loop over each variable ID
+    foreach my $varId ($lmt->getTablesVariableIds($sourceTableName)) {
+	
+	my $startTime = $startTimestamp;
+
+	# Loop over each interval within the time window
+	while ($startTime lt $finalTimestamp) {
+	    
+	    my $query = "select distinct x1.* from $sourceTableName as x1, TIMESTAMP_INFO " .
+		"where x1.TS_ID=TIMESTAMP_INFO.TS_ID and TIMESTAMP >= ? " .
+		"and TIMESTAMP < DATE_ADD(?, INTERVAL $interval) and VARIABLE_ID=?";
+	    print "Issuing query for retrieving one period's worth of data:\n$query\n" if ($verbose);
+
+	    my $sth = $lmt->execQuery($query, $startTime, $startTime, $varId);
+	    
+	    my %aggData=();	# All data for one variable across all OSTs/routers/etc
+	    my %counts=();	# Number of hits by OST
+	    
+	    # Process all data for this variable in this interval; group into one hash per ost
+	    while (my $ref = $sth->fetchrow_hashref()) {
+		next if (not $ref or not $ref->{$idCol});
+		$counts{$ref->{$idCol}}++;
+		my $idNum = $ref->{$idCol};
+		
+		if ($counts{$idNum} == 1) {   # First time for this OST/router so init everything
+		    print "Init'ing ts=$startTime, varid=$varId, idnum=$idNum\n" if ($debug);
+		    $aggData{$idNum} = initVar($varId);
+		}
+		updateVar($ref, \$aggData{$idNum});
+	    } 
+	    $sth->finish();
+
+	    # Compute averages...
+	    foreach my $i (keys %aggData) {
+		# AVERAGE field contains sum of all AVERAGEs over this time span
+		$aggData{$i}->{AVERAGE} = $aggData{$i}->{AVERAGE} / $counts{$i};
+	    }
+
+	    # Insert record into appropriate aggregate table.
+	    # 1. Create timestamp for 'startTimestamp'
+	    # 2. Insert record for each variable (BYTES_READ,BYTES_WRITTEN) into agg table
+	    my $ts_id = $lmt->createOrFetchTimestampId ($startTime);
+
+	    foreach my $i (sort keys %aggData) {
+		my %extras = ("$idCol" => $i, "TS_ID" => $ts_id, "VARIABLE_ID" => $varId);
+		writeVar($lmt, $idCol, $sinkTableName, \%extras, $aggData{$i});
+	    }
+
+	    # Add one interval to startTime
+	    my $date = ParseDate($startTime);
+	    my $err;
+	    $date = DateCalc($date, "+ $interval", \$err);
+	    die ("date calc error: $err\n") if (not $date or $err);
+	    $startTime = $date;
+	    $startTime =~ s/://g;
+	    print "Next loop start date = $date ($startTime)\n" if ($verbose);
+	    
+	    print "." if (not $verbose);
+	}
+	print "\n";
+    }
+}
+
+#
+# initVar -- Initialize an aggregate OST variable hash
+#
+sub initVar {
+    my $varid = shift;
+    my %h=();
+
+    $h{VARIABLE_ID} = $varid;
+    $h{MAXVAL} = -1;
+    $h{MINVAL} = 1.0e+50;
+    $h{AVERAGE} = 0;
+    $h{NUM_SAMPLES} = 0;
+    $h{AGGREGATE} = 0;
+
+    return \%h;
+}
+
+#
+#  updateVar -- Update various elements of aggregate data for this variable
+#
+sub updateVar {
+    my $dbref = shift;
+    my $var = shift;
+    my $varref=$$var;
+
+    if (not $varref) {
+	print "[updateVar] -- Failed start-up check. varref is null!\n" if ($verbose);
+	return;
+    }
+
+    foreach my $field ("AGGREGATE", "MINVAL", "MAXVAL", "AVERAGE", "NUM_SAMPLES") {
+	
+#	next if (not defined $varref->{$field} or
+#		 not defined $dbref->{$field});  # Skip undefined db values
+
+	if (not defined $varref->{$field} or
+	    not defined $dbref->{$field}) {
+	    print "Skipping undefined value\n" if ($verbose);
+	    next;
+	}
+
+	if ($field eq "MAXVAL") {
+	    $varref->{MAXVAL} = LMT::max($varref->{MAXVAL}, $dbref->{MAXVAL});
+	} elsif ($field eq "MINVAL") {
+	    $varref->{MINVAL} = LMT::min($varref->{MINVAL}, $dbref->{MINVAL});
+	} else {
+	    $varref->{$field} += $dbref->{$field};
+	}
+    }
+}
+
+#
+# writeVar -- Insert record into aggregate table containing information in this variable
+#
+sub writeVar {
+    my $lmt = shift;
+    my $idCol = shift;
+    my $tableName = shift;
+    my $extraref = shift;
+    my $varref = shift;
+    
+    my $name = $varref->{name};
+    print "[writeVar] Writing record for $name...\n" if ($debug);
+
+    # Tack extra column values onto main hash before writing
+    if ($extraref) {
+	foreach (keys %{$extraref}) {
+	    $varref->{$_} = $extraref->{$_};
+	}
+    }
+
+    if (not defined $varref->{VARIABLE_ID}) {
+	print "[writeVar] ERROR -- null variable id\n";
+	print "[writeVar] Offending var: " . $varref->{$idCol} . " tsid=" . $varref->{TS_ID} .
+	    " name=" . $varref->{name} . "\n";
+	die();
+    }
+
+    # Delete previous record
+    my $query = "delete from $tableName where $idCol=? and TS_ID=? and VARIABLE_ID=?";
+    print "[writeVar] Doing delete query:\n$query\n" if ($debug);
+    my $res = $lmt->doQuery($query, $varref->{$idCol}, $varref->{TS_ID}, $varref->{VARIABLE_ID});
+
+    # Add new record
+    #--------------------
+    # Generate list of keys. Note that only upper case fields will be
+    # written. Lower case fields are for working values, etc.
+    my @keys = ();  
+    foreach (keys %{$varref}) {
+	if ($_ =~ /^[A-Z]/) { 
+	    push @keys, $_;
+	}
+    }
+
+    $query = "insert into $tableName (";
+    foreach (@keys) {
+	$query .= "$_,";
+    }
+    chop $query; # Trailing comma
+    $query .= ") values (";
+    foreach (@keys) {
+	$query .= $varref->{$_} . ",";
+    }
+    chop $query; # Trailing comma
+    $query .= ")";
+
+    print "insert query=\n$query\n" if ($debug);
+    $res = $lmt->doQuery($query);
+
+    return $res;
+}
+
+sub Usage {
+    my $msg = shift;
+    print "$msg\n\n" if ($msg);
+
+    print<<EOF;
+Usage: $0 [-d] [-v] [-t table] -f filesys 
+
+ Where:
+    -d         : Enables debug mode
+    -v         : Enables verbose mode
+    -f filesys : Operates on given filesystem (required)
+    -o         : Process OST agg tables
+    -r         : Process router agg tables
+EOF
+
+  exit 1;
+}

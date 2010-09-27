@@ -1,0 +1,29 @@
+#!/usr/bin/env lua
+
+-- Helper script to parse lmt.conf for lmt.PM
+
+local function keyval (key, val)
+    if val == nil then
+        val = ""
+    end 
+    io.write (string.format ("%s:%s\n", key, val))
+end
+
+
+if #arg ~= 1 then
+    io.stderr:write ("Usage: lmtcf filename\n")
+    os.exit (1)
+end
+
+local f = loadfile (arg[1])
+if f ~= nil then
+    f ()
+else
+    io.stderr:write (string.format ("Error loading %s\n", arg[1]))
+    os.exit (1)
+end
+
+keyval ("dbhost", lmt_db_host)
+keyval ("dbport", lmt_db_port)
+keyval ("dbuser", lmt_db_rwuser)
+keyval ("dbauth", lmt_db_rwpasswd)

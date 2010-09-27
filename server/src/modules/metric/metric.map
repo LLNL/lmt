@@ -1,6 +1,0 @@
-{
-  global:
-    metric_module_info;
-  local:
-    *;
-};

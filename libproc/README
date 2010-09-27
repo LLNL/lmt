@@ -1,0 +1,11 @@
++------------------------+
+| libproc error handling |
++------------------------+
+
+Log fatal errors such as out of memory via error.h functions in liblsd.
+In general, non fatal errors are indicated as a -1 return with errno set.
+
+The following errno values are overloaded:
+
+EIO = parse error
+EINVAL = invalid libproc function arguments
