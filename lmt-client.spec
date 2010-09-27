@@ -11,8 +11,8 @@ Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: ant, ant-nodeps
 BuildRequires: ncurses-devel
-BuildRequires: jre >= 1.4.2, java-devel >= 1.4.2
-Requires: jre >= 1.4.2, ncurses
+BuildRequires: jre >= 1.5.0, java-devel >= 1.5.0
+Requires: jre >= 1.5.0, ncurses
 %define __spec_install_post /usr/lib/rpm/brp-compress || :
 %define debug_package %{nil}
 
