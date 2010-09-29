@@ -471,10 +471,10 @@ _insert_router_info (lmt_db_t db, char *rtrname, uint64_t *idp)
 {
     int retval = -1;
     uint64_t id;
-    int len = strlen (sql_ins_router_info_tmpl) + strlen (rtrname) + 1;
+    int len = strlen (sql_ins_router_info_tmpl) + strlen (rtrname)*2 + 1;
     char *qry = xmalloc (len);
 
-    snprintf (qry, len, sql_ins_router_info_tmpl, rtrname);
+    snprintf (qry, len, sql_ins_router_info_tmpl, rtrname, rtrname);
     if (mysql_query (db->conn, qry)) {
         if (lmt_conf_get_db_debug ())
             msg ("error inserting %s ROUTER_INFO %s: %s",
@@ -834,10 +834,8 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
         if (lmt_conf_get_db_autoconf ()) {
             if (lmt_conf_get_db_debug ())
                 msg ("adding %s to %s ROUTER_INFO", rtrname,lmt_db_fsname (db));
-            if (_insert_router_info (db, rtrname, &router_id) < 0) {
-                retval = 0; /* avoid a reconnect */
+            if (_insert_router_info (db, rtrname, &router_id) < 0)
                 goto done;
-            }
         } else {
             if (lmt_conf_get_db_debug ())
                 msg ("%s: no entry in %s ROUTER_INFO and db_autoconf disabled",
