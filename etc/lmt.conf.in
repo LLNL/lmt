@@ -9,6 +9,8 @@ lmt_proto_debug = 0
 
 lmt_db_debug = 0
 
+lmt_db_autoconf = 1
+
 lmt_db_host = nil
 lmt_db_port = 0
 

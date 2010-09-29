@@ -92,9 +92,9 @@ _init_db_ifneeded (void)
         if (now.tv_sec - last_connect.tv_sec < MIN_RECONNECT_SECS)
             goto done;
         last_connect = now;
-        msg ("connecting to database");
         if (lmt_db_create_all (0, &dbs) < 0)
             goto done;
+        msg ("connected to database");
     }
     retval = 0;
 done:

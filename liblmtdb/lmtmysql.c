@@ -191,7 +191,7 @@ done:
 }
 
 static int
-_populate_idhash_qry (lmt_db_t db, const char *sql, const char *pfx)
+_populate_idhash_qry (lmt_db_t db, const char *pfx, const char *sql)
 {
     int retval = -1;
     MYSQL_RES *res = NULL;
@@ -211,7 +211,7 @@ _populate_idhash_qry (lmt_db_t db, const char *sql, const char *pfx)
         id = strtoul (row[1], NULL, 10);
         s = _create_svcid (pfx, row[0], id);
         if (!hash_insert (db->idhash, s->key, s)) {
-	    _destroy_svcid (s);
+            _destroy_svcid (s);
             goto done;
         }
     }
@@ -223,8 +223,8 @@ done:
 }
 
 static int
-_populate_idhash_one (lmt_db_t db, const char *tmpl, const char *pfx,
-                      char *a1, uint64_t *idp)
+_populate_idhash_one (lmt_db_t db, const char *pfx,
+                      const char *tmpl, char *a1, uint64_t *idp)
 {
     int len = strlen (a1) + strlen (tmpl) + 1;
     char *qry = xmalloc (len);
@@ -248,7 +248,7 @@ _populate_idhash_one (lmt_db_t db, const char *tmpl, const char *pfx,
     id = strtoul (row[1], NULL, 10);
     s = _create_svcid (pfx, row[0], id);
     if (!hash_insert (db->idhash, s->key, s)) {
-	_destroy_svcid (s);
+        _destroy_svcid (s);
         goto done;
     }
     result = 0;
@@ -266,22 +266,22 @@ _populate_idhash (lmt_db_t db)
     int retval = -1;
 
     /* MDS_INFO:    HOSTNAME -> MDS_ID */
-    if (_populate_idhash_qry (db, sql_sel_mds_info, "mds") < 0)
+    if (_populate_idhash_qry (db, "mds", sql_sel_mds_info) < 0)
         goto done;
     /* MDS_INFO:    MDS_NAME -> MDS_ID */
-    if (_populate_idhash_qry (db, sql_sel_mdt_info, "mdt") < 0)
+    if (_populate_idhash_qry (db, "mdt", sql_sel_mdt_info) < 0)
         goto done;
     /* OSS_INFO:    HOSTNAME -> OSS_ID */
-    if (_populate_idhash_qry (db, sql_sel_oss_info, "oss") < 0)
+    if (_populate_idhash_qry (db, "oss", sql_sel_oss_info) < 0)
         goto done;
     /* OST_INFO:    OST_NAME -> OST_ID */
-    if (_populate_idhash_qry (db, sql_sel_ost_info, "ost") < 0)
+    if (_populate_idhash_qry (db, "ost", sql_sel_ost_info) < 0)
         goto done;
     /* ROUTER_INFO: HOSTNAME -> ROUTER_ID */
-    if (_populate_idhash_qry (db, sql_sel_router_info, "router") < 0)
+    if (_populate_idhash_qry (db, "router", sql_sel_router_info) < 0)
         goto done;
     /* OPERATION_INFO: OPERATION_NAME -> OPERATION_ID */
-    if (_populate_idhash_qry (db, sql_sel_operation_info, "op") < 0)
+    if (_populate_idhash_qry (db, "op", sql_sel_operation_info) < 0)
         goto done;
     retval = 0;
 done: 
@@ -375,14 +375,14 @@ _insert_mds_info (lmt_db_t db, char *mdsname, char *mdtname, uint64_t *idp)
                  lmt_db_fsname (db), mdtname, mdsname, mysql_error (db->conn));
         goto done;
     }
-    if (_populate_idhash_one (db, sql_sel_mds_info_tmpl, "mds", mdsname,
+    if (_populate_idhash_one (db, "mds", sql_sel_mds_info_tmpl, mdsname,
                               &id) < 0) {
         if (lmt_conf_get_db_debug ())
             msg ("error querying %s of %s from MDS_INFO after insert: %s",
                  lmt_db_fsname (db), mdsname, mysql_error (db->conn));
         goto done;
     }
-    if (_populate_idhash_one (db, sql_sel_mdt_info_tmpl, "mdt", mdtname,
+    if (_populate_idhash_one (db, "mdt", sql_sel_mdt_info_tmpl, mdtname,
                               &id) < 0) {
         if (lmt_conf_get_db_debug ())
             msg ("error querying %s of %s from MDS_INFO after insert: %s",
@@ -413,8 +413,8 @@ _insert_oss_info (lmt_db_t db, char *ossname, uint64_t *idp)
                  lmt_db_fsname (db), ossname, mysql_error (db->conn));
         goto done;
     }
-    if (_populate_idhash_one (db, sql_sel_oss_info_tmpl, "oss",
-                              ossname, &id) < 0) {
+    if (_populate_idhash_one (db, "oss", sql_sel_oss_info_tmpl, ossname,
+                              &id) < 0) {
         if (lmt_conf_get_db_debug ())
             msg ("error querying %s of %s from OSS_INFO after insert: %s",
                  lmt_db_fsname (db), ossname, mysql_error (db->conn));
@@ -437,7 +437,7 @@ _insert_ost_info (lmt_db_t db, char *ossname, char *ostname, uint64_t *idp)
     char *qry = xmalloc (len);
 
     if (_lookup_idhash (db, "oss", ossname, &oss_id) < 0) {
-	if (_insert_oss_info (db, ossname, &oss_id) < 0)
+        if (_insert_oss_info (db, ossname, &oss_id) < 0)
             goto done;
     }
     snprintf (qry, len, sql_ins_ost_info_tmpl, oss_id, ostname, ossname);
@@ -447,8 +447,8 @@ _insert_ost_info (lmt_db_t db, char *ossname, char *ostname, uint64_t *idp)
                  lmt_db_fsname (db), ostname, mysql_error (db->conn));
         goto done;
     }
-    if (_populate_idhash_one (db, sql_sel_ost_info_tmpl, "ost",
-                              ostname, &id) < 0) {
+    if (_populate_idhash_one (db, "ost", sql_sel_ost_info_tmpl, ostname,
+                              &id) < 0) {
         if (lmt_conf_get_db_debug ())
             msg ("error querying %s of %s from OST_INFO after insert: %s",
                  lmt_db_fsname (db), ostname, mysql_error (db->conn));
@@ -476,8 +476,8 @@ _insert_router_info (lmt_db_t db, char *rtrname, uint64_t *idp)
                  lmt_db_fsname (db), rtrname, mysql_error (db->conn));
         goto done;
     }
-    if (_populate_idhash_one (db, sql_sel_router_info_tmpl, "router",
-                              rtrname, &id) < 0) {
+    if (_populate_idhash_one (db, "router", sql_sel_router_info_tmpl, rtrname,
+                              &id) < 0) {
         if (lmt_conf_get_db_debug ())
             msg ("error querying %s of %s from ROUTER_INFO after insert: %s",
                  lmt_db_fsname (db), rtrname, mysql_error (db->conn));
@@ -571,8 +571,15 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,
         goto done;
     }
     if (_lookup_idhash(db, "mdt", mdtname, &mds_id) < 0) {
-	if (_insert_mds_info (db, mdsname, mdtname, &mds_id) < 0)
+        if (lmt_conf_get_db_autoconf ()) {
+            if (_insert_mds_info (db, mdsname, mdtname, &mds_id) < 0)
+                goto done;
+        } else {
+            if (lmt_conf_get_db_debug ())
+                msg ("%s: no entry in %s MDT_INFO and db_autoconf disabled",
+                     mdtname, lmt_db_fsname (db));
             goto done;
+        }
     }
     if (_update_timestamp (db) < 0)
         goto done;
@@ -690,8 +697,15 @@ lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
         goto done;
     }
     if (_lookup_idhash (db, "oss", ossname, &oss_id) < 0) {
-	if (_insert_oss_info (db, ossname, &oss_id) < 0)
+        if (lmt_conf_get_db_autoconf ()) {
+            if (_insert_oss_info (db, ossname, &oss_id) < 0)
+                goto done;
+        } else {
+            if (lmt_conf_get_db_debug ())
+                msg ("%s: no entry in %s OSS_INFO and db_autoconf disabled",
+                     ossname, lmt_db_fsname (db));
             goto done;
+        }
     }
     if (_update_timestamp (db) < 0)
         goto done;
@@ -742,8 +756,15 @@ lmt_db_insert_ost_data (lmt_db_t db, char *ossname, char *ostname,
         goto done;
     }
     if (_lookup_idhash (db, "ost", ostname, &ost_id) < 0) {
-        if (_insert_ost_info (db, ossname, ostname, &ost_id) < 0)
+        if (lmt_conf_get_db_autoconf ()) {
+            if (_insert_ost_info (db, ossname, ostname, &ost_id) < 0)
+                goto done;
+        } else {
+            if (lmt_conf_get_db_debug ())
+                msg ("%s: no entry in %s OST_INFO and db_autoconf disabled",
+                     ostname, lmt_db_fsname (db));
             goto done;
+        }
     }
     if (_update_timestamp (db) < 0)
         goto done;
@@ -796,8 +817,15 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
         goto done;
     }
     if (_lookup_idhash (db, "router", rtrname, &router_id) < 0) {
-        if (_insert_router_info (db, rtrname, &router_id) < 0)
+        if (lmt_conf_get_db_autoconf ()) {
+            if (_insert_router_info (db, rtrname, &router_id) < 0)
+                goto done;
+        } else {
+            if (lmt_conf_get_db_debug ())
+                msg ("%s: no entry in %s ROUTER_INFO and db_autoconf disabled",
+                     rtrname, lmt_db_fsname (db));
             goto done;
+        }
     }
     if (_update_timestamp (db) < 0)
         goto done;

@@ -46,6 +46,9 @@ void  lmt_conf_set_db_port (int i);
 int   lmt_conf_get_db_debug (void);
 void  lmt_conf_set_db_debug (int i);
 
+int   lmt_conf_get_db_autoconf (void);
+void  lmt_conf_set_db_autoconf (int i);
+
 int   lmt_conf_get_cbr_debug (void);
 void  lmt_conf_set_cbr_debug (int i);
 
