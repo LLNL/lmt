@@ -237,6 +237,8 @@ _populate_idhash_one (lmt_db_t db, const char *tmpl, const char *pfx,
     snprintf (qry, len, tmpl, a1);
     if (mysql_query (db->conn, qry))
         goto done;
+    if (!(res = mysql_store_result (db->conn)))
+        goto done;
     if (!(row = mysql_fetch_row (res)))
         goto done;
     if (_verify_type (res, 0, MYSQL_TYPE_VAR_STRING) < 0)
