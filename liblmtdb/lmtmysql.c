@@ -291,18 +291,18 @@ done:
 static int
 _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
 {
-    int keysize = strlen (svctype) + strlen (name) + 3;
+    int len = strlen (svctype) + strlen (name) + 2;
     char *key = xmalloc (keysize);
     int retval = -1;
     svcid_t *s;
 
-    snprintf (key, keysize, "%s_%s", svctype, name);
+    snprintf (key, len, "%s_%s", svctype, name);
     if ((s = hash_find (db->idhash, key))) {
-        retval = 0;
         if (idp)
             *idp = s->id;
-        free (key);
+        retval = 0;
     }
+    free (key);
     return retval;
 }
 
@@ -578,6 +578,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,
             if (lmt_conf_get_db_debug ())
                 msg ("%s: no entry in %s MDT_INFO and db_autoconf disabled",
                      mdtname, lmt_db_fsname (db));
+            retval = 0; /* avoid a reconnect */
             goto done;
         }
     }
@@ -704,6 +705,7 @@ lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
             if (lmt_conf_get_db_debug ())
                 msg ("%s: no entry in %s OSS_INFO and db_autoconf disabled",
                      ossname, lmt_db_fsname (db));
+            retval = 0; /* avoid a reconnect */
             goto done;
         }
     }
@@ -763,6 +765,7 @@ lmt_db_insert_ost_data (lmt_db_t db, char *ossname, char *ostname,
             if (lmt_conf_get_db_debug ())
                 msg ("%s: no entry in %s OST_INFO and db_autoconf disabled",
                      ostname, lmt_db_fsname (db));
+            retval = 0; /* avoid a reconnect */
             goto done;
         }
     }
@@ -824,6 +827,7 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
             if (lmt_conf_get_db_debug ())
                 msg ("%s: no entry in %s ROUTER_INFO and db_autoconf disabled",
                      rtrname, lmt_db_fsname (db));
+            retval = 0; /* avoid a reconnect */
             goto done;
         }
     }
