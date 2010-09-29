@@ -292,7 +292,7 @@ static int
 _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
 {
     int len = strlen (svctype) + strlen (name) + 2;
-    char *key = xmalloc (keysize);
+    char *key = xmalloc (len);
     int retval = -1;
     svcid_t *s;
 
