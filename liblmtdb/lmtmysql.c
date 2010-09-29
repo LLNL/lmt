@@ -79,6 +79,7 @@ struct lmt_db_struct {
     hash_t idhash;
 };
 
+/* sql for prepared insert statements */
 const char *sql_ins_timestamp_info = 
     "insert into TIMESTAMP_INFO "
     "(TIMESTAMP) " 
@@ -106,6 +107,7 @@ const char *sql_ins_router_data =
     "(ROUTER_ID, TS_ID, BYTES, PCT_CPU) "
     "values (?, ?, ?, ?)";
 
+/* sql for populating the idcache in bulk */
 const char *sql_sel_mds_info =
     "select HOSTNAME, MDS_ID from MDS_INFO";
 const char *sql_sel_mdt_info =
@@ -119,6 +121,7 @@ const char *sql_sel_router_info =
 const char *sql_sel_operation_info =
     "select OPERATION_NAME, OPERATION_ID from OPERATION_INFO";
 
+/* sql for database autoconfig */
 const char *sql_ins_mds_info_tmpl =
     "insert into MDS_INFO "
     "(FILESYSTEM_ID, MDS_NAME, HOSTNAME, DEVICE_NAME) "
@@ -136,6 +139,7 @@ const char *sql_ins_router_info_tmpl =
     "(ROUTER_NAME, HOSTNAME, ROUTER_GROUP_ID) "
     "values ('%s', '%s', 0)";
 
+/* sql for populating the idcache with individual values */
 const char *sql_sel_mds_info_tmpl =
     "select HOSTNAME, MDS_ID from MDS_INFO where HOSTNAME = '%s'";
 const char *sql_sel_mdt_info_tmpl =
@@ -226,13 +230,13 @@ static int
 _populate_idhash_one (lmt_db_t db, const char *pfx,
                       const char *tmpl, char *a1, uint64_t *idp)
 {
+    int retval = -1;
     int len = strlen (a1) + strlen (tmpl) + 1;
     char *qry = xmalloc (len);
     MYSQL_RES *res = NULL;
     MYSQL_ROW row;
     uint64_t id;
     svcid_t *s; 
-    int result = -1;
 
     snprintf (qry, len, tmpl, a1);
     if (mysql_query (db->conn, qry))
@@ -251,13 +255,14 @@ _populate_idhash_one (lmt_db_t db, const char *pfx,
         _destroy_svcid (s);
         goto done;
     }
-    result = 0;
-    *idp = id;
+    if (idp)
+        *idp = id;
+    retval = 0;
 done:
     if (res)
         mysql_free_result (res);
     free (qry);
-    return result;
+    return retval;
 }
 
 static int
@@ -369,7 +374,7 @@ _insert_mds_info (lmt_db_t db, char *mdsname, char *mdtname, uint64_t *idp)
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
     snprintf (qry, len, sql_ins_mds_info_tmpl, mdtname, mdsname);
-    if (mysql_query (db->conn, qry) == 0) {
+    if (mysql_query (db->conn, qry)) {
         if (lmt_conf_get_db_debug ())
             msg ("error inserting %s MDS_INFO %s, %s: %s",
                  lmt_db_fsname (db), mdtname, mdsname, mysql_error (db->conn));
@@ -407,7 +412,7 @@ _insert_oss_info (lmt_db_t db, char *ossname, uint64_t *idp)
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
     snprintf (qry, len, sql_ins_oss_info_tmpl, ossname);
-    if (mysql_query (db->conn, qry) == 0) {
+    if (mysql_query (db->conn, qry)) {
         if (lmt_conf_get_db_debug ())
             msg ("error inserting %s OSS_INFO %s: %s",
                  lmt_db_fsname (db), ossname, mysql_error (db->conn));
@@ -441,7 +446,7 @@ _insert_ost_info (lmt_db_t db, char *ossname, char *ostname, uint64_t *idp)
             goto done;
     }
     snprintf (qry, len, sql_ins_ost_info_tmpl, oss_id, ostname, ossname);
-    if (mysql_query (db->conn, qry) == 0) {
+    if (mysql_query (db->conn, qry)) {
         if (lmt_conf_get_db_debug ())
             msg ("error inserting %s OSS_INFO %s: %s",
                  lmt_db_fsname (db), ostname, mysql_error (db->conn));
@@ -470,7 +475,7 @@ _insert_router_info (lmt_db_t db, char *rtrname, uint64_t *idp)
     char *qry = xmalloc (len);
 
     snprintf (qry, len, sql_ins_router_info_tmpl, rtrname);
-    if (mysql_query (db->conn, qry) == 0) {
+    if (mysql_query (db->conn, qry)) {
         if (lmt_conf_get_db_debug ())
             msg ("error inserting %s ROUTER_INFO %s: %s",
                  lmt_db_fsname (db), rtrname, mysql_error (db->conn));
