@@ -137,15 +137,15 @@ const char *sql_ins_router_info_tmpl =
     "values ('%s', '%s', 0)";
 
 const char *sql_sel_mds_info_tmpl =
-    "select HOSTNAME, MDS_ID from MDS_INFO where HOSTNAME = %s";
+    "select HOSTNAME, MDS_ID from MDS_INFO where HOSTNAME = '%s'";
 const char *sql_sel_mdt_info_tmpl =
-    "select MDS_NAME, MDS_ID from MDS_INFO where MDS_NAME = %s";
+    "select MDS_NAME, MDS_ID from MDS_INFO where MDS_NAME = '%s'";
 const char *sql_sel_oss_info_tmpl =
-    "select HOSTNAME, OSS_ID from OSS_INFO where HOSTNAME = %s";
+    "select HOSTNAME, OSS_ID from OSS_INFO where HOSTNAME = '%s'";
 const char *sql_sel_ost_info_tmpl =
-    "select OST_NAME, OST_ID from OST_INFO where OST_NAME = %s";
+    "select OST_NAME, OST_ID from OST_INFO where OST_NAME = '%s'";
 const char *sql_sel_router_info_tmpl =
-    "select HOSTNAME, ROUTER_ID from ROUTER_INFO where HOSTNAME = %s";
+    "select HOSTNAME, ROUTER_ID from ROUTER_INFO where HOSTNAME = '%s'";
 
 /**
  ** Idhash functions (internal)
