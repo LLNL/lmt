@@ -547,8 +547,8 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     wclear (win);
 
     wattron (win, A_REVERSE);
-    mvwprintw (win, x++, 0,
-               "%-80s", " OST S        OSS   Exp   CR rMB/s wMB/s  IOPS   LOCKS  LGR  LCR");
+    mvwprintw (win, x++, 0, "%-80s", " OST S        OSS"
+               "   Exp   CR rMB/s wMB/s  IOPS   LOCKS  LGR  LCR");
     wattroff(win, A_REVERSE);
     assert (x == OSTWIN_H_LINES);
 
@@ -569,8 +569,8 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
                        o->recov_status);
         /* ost is in normal state */
         } else {
-            mvwprintw (win, x, 0,
-              "%4.4s %1.1s %10.10s %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f",
+            mvwprintw (win, x, 0, "%4.4s %1.1s %10.10s"
+                       " %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f",
                        o->name, o->oscstate, o->ossname,
                        sample_val (o->num_exports, tnow),
                        sample_rate (o->connect, tnow),

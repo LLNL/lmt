@@ -163,7 +163,7 @@ _insert_ostinfo (char *ossname, float pct_cpu, float pct_mem, char *s)
     }
     if (!(db = _svc_to_db (ostname)))
         goto done;
-    if (lmt_db_insert_ost_data (db, ostname, read_bytes, write_bytes,
+    if (lmt_db_insert_ost_data (db, ossname, ostname, read_bytes, write_bytes,
                                 kbytes_free, kbytes_total - kbytes_free,
                                 inodes_free, inodes_total - inodes_free) < 0) {
         _trigger_db_reconnect ();
@@ -239,7 +239,7 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s)
         goto done;
     if (!(db = _svc_to_db (mdtname)))
         goto done;
-    if (lmt_db_insert_mds_data (db, mdtname, pct_cpu,
+    if (lmt_db_insert_mds_data (db, mdsname, mdtname, pct_cpu,
                                 kbytes_free, kbytes_total - kbytes_free,
                                 inodes_free, inodes_total - inodes_free) < 0) {
         _trigger_db_reconnect ();
@@ -329,7 +329,7 @@ lmt_db_insert_mds_v2 (char *s)
         goto done;
     if (!(db = _svc_to_db (mdtname)))
         goto done;
-    if (lmt_db_insert_mds_data (db, mdtname, pct_cpu,
+    if (lmt_db_insert_mds_data (db, mdsname, mdtname, pct_cpu,
                                 kbytes_free, kbytes_total - kbytes_free,
                                 inodes_free, inodes_total - inodes_free) < 0) {
         _trigger_db_reconnect ();
@@ -356,8 +356,6 @@ lmt_db_insert_oss_v1 (char *s)
     lmt_db_t db;
     char *ossname = NULL;
     float pct_cpu, pct_mem;
-    int firstfail;
-    int inserts = 0;
 
     if (_init_db_ifneeded () < 0)
         goto done;
@@ -365,18 +363,15 @@ lmt_db_insert_oss_v1 (char *s)
         goto done;
     itr = list_iterator_create (dbs);
     while ((db = list_next (itr))) {
-        if (lmt_db_lookup (db, "oss", ossname, &firstfail) < 0) /* peek */
+        /* N.B. defeat automatic insertion of new OSS_INFO for legacy,
+         * as there is no way to tie OSS to a particular file system.
+         */
+        if (lmt_db_lookup (db, "oss", ossname) < 0)
             continue; 
         if (lmt_db_insert_oss_data (db, 1, ossname, pct_cpu, pct_mem) < 0) {
             _trigger_db_reconnect ();
             goto done;
         }
-        inserts++;
-    }
-    if (inserts == 0) {
-        if (lmt_conf_get_db_debug () && firstfail)
-            msg ("%s: no entry in any OSS_INFO", ossname);
-        goto done;
     }
 done:
     if (ossname)
@@ -404,7 +399,7 @@ lmt_db_insert_ost_v1 (char *s)
     }
     if (!(db = _svc_to_db (ostname)))
         goto done;
-    if (lmt_db_insert_ost_data (db, ostname, read_bytes, write_bytes,
+    if (lmt_db_insert_ost_data (db, ossname, ostname, read_bytes, write_bytes,
                                 kbytes_free, kbytes_total - kbytes_free,
                                 inodes_free, inodes_total - inodes_free) < 0) {
         _trigger_db_reconnect ();

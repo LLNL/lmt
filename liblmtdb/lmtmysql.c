@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <sys/time.h>
 #include <mysql.h>
 #include <mysqld_error.h>
@@ -118,6 +119,34 @@ const char *sql_sel_router_info =
 const char *sql_sel_operation_info =
     "select OPERATION_NAME, OPERATION_ID from OPERATION_INFO";
 
+const char *sql_ins_mds_info_tmpl =
+    "insert into MDS_INFO "
+    "(FILESYSTEM_ID, MDS_NAME, HOSTNAME, DEVICE_NAME) "
+    "values ('1', '%s', '%s', '')";
+const char *sql_ins_oss_info_tmpl =
+    "insert into OSS_INFO "
+    "(FILESYSTEM_ID, HOSTNAME) "
+    "values ('1', '%s')";
+const char *sql_ins_ost_info_tmpl =
+    "insert into OST_INFO "
+    "(OSS_ID, OST_NAME, HOSTNAME, DEVICE_NAME, OFFLINE) "
+    "values (%"PRIu64",'%s', '%s', '', '0')";
+const char *sql_ins_router_info_tmpl =
+    "insert into ROUTER_INFO "
+    "(ROUTER_NAME, HOSTNAME, ROUTER_GROUP_ID) "
+    "values ('%s', '%s', 0)";
+
+const char *sql_sel_mds_info_tmpl =
+    "select HOSTNAME, MDS_ID from MDS_INFO where HOSTNAME = %s";
+const char *sql_sel_mdt_info_tmpl =
+    "select MDS_NAME, MDS_ID from MDS_INFO where MDS_NAME = %s";
+const char *sql_sel_oss_info_tmpl =
+    "select HOSTNAME, OSS_ID from OSS_INFO where HOSTNAME = %s";
+const char *sql_sel_ost_info_tmpl =
+    "select OST_NAME, OST_ID from OST_INFO where OST_NAME = %s";
+const char *sql_sel_router_info_tmpl =
+    "select HOSTNAME, ROUTER_ID from ROUTER_INFO where HOSTNAME = %s";
+
 /**
  ** Idhash functions (internal)
  **/
@@ -181,14 +210,52 @@ _populate_idhash_qry (lmt_db_t db, const char *sql, const char *pfx)
             goto done;
         id = strtoul (row[1], NULL, 10);
         s = _create_svcid (pfx, row[0], id);
-        if (!hash_insert (db->idhash, s->key, s))
+        if (!hash_insert (db->idhash, s->key, s)) {
+	    _destroy_svcid (s);
             goto done;
+        }
     }
     retval = 0;
 done:
     if (res)
         mysql_free_result (res);
     return retval;
+}
+
+static int
+_populate_idhash_one (lmt_db_t db, const char *tmpl, const char *pfx,
+                      char *a1, uint64_t *idp)
+{
+    int len = strlen (a1) + strlen (tmpl) + 1;
+    char *qry = xmalloc (len);
+    MYSQL_RES *res = NULL;
+    MYSQL_ROW row;
+    uint64_t id;
+    svcid_t *s; 
+    int result = -1;
+
+    snprintf (qry, len, tmpl, a1);
+    if (mysql_query (db->conn, qry))
+        goto done;
+    if (!(row = mysql_fetch_row (res)))
+        goto done;
+    if (_verify_type (res, 0, MYSQL_TYPE_VAR_STRING) < 0)
+        goto done;
+    if (_verify_type (res, 1, MYSQL_TYPE_LONG) < 0)
+        goto done;
+    id = strtoul (row[1], NULL, 10);
+    s = _create_svcid (pfx, row[0], id);
+    if (!hash_insert (db->idhash, s->key, s)) {
+	_destroy_svcid (s);
+        goto done;
+    }
+    result = 0;
+    *idp = id;
+done:
+    if (res)
+        mysql_free_result (res);
+    free (qry);
+    return result;
 }
 
 static int
@@ -220,8 +287,7 @@ done:
 }
 
 static int
-_lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp,
-                int *firstfailp)
+_lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp)
 {
     int keysize = strlen (svctype) + strlen (name) + 3;
     char *key = xmalloc (keysize);
@@ -234,35 +300,16 @@ _lookup_idhash (lmt_db_t db, char *svctype, char *name, uint64_t *idp,
         if (idp)
             *idp = s->id;
         free (key);
-    /* Insert a 'negative idhash entry' on first lookup failure.
-     * This is to reduce log noise - test the 'firstfail' flag
-     * and emit only one log message per unknown server.
-     */
-    } else {
-        snprintf (key, keysize, "!%s_%s", svctype, name);
-        if ((s = hash_find (db->idhash, key))) {
-            free (key);
-            if (firstfailp)
-                *firstfailp = 0;
-        } else {
-            s = xmalloc (sizeof (svcid_t));
-            memset (s, 0, sizeof (svcid_t));
-            s->key = key;
-            s->id = 0;
-            (void)hash_insert (db->idhash, s->key, s);
-            if (firstfailp)
-                *firstfailp = 1;
-        } 
     }
     return retval;
 }
 
 int
-lmt_db_lookup (lmt_db_t db, char *svctype, char *name, int *firstfailp)
+lmt_db_lookup (lmt_db_t db, char *svctype, char *name)
 {
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
-    return _lookup_idhash (db, svctype, name, NULL, firstfailp);
+    return _lookup_idhash (db, svctype, name, NULL);
 }
 
 /* private arg structure for _mapfun () */
@@ -303,9 +350,146 @@ lmt_db_server_map (lmt_db_t db, char *svctype, lmt_db_map_f mf, void *arg)
     return (m.error ? -1 : 0);
 }
 
+/**
+ ** Database *_INFO insert functions
+ ** Used to implement semi-automatic MySQL configuration, new for lmt3.
+ **/
+
+static int
+_insert_mds_info (lmt_db_t db, char *mdsname, char *mdtname, uint64_t *idp)
+{
+    int retval = -1;
+    uint64_t id;
+    int len = strlen (sql_ins_mds_info_tmpl)
+            + strlen (mdsname) + strlen (mdtname) + 1;
+    char *qry = xmalloc (len);
+
+    assert (db->magic == LMT_DBHANDLE_MAGIC);
+
+    snprintf (qry, len, sql_ins_mds_info_tmpl, mdtname, mdsname);
+    if (mysql_query (db->conn, qry) == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error inserting %s MDS_INFO %s, %s: %s",
+                 lmt_db_fsname (db), mdtname, mdsname, mysql_error (db->conn));
+        goto done;
+    }
+    if (_populate_idhash_one (db, sql_sel_mds_info_tmpl, "mds", mdsname,
+                              &id) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error querying %s of %s from MDS_INFO after insert: %s",
+                 lmt_db_fsname (db), mdsname, mysql_error (db->conn));
+        goto done;
+    }
+    if (_populate_idhash_one (db, sql_sel_mdt_info_tmpl, "mdt", mdtname,
+                              &id) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error querying %s of %s from MDS_INFO after insert: %s",
+                 lmt_db_fsname (db), mdtname, mysql_error (db->conn));
+        goto done;
+    }
+    *idp = id;
+    retval = 0;
+done:
+    free (qry);
+    return retval;
+}
+
+static int
+_insert_oss_info (lmt_db_t db, char *ossname, uint64_t *idp)
+{
+    int retval = -1;
+    uint64_t id;
+    int len = strlen (sql_ins_oss_info_tmpl) + strlen (ossname) + 1;
+    char *qry = xmalloc (len);
+
+    assert (db->magic == LMT_DBHANDLE_MAGIC);
+
+    snprintf (qry, len, sql_ins_oss_info_tmpl, ossname);
+    if (mysql_query (db->conn, qry) == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error inserting %s OSS_INFO %s: %s",
+                 lmt_db_fsname (db), ossname, mysql_error (db->conn));
+        goto done;
+    }
+    if (_populate_idhash_one (db, sql_sel_oss_info_tmpl, "oss",
+                              ossname, &id) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error querying %s of %s from OSS_INFO after insert: %s",
+                 lmt_db_fsname (db), ossname, mysql_error (db->conn));
+        goto done;
+    }
+    *idp = id;
+    retval = 0;
+done:
+    free (qry);
+    return retval;
+}
+
+static int
+_insert_ost_info (lmt_db_t db, char *ossname, char *ostname, uint64_t *idp)
+{
+    int retval = -1;
+    uint64_t id, oss_id;
+    int len = strlen (sql_ins_ost_info_tmpl)
+            + strlen (ossname)*2 + strlen (ostname) + 1;
+    char *qry = xmalloc (len);
+
+    if (_lookup_idhash (db, "oss", ossname, &oss_id) < 0) {
+	if (_insert_oss_info (db, ossname, &oss_id) < 0)
+            goto done;
+    }
+    snprintf (qry, len, sql_ins_ost_info_tmpl, oss_id, ostname, ossname);
+    if (mysql_query (db->conn, qry) == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error inserting %s OSS_INFO %s: %s",
+                 lmt_db_fsname (db), ostname, mysql_error (db->conn));
+        goto done;
+    }
+    if (_populate_idhash_one (db, sql_sel_ost_info_tmpl, "ost",
+                              ostname, &id) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error querying %s of %s from OST_INFO after insert: %s",
+                 lmt_db_fsname (db), ostname, mysql_error (db->conn));
+        goto done;
+    }
+    *idp = id;
+    retval = 0;
+done:
+    free (qry);
+    return retval;
+}
+
+static int
+_insert_router_info (lmt_db_t db, char *rtrname, uint64_t *idp)
+{
+    int retval = -1;
+    uint64_t id;
+    int len = strlen (sql_ins_router_info_tmpl) + strlen (rtrname) + 1;
+    char *qry = xmalloc (len);
+
+    snprintf (qry, len, sql_ins_router_info_tmpl, rtrname);
+    if (mysql_query (db->conn, qry) == 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error inserting %s ROUTER_INFO %s: %s",
+                 lmt_db_fsname (db), rtrname, mysql_error (db->conn));
+        goto done;
+    }
+    if (_populate_idhash_one (db, sql_sel_router_info_tmpl, "router",
+                              rtrname, &id) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error querying %s of %s from ROUTER_INFO after insert: %s",
+                 lmt_db_fsname (db), rtrname, mysql_error (db->conn));
+        goto done;
+    }
+    *idp = id;
+    retval = 0;
+done:
+    free (qry);
+    return retval;
+}
 
 /**
- ** Database insert functions
+ ** Database *_DATA and TIMESTAMP_INFO insert functions
  ** -1 return will cause disconnect/reconnect in lmtdb.c.
  **/
 
@@ -366,13 +550,13 @@ done:
 }
 
 int
-lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
+lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,
+                        float pct_cpu,
                         uint64_t kbytes_free, uint64_t kbytes_used,
                         uint64_t inodes_free, uint64_t inodes_used)
 {
     MYSQL_BIND param[7];
     uint64_t mds_id;
-    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -384,11 +568,9 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
                  lmt_db_fsname (db));
         goto done;
     }
-    if (_lookup_idhash(db, "mdt", mdtname, &mds_id, &firstlog) < 0) {
-        if (lmt_conf_get_db_debug () && firstlog)
-            msg ("%s: no entry in %s MDS_INFO", mdtname, lmt_db_fsname (db));
-        retval = 0; /* avoid reconnect */
-        goto done;
+    if (_lookup_idhash(db, "mdt", mdtname, &mds_id) < 0) {
+	if (_insert_mds_info (db, mdsname, mdtname, &mds_id) < 0)
+            goto done;
     }
     if (_update_timestamp (db) < 0)
         goto done;
@@ -432,7 +614,6 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
 {
     MYSQL_BIND param[6];
     uint64_t mds_id, op_id;
-    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -442,14 +623,17 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
                  lmt_db_fsname (db));
         goto done;
     }
-    if (_lookup_idhash (db, "mdt", mdtname, &mds_id, &firstlog) < 0) {
-        if (lmt_conf_get_db_debug () && firstlog)
-            msg ("%s: no entry in %s MDT_INFO", opname, lmt_db_fsname (db));
+    /* N.B. lookup would have failed earlier and been fixed so don't
+     * expect an error here.
+     */
+    if (_lookup_idhash (db, "mdt", mdtname, &mds_id) < 0) {
+        if (lmt_conf_get_db_debug ())
+            msg ("%s: no entry in %s MDT_INFO", mdtname, lmt_db_fsname (db));
         retval = 0; /* avoid a reconnect */
         goto done;
     }
-    if (_lookup_idhash (db, "op", opname, &op_id, &firstlog) < 0) {
-        if (lmt_conf_get_db_debug () && firstlog)
+    if (_lookup_idhash (db, "op", opname, &op_id) < 0) {
+        if (lmt_conf_get_db_debug ())
             msg ("%s: no entry in %s OPERATION_INFO", opname,
                  lmt_db_fsname (db));
         retval = 0; /* avoid a reconnect */
@@ -494,7 +678,6 @@ lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
 {
     MYSQL_BIND param[4];
     uint64_t oss_id;
-    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -504,11 +687,9 @@ lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
                  lmt_db_fsname (db));
         goto done;
     }
-    if (_lookup_idhash (db, "oss", ossname, &oss_id, &firstlog) < 0) {
-        if (lmt_conf_get_db_debug () && firstlog && !quiet_noexist)
-            msg ("%s: no entry in %s OSS_INFO", ossname, lmt_db_fsname (db));
-        retval = 0; /* avoid a reconnect */
-        goto done;
+    if (_lookup_idhash (db, "oss", ossname, &oss_id) < 0) {
+	if (_insert_oss_info (db, ossname, &oss_id) < 0)
+            goto done;
     }
     if (_update_timestamp (db) < 0)
         goto done;
@@ -542,14 +723,13 @@ done:
 }
 
 int
-lmt_db_insert_ost_data (lmt_db_t db, char *ostname,
+lmt_db_insert_ost_data (lmt_db_t db, char *ossname, char *ostname,
                         uint64_t read_bytes, uint64_t write_bytes,
                         uint64_t kbytes_free, uint64_t kbytes_used,
                         uint64_t inodes_free, uint64_t inodes_used)
 {
     MYSQL_BIND param[8];
     uint64_t ost_id;
-    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -559,11 +739,9 @@ lmt_db_insert_ost_data (lmt_db_t db, char *ostname,
                  lmt_db_fsname (db));
         goto done;
     }
-    if (_lookup_idhash (db, "ost", ostname, &ost_id, &firstlog) < 0) {
-        if (lmt_conf_get_db_debug () && firstlog)
-            msg ("%s: no entry in %s OST_INFO", ostname, lmt_db_fsname (db));
-        retval = 0; /* avoid a reconnect */
-        goto done;
+    if (_lookup_idhash (db, "ost", ostname, &ost_id) < 0) {
+        if (_insert_ost_info (db, ossname, ostname, &ost_id) < 0)
+            goto done;
     }
     if (_update_timestamp (db) < 0)
         goto done;
@@ -606,7 +784,6 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
 {
     MYSQL_BIND param[4];
     uint64_t router_id;
-    int firstlog;
     int retval = -1;
 
     assert (db->magic == LMT_DBHANDLE_MAGIC);
@@ -616,11 +793,9 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
                  lmt_db_fsname (db));
         goto done;
     }
-    if (_lookup_idhash (db, "router", rtrname, &router_id, &firstlog) < 0) {
-        if (lmt_conf_get_db_debug () && firstlog)
-            msg ("%s: no entry in %s ROUTER_INFO", rtrname, lmt_db_fsname (db));
-        retval = 0; /* avoid a reconnect */
-        goto done;
+    if (_lookup_idhash (db, "router", rtrname, &router_id) < 0) {
+        if (_insert_router_info (db, rtrname, &router_id) < 0)
+            goto done;
     }
     if (_update_timestamp (db) < 0)
         goto done;

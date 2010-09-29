@@ -31,14 +31,15 @@ int lmt_db_create_all (int readonly, List *dblp);
 
 void lmt_db_destroy (lmt_db_t db);
 
-int lmt_db_insert_mds_data (lmt_db_t db, char *mdtname, float pct_cpu,
-                        uint64_t kbytes_free, uint64_t kbytes_used,
-                        uint64_t inodes_free, uint64_t inodes_used);
+int lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,
+                        float pct_cpu, uint64_t kbytes_free,
+                        uint64_t kbytes_used, uint64_t inodes_free,
+                        uint64_t inodes_used);
 int lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
                         uint64_t samples, uint64_t sum, uint64_t sumsquares);
 int lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *name,
                         float pctcpu, float pctmem);
-int lmt_db_insert_ost_data (lmt_db_t db, char *name,
+int lmt_db_insert_ost_data (lmt_db_t db, char *ossname, char *ostname,
                         uint64_t read_bytes, uint64_t write_bytes,
                         uint64_t kbytes_free, uint64_t kbytes_used,
                         uint64_t inodes_free, uint64_t inodes_used);
@@ -49,7 +50,7 @@ int lmt_db_insert_router_data (lmt_db_t db, char *name,
 
 char *lmt_db_fsname (lmt_db_t db);
 
-int lmt_db_lookup (lmt_db_t db, char *svctype, char *name, int *firstfailp);
+int lmt_db_lookup (lmt_db_t db, char *svctype, char *name);
 
 typedef int (*lmt_db_map_f) (const char *key, void *arg);
 

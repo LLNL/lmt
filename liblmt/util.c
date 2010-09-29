@@ -45,6 +45,16 @@ xmalloc (size_t size)
     return obj;
 }
 
+void *
+xrealloc (void *ptr, size_t size)
+{
+    void *obj = realloc (ptr, size);
+
+    if (!obj)
+        msg_exit ("out of memory");
+    return obj;
+}
+
 char *
 xstrdup (const char *s)
 {
