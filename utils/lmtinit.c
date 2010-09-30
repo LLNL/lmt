@@ -38,6 +38,9 @@
 #include <getopt.h>
 #endif
 #include <libgen.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "list.h"
 #include "hash.h"
@@ -175,11 +178,11 @@ list (char *user, char *pass)
     char *s, *p;
 
     if (lmt_db_list (user, pass, &l) < 0)
-        return;
+        exit (1);
     itr = list_iterator_create (l);
     while ((s = list_next (itr))) {
         p = strchr (s, '_');
-        msg ("%s", p ? p + 1 : s);
+        printf ("%s\n", p ? p + 1 : s);
     }
     list_iterator_destroy (itr);
 }
@@ -187,11 +190,62 @@ list (char *user, char *pass)
 static void
 del (char *user, char *pass, char *fsname)
 {
+    if (lmt_db_drop (user, pass, fsname) < 0)
+        exit (1);
+}
+
+#define LMT_SCHEMA_VERSION "1.1"
+#define LMT_SCHEMA_PATH \
+    X_DATADIR "/" PACKAGE "/create_schema-" LMT_SCHEMA_VERSION ".sql"
+
+static int
+_read_schema (char *filename, char **cp)
+{
+    int fd = -1;
+    struct stat sb;
+    char *buf = NULL;
+    char *path = filename ? filename : LMT_SCHEMA_PATH;
+    int n, res = -1;
+
+    if ((fd = open (path, O_RDONLY)) < 0) {
+        err ("could not open %s for reading", path);
+        goto done;
+    }
+    if (fstat (fd, &sb) < 0) {
+        err ("could not fstat %s", path);
+        goto done;
+    }
+    buf = xmalloc (sb.st_size);
+    n = read (fd, buf, sb.st_size);
+    if (n < 0) {
+        err ("error reading %s", path);
+        goto done;
+    } else if (n == 0) {
+        msg ("error reading %s: premature EOF", path);
+        goto done;
+    } if (n != sb.st_size) {
+        msg ("error reading %s: short read", path);
+        goto done;
+    }
+    res = 0;
+    *cp = buf;
+done:
+    if (fd != -1)
+        close (fd);
+    if (res < 0)
+        free (buf);
+    return res;
 }
 
 static void
 add (char *user, char *pass, char *fsname, char *schemafile)
 {
+    char *buf;
+    
+    if (_read_schema (schemafile, &buf) < 0)
+        exit (1);
+    if (lmt_db_add (user, pass, fsname, LMT_SCHEMA_VERSION, buf) < 0)
+        exit (1);
 }
 
 /*

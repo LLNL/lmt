@@ -151,6 +151,18 @@ const char *sql_sel_ost_info_tmpl =
 const char *sql_sel_router_info_tmpl =
     "select HOSTNAME, ROUTER_ID from ROUTER_INFO where HOSTNAME = '%s'";
 
+/* sql for lmtinit */
+const char *sql_drop_fs =
+    "drop database filesystem_%s";
+const char *sql_create_fs =
+    "create database filesystem_%s";
+const char *sql_connect_fs =
+    "connect filesystem_%s";
+const char *sql_ins_filesystem_info =
+    "insert into FILESYSTEM_INFO "
+    "(FILESYSTEM_NAME, FILESYSTEM_MOUNT_NAME, SCHEMA_VERSION) "
+    "values ('%s', '', '%s')";
+
 /**
  ** Idhash functions (internal)
  **/
@@ -991,43 +1003,6 @@ done:
 }
 
 int
-lmt_db_list (char *user, char *pass, List *lp)
-{
-    char *host = lmt_conf_get_db_host ();
-    int port = lmt_conf_get_db_port ();
-    List l = list_create ((ListDelF)free);
-    MYSQL *conn = NULL;
-    MYSQL_RES *res = NULL;
-    MYSQL_ROW row;
-    int retval = -1;
-
-    if (!(conn = mysql_init (NULL)))
-        msg_exit ("out of memory");
-    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL, 0)) {
-        if (lmt_conf_get_db_debug ())
-            msg ("lmt_db_list: %s",  mysql_error (conn));
-        goto done;
-    }
-    if (!(res = mysql_list_dbs (conn, "filesystem_%"))) {
-        if (lmt_conf_get_db_debug ())
-            msg ("lmt_db_list: unable to list lmt databases");
-        goto done;
-    }
-    while ((row = mysql_fetch_row (res)))
-        list_append (l, xstrdup (row[0]));
-    *lp = l;
-    retval = 0;
-done:
-    if (res)
-        mysql_free_result (res);
-    if (conn)
-        mysql_close (conn);
-    if (retval < 0)
-        list_destroy (l);
-    return retval;
-}
-
-int
 lmt_db_create_all (int readonly, List *dblp)
 {
     int retval = -1;
@@ -1066,6 +1041,139 @@ lmt_db_fsname (lmt_db_t db)
     char *p = strchr (db->name, '_');
 
     return (p ? p + 1 : db->name);
+}
+
+int
+lmt_db_list (char *user, char *pass, List *lp)
+{
+    char *host = lmt_conf_get_db_host ();
+    int port = lmt_conf_get_db_port ();
+    List l = list_create ((ListDelF)free);
+    MYSQL *conn = NULL;
+    MYSQL_RES *res = NULL;
+    MYSQL_ROW row;
+    int retval = -1;
+
+    if (!(conn = mysql_init (NULL)))
+        msg_exit ("out of memory");
+    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL, 0)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_list: %s",  mysql_error (conn));
+        goto done;
+    }
+    if (!(res = mysql_list_dbs (conn, "filesystem_%"))) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_list: unable to list lmt databases");
+        goto done;
+    }
+    while ((row = mysql_fetch_row (res)))
+        list_append (l, xstrdup (row[0]));
+    *lp = l;
+    retval = 0;
+done:
+    if (res)
+        mysql_free_result (res);
+    if (conn)
+        mysql_close (conn);
+    if (retval < 0)
+        list_destroy (l);
+    return retval;
+}
+
+int
+lmt_db_drop (char *user, char *pass, char *fs)
+{
+    char *host = lmt_conf_get_db_host ();
+    int port = lmt_conf_get_db_port ();
+    MYSQL *conn = NULL;
+    int len = strlen (sql_drop_fs) + strlen (fs) + 1;
+    char *qry = xmalloc (len);
+    int retval = -1;
+
+    if (!(conn = mysql_init (NULL)))
+        msg_exit ("out of memory");
+    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL, 0)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_drop: %s",  mysql_error (conn));
+        goto done;
+    }
+    snprintf (qry, len, sql_drop_fs, fs);
+    if (mysql_query (conn, qry)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error dropping database filesystem_%s: %s",
+                 fs, mysql_error (conn));
+        goto done;
+    }
+    retval = 0;
+done:
+    free (qry);
+    if (conn)
+        mysql_close (conn);
+    return retval;
+}
+
+int
+lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
+            char *sql_schema)
+{
+    char *host = lmt_conf_get_db_host ();
+    int port = lmt_conf_get_db_port ();
+    MYSQL *conn = NULL;
+    int len;
+    char *qry = NULL;
+    int retval = -1;
+
+    if (!(conn = mysql_init (NULL)))
+        msg_exit ("out of memory");
+    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL, 0)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_drop: %s",  mysql_error (conn));
+        goto done;
+    }
+
+    len = strlen (sql_create_fs) + strlen (fs) + 1;
+    qry = xmalloc (len);
+    snprintf (qry, len, sql_create_fs, fs);
+    if (mysql_query (conn, qry)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error creating database filesystem_%s: %s",
+                 fs, mysql_error (conn));
+        goto done;
+    }
+    free (qry);
+    len = strlen (sql_connect_fs) + strlen (fs) + 1;
+    qry = xmalloc (len);
+    snprintf (qry, len, sql_connect_fs, fs);
+    if (mysql_query (conn, qry)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error creating database filesystem_%s: %s",
+                 fs, mysql_error (conn));
+        goto done;
+    }
+    if (mysql_query (conn, sql_schema)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error executing schema sql for filesystem_%s: %s",
+                 fs, mysql_error (conn));
+        goto done;
+    }
+    free (qry);
+    len = strlen (sql_ins_filesystem_info)
+        + strlen (fs) + strlen (schema_vers) + 1;
+    qry = xmalloc (len);
+    snprintf (qry, len, sql_ins_filesystem_info, fs, schema_vers);
+    if (mysql_query (conn, qry)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("error inserting %s in FILESYSTEM_INFO: %s",
+                 fs, mysql_error (conn));
+        goto done;
+    }
+    retval = 0;
+done:
+    if (qry)
+        free (qry);
+    if (conn)
+        mysql_close (conn);
+    return retval;
 }
 
 /*

@@ -31,6 +31,11 @@ int lmt_db_create_all (int readonly, List *dblp);
 
 int lmt_db_list (char *user, char *pass, List *lp);
 
+int lmt_db_drop (char *user, char *pass, char *fs);
+
+int lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
+                char *sql_schema);
+
 void lmt_db_destroy (lmt_db_t db);
 
 int lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,
