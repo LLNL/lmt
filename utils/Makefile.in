@@ -37,10 +37,10 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-bin_PROGRAMS = ltop$(EXEEXT)
-sbin_PROGRAMS = lmtmetric$(EXEEXT)
 noinst_PROGRAMS = lmtdiagnose$(EXEEXT)
-@MYSQL_TRUE@am__append_1 = $(top_builddir)/liblmtdb/liblmtdb.la
+bin_PROGRAMS = ltop$(EXEEXT)
+sbin_PROGRAMS = lmtmetric$(EXEEXT) $(am__EXEEXT_1)
+@MYSQL_TRUE@am__append_1 = lmtinit
 subdir = utils
 DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/ltop.1.in
@@ -60,22 +60,28 @@ CONFIG_CLEAN_FILES = ltop.1
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(man1dir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
+@MYSQL_TRUE@am__EXEEXT_1 = lmtinit$(EXEEXT)
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS) $(sbin_PROGRAMS)
 am_lmtdiagnose_OBJECTS = lmtdiagnose.$(OBJEXT)
 lmtdiagnose_OBJECTS = $(am_lmtdiagnose_OBJECTS)
-am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
+@MYSQL_TRUE@am__DEPENDENCIES_1 = $(top_builddir)/liblmtdb/liblmtdb.la
+am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) \
+	$(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
-@MYSQL_TRUE@am__DEPENDENCIES_2 = $(top_builddir)/liblmtdb/liblmtdb.la
-lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
+lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_2)
+am__lmtinit_SOURCES_DIST = lmtinit.c
+@MYSQL_TRUE@am_lmtinit_OBJECTS = lmtinit.$(OBJEXT)
+lmtinit_OBJECTS = $(am_lmtinit_OBJECTS)
+@MYSQL_TRUE@lmtinit_DEPENDENCIES = $(am__DEPENDENCIES_2)
 am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
 lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
-lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1)
+lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_2)
 am_ltop_OBJECTS = ltop.$(OBJEXT) sample.$(OBJEXT)
 ltop_OBJECTS = $(am_ltop_OBJECTS)
 am__DEPENDENCIES_3 =
-ltop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_3)
+ltop_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -87,9 +93,10 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) $(ltop_SOURCES)
-DIST_SOURCES = $(lmtdiagnose_SOURCES) $(lmtmetric_SOURCES) \
-	$(ltop_SOURCES)
+SOURCES = $(lmtdiagnose_SOURCES) $(lmtinit_SOURCES) \
+	$(lmtmetric_SOURCES) $(ltop_SOURCES)
+DIST_SOURCES = $(lmtdiagnose_SOURCES) $(am__lmtinit_SOURCES_DIST) \
+	$(lmtmetric_SOURCES) $(ltop_SOURCES)
 man1dir = $(mandir)/man1
 NROFF = nroff
 MANS = $(man1_MANS)
@@ -243,7 +250,9 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt -I../liblmtdb
+@MYSQL_TRUE@DBLIB = $(top_builddir)/liblmtdb/liblmtdb.la
 common_ldadd = \
+	$(DBLIB) \
 	$(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
@@ -253,7 +262,9 @@ ltop_LDADD = $(common_ldadd) $(LIBCURSES)
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
 lmtdiagnose_SOURCES = lmtdiagnose.c
-lmtdiagnose_LDADD = $(common_ldadd) $(am__append_1)
+lmtdiagnose_LDADD = $(common_ldadd)
+@MYSQL_TRUE@lmtinit_SOURCES = lmtinit.c
+@MYSQL_TRUE@lmtinit_LDADD = $(common_ldadd)
 man1_MANS = \
 	ltop.1
 
@@ -361,6 +372,9 @@ clean-sbinPROGRAMS:
 lmtdiagnose$(EXEEXT): $(lmtdiagnose_OBJECTS) $(lmtdiagnose_DEPENDENCIES) 
 	@rm -f lmtdiagnose$(EXEEXT)
 	$(LINK) $(lmtdiagnose_LDFLAGS) $(lmtdiagnose_OBJECTS) $(lmtdiagnose_LDADD) $(LIBS)
+lmtinit$(EXEEXT): $(lmtinit_OBJECTS) $(lmtinit_DEPENDENCIES) 
+	@rm -f lmtinit$(EXEEXT)
+	$(LINK) $(lmtinit_LDFLAGS) $(lmtinit_OBJECTS) $(lmtinit_LDADD) $(LIBS)
 lmtmetric$(EXEEXT): $(lmtmetric_OBJECTS) $(lmtmetric_DEPENDENCIES) 
 	@rm -f lmtmetric$(EXEEXT)
 	$(LINK) $(lmtmetric_LDFLAGS) $(lmtmetric_OBJECTS) $(lmtmetric_LDADD) $(LIBS)
@@ -375,6 +389,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdiagnose.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtinit.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmetric.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ltop.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample.Po@am__quote@

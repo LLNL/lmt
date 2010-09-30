@@ -991,46 +991,70 @@ done:
 }
 
 int
-lmt_db_create_all (int readonly, List *dblp)
+lmt_db_list (char *user, char *pass, List *lp)
 {
+    char *host = lmt_conf_get_db_host ();
+    int port = lmt_conf_get_db_port ();
+    List l = list_create ((ListDelF)free);
     MYSQL *conn = NULL;
     MYSQL_RES *res = NULL;
     MYSQL_ROW row;
-    List dbl = list_create ((ListDelF)lmt_db_destroy);
-    lmt_db_t db;
     int retval = -1;
-    char *dbhost = lmt_conf_get_db_host ();
-    int dbport = lmt_conf_get_db_port ();
-    char *dbuser = readonly ? lmt_conf_get_db_rouser ()
-                            : lmt_conf_get_db_rwuser ();
-    char *dbpass = readonly ? lmt_conf_get_db_ropasswd ()
-                            : lmt_conf_get_db_rwpasswd ();
 
     if (!(conn = mysql_init (NULL)))
         msg_exit ("out of memory");
-    if (!mysql_real_connect (conn, dbhost, dbuser, dbpass, NULL, dbport,
-                             NULL, 0)) {
+    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL, 0)) {
         if (lmt_conf_get_db_debug ())
-            msg ("lmt_db_create_all: %s",  mysql_error (conn));
+            msg ("lmt_db_list: %s",  mysql_error (conn));
         goto done;
     }
     if (!(res = mysql_list_dbs (conn, "filesystem_%"))) {
         if (lmt_conf_get_db_debug ())
-            msg ("lmt_db_create_all: unable to list lmt databases");
+            msg ("lmt_db_list: unable to list lmt databases");
         goto done;
     }
-    while ((row = mysql_fetch_row (res))) {
-        if (lmt_db_create (readonly, row[0], &db) < 0)
-            goto done;
-        list_append (dbl, db);
-    }
-    *dblp = dbl;
+    while ((row = mysql_fetch_row (res)))
+        list_append (l, row[0]);
+    *lp = l;
     retval = 0;
 done:
     if (res)
         mysql_free_result (res);
     if (conn)
         mysql_close (conn);
+    if (retval < 0)
+        list_destroy (l);
+    return retval;
+}
+
+int
+lmt_db_create_all (int readonly, List *dblp)
+{
+    int retval = -1;
+    lmt_db_t db;
+    List l = NULL;
+    ListIterator itr;
+    char *s;
+    List dbl = list_create ((ListDelF)lmt_db_destroy);
+    char *user = readonly ? lmt_conf_get_db_rouser ()
+                          : lmt_conf_get_db_rwuser ();
+    char *pass = readonly ? lmt_conf_get_db_ropasswd ()
+                          : lmt_conf_get_db_rwpasswd ();
+
+    if (lmt_db_list (user, pass, &l) < 0)
+        goto done;
+    itr = list_iterator_create (l);
+    while ((s = list_next (itr))) {
+        if (lmt_db_create (readonly, s, &db) < 0)
+            goto done;
+        list_append (dbl, db);
+    }
+    list_iterator_destroy (itr);
+    *dblp = dbl;
+    retval = 0;
+done:
+    if (l)
+        list_destroy (l);
     if (retval < 0)
         list_destroy (dbl);
     return retval;

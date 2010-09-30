@@ -29,6 +29,8 @@ int lmt_db_create (int readonly, const char *dbname, lmt_db_t *dbp);
 
 int lmt_db_create_all (int readonly, List *dblp);
 
+int lmt_db_list (char *user, char *pass, List *lp);
+
 void lmt_db_destroy (lmt_db_t db);
 
 int lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,

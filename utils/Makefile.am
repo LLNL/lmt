@@ -2,11 +2,16 @@ AM_CFLAGS = @GCCWARN@
 
 AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt -I../liblmtdb
 
+noinst_PROGRAMS = lmtdiagnose
 bin_PROGRAMS = ltop
 sbin_PROGRAMS = lmtmetric
-noinst_PROGRAMS = lmtdiagnose
+if MYSQL
+sbin_PROGRAMS += lmtinit
+DBLIB = $(top_builddir)/liblmtdb/liblmtdb.la
+endif
 
 common_ldadd = \
+	$(DBLIB) \
 	$(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
@@ -19,8 +24,10 @@ lmtmetric_LDADD = $(common_ldadd)
 
 lmtdiagnose_SOURCES = lmtdiagnose.c
 lmtdiagnose_LDADD = $(common_ldadd)
+
 if MYSQL
-lmtdiagnose_LDADD += $(top_builddir)/liblmtdb/liblmtdb.la
+lmtinit_SOURCES = lmtinit.c
+lmtinit_LDADD = $(common_ldadd)
 endif
 
 man1_MANS = \
