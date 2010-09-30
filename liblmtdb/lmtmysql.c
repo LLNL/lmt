@@ -156,8 +156,9 @@ const char *sql_drop_fs =
     "drop database filesystem_%s";
 const char *sql_create_fs =
     "create database filesystem_%s";
-const char *sql_connect_fs =
-    "connect filesystem_%s";
+const char *sql_use_fs =
+    "use filesystem_%s";
+
 const char *sql_ins_filesystem_info =
     "insert into FILESYSTEM_INFO "
     "(FILESYSTEM_NAME, FILESYSTEM_MOUNT_NAME, SCHEMA_VERSION) "
@@ -1125,7 +1126,8 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
 
     if (!(conn = mysql_init (NULL)))
         msg_exit ("out of memory");
-    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL, 0)) {
+    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL,
+                             CLIENT_MULTI_STATEMENTS)) {
         if (lmt_conf_get_db_debug ())
             msg ("lmt_db_drop: %s",  mysql_error (conn));
         goto done;
@@ -1141,9 +1143,9 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
         goto done;
     }
     free (qry);
-    len = strlen (sql_connect_fs) + strlen (fs) + 1;
+    len = strlen (sql_use_fs) + strlen (fs) + 1;
     qry = xmalloc (len);
-    snprintf (qry, len, sql_connect_fs, fs);
+    snprintf (qry, len, sql_use_fs, fs);
     if (mysql_query (conn, qry)) {
         if (lmt_conf_get_db_debug ())
             msg ("error creating database filesystem_%s: %s",
@@ -1155,7 +1157,14 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
             msg ("error executing schema sql for filesystem_%s: %s",
                  fs, mysql_error (conn));
         goto done;
-    }
+    }   
+    /* FIXME: why are there results to eat here? */
+    do {
+        MYSQL_RES *res;
+        if ((res = mysql_store_result (conn)))
+            mysql_free_result (res);
+    } while (mysql_next_result (conn) == 0);
+
     free (qry);
     len = strlen (sql_ins_filesystem_info)
         + strlen (fs) + strlen (schema_vers) + 1;

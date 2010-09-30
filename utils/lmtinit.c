@@ -69,9 +69,9 @@ static const struct option longopts[] = {
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
 
-static void list (char *user, char *password);
-static void del (char *user, char *password, char *fsname);
-static void add (char *user, char *password, char *fsname, char *schemafile);
+static void _list (char *user, char *pass);
+static void _del (char *user, char *pass, char *fsname);
+static void _add (char *user, char *pass, char *fsname, char *schemafile);
 
 
 static void
@@ -161,17 +161,17 @@ main (int argc, char *argv[])
     }
 
     if (lopt)
-        list (user, pass);
+        _list (user, pass);
     else if (dopt)
-        del (user, pass, fsname);
+        _del (user, pass, fsname);
     else if (aopt)
-        add (user, pass, fsname, schemafile);
+        _add (user, pass, fsname, schemafile);
 
     exit (0);
 }
 
 static void
-list (char *user, char *pass)
+_list (char *user, char *pass)
 {
     List l;
     ListIterator itr;
@@ -188,7 +188,7 @@ list (char *user, char *pass)
 }
 
 static void
-del (char *user, char *pass, char *fsname)
+_del (char *user, char *pass, char *fsname)
 {
     if (lmt_db_drop (user, pass, fsname) < 0)
         exit (1);
@@ -238,7 +238,7 @@ done:
 }
 
 static void
-add (char *user, char *pass, char *fsname, char *schemafile)
+_add (char *user, char *pass, char *fsname, char *schemafile)
 {
     char *buf;
     
