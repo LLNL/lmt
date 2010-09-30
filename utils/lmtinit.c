@@ -69,6 +69,11 @@ static const struct option longopts[] = {
 #define GETOPT(ac,av,opt,lopt) getopt (ac,av,opt)
 #endif
 
+#define LMT_SCHEMA_VERSION "1.1"
+#define LMT_SCHEMA_PATH \
+    X_DATADIR "/" PACKAGE "/create_schema-" LMT_SCHEMA_VERSION ".sql"
+
+
 static void _list (char *user, char *pass);
 static void _del (char *user, char *pass, char *fsname);
 static void _add (char *user, char *pass, char *fsname, char *schemafile);
@@ -77,18 +82,14 @@ static void _add (char *user, char *pass, char *fsname, char *schemafile);
 static void
 usage(void)
 {
-    char *u = lmt_conf_get_db_rwuser ();
-    char *p = lmt_conf_get_db_rwpasswd ();
-
     fprintf (stderr, "Usage: lmtinit [OPTIONS]\n"
         "  -a,--add FS            create database for file system\n"
         "  -d,--delete FS         remove database for file system\n"
         "  -l,--list              list file systems in database\n"
         "  -c,--config-file FILE  use an alternate config file\n"
         "  -s,--schema-file FILE  use an alternate schema file\n"
-        "  -u,--user=USER         connect to the db with USER (default: %s)\n"
-        "  -p,--password=PASS     connect to the db with PASS (default: %s)\n",
-        u ? u : "<nil>", p ? p : "<nil>"
+        "  -u,--user=USER         connect to the db with USER\n"
+        "  -p,--password=PASS     connect to the db with PASS\n"
     );
     exit (1);
 }
@@ -193,10 +194,6 @@ _del (char *user, char *pass, char *fsname)
     if (lmt_db_drop (user, pass, fsname) < 0)
         exit (1);
 }
-
-#define LMT_SCHEMA_VERSION "1.1"
-#define LMT_SCHEMA_PATH \
-    X_DATADIR "/" PACKAGE "/create_schema-" LMT_SCHEMA_VERSION ".sql"
 
 static int
 _read_schema (char *filename, char **cp)
