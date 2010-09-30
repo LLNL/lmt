@@ -1014,7 +1014,7 @@ lmt_db_list (char *user, char *pass, List *lp)
         goto done;
     }
     while ((row = mysql_fetch_row (res)))
-        list_append (l, row[0]);
+        list_append (l, xstrdup (row[0]));
     *lp = l;
     retval = 0;
 done:
