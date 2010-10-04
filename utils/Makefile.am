@@ -34,9 +34,9 @@ man1_MANS = \
 	ltop.1
 if MYSQL
 man8_MANS = \
-	lmtinit.1
+	lmtinit.8
 endif
 
 CLEANFILES = \
 	ltop.1 \
-	lmtinit.1
+	lmtinit.8

@@ -85,15 +85,14 @@ AC_CONFIG_FILES( \
   test/Makefile \
   etc/Makefile \
   etc/lmt.conf \
+  etc/lmt.conf.5 \
   utils/ltop.1 \
+  utils/lmtinit.8 \
   scripts/Makefile \
-  scripts/create_lmtconfig.8 \
   perl/Makefile \
   perl/LMT.pm \
 )
 
-AC_CONFIG_FILES([scripts/create_lmtconfig], \
-       [chmod +x scripts/create_lmtconfig])
 AC_CONFIG_FILES([perl/lmtsh], \
        [chmod +x perl/lmtsh])
 AC_CONFIG_FILES([perl/lmt_update_fs_agg], \

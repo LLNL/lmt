@@ -23341,10 +23341,8 @@ _ACEOF
 ##
 # Epilogue
 ##
-                                                                                                                                                                          ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf utils/ltop.1 scripts/Makefile scripts/create_lmtconfig.8 perl/Makefile perl/LMT.pm"
+                                                                                                                                                                                    ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 scripts/Makefile perl/Makefile perl/LMT.pm"
 
-
-          ac_config_files="$ac_config_files scripts/create_lmtconfig"
 
           ac_config_files="$ac_config_files perl/lmtsh"
 
@@ -23964,12 +23962,12 @@ do
   "test/Makefile" ) CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
   "etc/Makefile" ) CONFIG_FILES="$CONFIG_FILES etc/Makefile" ;;
   "etc/lmt.conf" ) CONFIG_FILES="$CONFIG_FILES etc/lmt.conf" ;;
+  "etc/lmt.conf.5" ) CONFIG_FILES="$CONFIG_FILES etc/lmt.conf.5" ;;
   "utils/ltop.1" ) CONFIG_FILES="$CONFIG_FILES utils/ltop.1" ;;
+  "utils/lmtinit.8" ) CONFIG_FILES="$CONFIG_FILES utils/lmtinit.8" ;;
   "scripts/Makefile" ) CONFIG_FILES="$CONFIG_FILES scripts/Makefile" ;;
-  "scripts/create_lmtconfig.8" ) CONFIG_FILES="$CONFIG_FILES scripts/create_lmtconfig.8" ;;
   "perl/Makefile" ) CONFIG_FILES="$CONFIG_FILES perl/Makefile" ;;
   "perl/LMT.pm" ) CONFIG_FILES="$CONFIG_FILES perl/LMT.pm" ;;
-  "scripts/create_lmtconfig" ) CONFIG_FILES="$CONFIG_FILES scripts/create_lmtconfig" ;;
   "perl/lmtsh" ) CONFIG_FILES="$CONFIG_FILES perl/lmtsh" ;;
   "perl/lmt_update_fs_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_fs_agg" ;;
   "perl/lmt_update_mds_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_mds_agg" ;;
@@ -24418,8 +24416,6 @@ s,@INSTALL@,$ac_INSTALL,;t t
 
   # Run the commands associated with the file.
   case $ac_file in
-    scripts/create_lmtconfig ) \
-       chmod +x scripts/create_lmtconfig ;;
     perl/lmtsh ) \
        chmod +x perl/lmtsh ;;
     perl/lmt_update_fs_agg ) \
