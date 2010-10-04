@@ -74,6 +74,7 @@
 
 static List dbs = NULL;
 static struct timeval last_connect = { .tv_usec = 0, .tv_sec = 0 };
+static int reconnect_needed = 1;
 
 #define MIN_RECONNECT_SECS  15
 
@@ -86,15 +87,23 @@ _init_db_ifneeded (void)
     /* FIXME: check if config should be reloaded, do it if so.
      */
 
-    if (!dbs) {
+    if (reconnect_needed) {
+        if (dbs) {
+            msg ("disconnecting from database");
+            list_destroy (dbs);
+            dbs = NULL;
+        }
         if (gettimeofday (&now, NULL) < 0)
             goto done;
         if (now.tv_sec - last_connect.tv_sec < MIN_RECONNECT_SECS)
             goto done;
         last_connect = now;
-        if (lmt_db_create_all (0, &dbs) < 0)
+        if (lmt_db_create_all (0, &dbs) < 0) {
+            msg ("failed to connect to database");
             goto done;
+        }
         msg ("connected to database");
+        reconnect_needed = 0;
     }
     retval = 0;
 done:
@@ -104,11 +113,7 @@ done:
 static void
 _trigger_db_reconnect (void)
 {
-    msg ("disconnecting from database");
-    if (dbs) {
-        list_destroy (dbs);
-        dbs = NULL;
-    }
+    reconnect_needed = 1;
 }
 
 /* Locate db for ost or mdt using assumption about naming:
@@ -123,14 +128,16 @@ _svc_to_db (char *name)
     char *p = strchr (name, '-');
     int len = p ? p - name : strlen (name);
 
-    itr = list_iterator_create (dbs);
-    while ((db = list_next (itr)))
-        if (!strncmp (lmt_db_fsname (db), name, len))
-            break;
-    list_iterator_destroy (itr);
-    if (!db) {
-        if (lmt_conf_get_db_debug ())
-            msg ("%s: no database", name);
+    if (dbs) {
+        itr = list_iterator_create (dbs);
+        while ((db = list_next (itr)))
+            if (!strncmp (lmt_db_fsname (db), name, len))
+                break;
+        list_iterator_destroy (itr);
+        if (!db) {
+            if (lmt_conf_get_db_debug ())
+                msg ("%s: no database", name);
+        }
     }
     return db;
 }
@@ -296,8 +303,10 @@ lmt_db_insert_router_v1 (char *s)
         goto done;
     itr = list_iterator_create (dbs);
     while ((db = list_next (itr))) {
-        if (lmt_db_insert_router_data (db, rtrname, bytes, pct_cpu) < 0)
+        if (lmt_db_insert_router_data (db, rtrname, bytes, pct_cpu) < 0) {
             _trigger_db_reconnect ();
+            break;
+        }
     }
     list_iterator_destroy (itr);        
 done:
