@@ -56,6 +56,10 @@ The default is to use the passwords configured in \fIlmt.conf\fR.
 .TP
 .I "-P,--prompt-password"
 Same as above but prompt for the password interactively.
+.TP
+.I "-x,--dump-config"
+Print configuration information for read-only database connect.
+(Helper function for \flLMT.pm\fR).
 .SH MYSQL SETUP
 Refer to MySQL documentation to determine how to set up and secure your
 MySQL database, and create the LMT users.

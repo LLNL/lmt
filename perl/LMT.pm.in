@@ -836,7 +836,7 @@ sub _parseConf {
     my $file = shift;
     my %fsinfo =();
 
-    if (open HELPER, "@X_DATADIR@/@PACKAGE@/lmtcf $file|") {
+    if (open HELPER, "@X_SBINDIR@/lmtinit -x -c $file|") {
         while (<HELPER>) {
             chomp;
             my ($key, $val) = split /:/;

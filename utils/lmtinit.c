@@ -52,7 +52,7 @@
 
 #include "lmtmysql.h"
 
-#define OPTIONS "a:d:lc:s:u:p:P"
+#define OPTIONS "a:d:lc:s:u:p:Px"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
@@ -64,6 +64,7 @@ static const struct option longopts[] = {
     {"user",            required_argument,  0, 'u'},
     {"password",        required_argument,  0, 'p'},
     {"prompt-password", no_argument,        0, 'P'},
+    {"dump-config",     no_argument,        0, 'x'},
     {0, 0, 0, 0},
 };
 #else
@@ -78,6 +79,7 @@ static const struct option longopts[] = {
 static void _list (char *user, char *pass);
 static void _del (char *user, char *pass, char *fsname);
 static void _add (char *user, char *pass, char *fsname, char *schemafile);
+static void _xconf (char *user, char *pass);
 
 
 static void
@@ -92,6 +94,7 @@ usage(void)
         "  -u,--user=USER         connect to the db with USER\n"
         "  -p,--password=PASS     connect to the db with PASS\n"
         "  -P,--prompt-password   prompt for password\n"
+        "  -x,--dump-config       dump config in machine readable form\n"
     );
     exit (1);
 }
@@ -104,6 +107,7 @@ main (int argc, char *argv[])
     int dopt = 0;
     int lopt = 0;
     int Popt = 0;
+    int xopt = 0;
     char *fsname = NULL;
     char *conffile = NULL;
     char *schemafile = NULL;
@@ -141,6 +145,9 @@ main (int argc, char *argv[])
             case 'P':   /* --prompt-password */
                 Popt = 1;
                 break;
+            case 'x':   /* --dump-config */
+                xopt = 1;
+                break;
             default:
                 usage ();
         }
@@ -150,14 +157,16 @@ main (int argc, char *argv[])
     lmt_conf_set_db_debug (1);
     if (optind < argc)
         usage ();
-    if (!aopt && !dopt && !lopt)
+    if (!aopt && !dopt && !lopt && !xopt)
         usage ();
-    if (aopt + dopt + lopt > 1)
-        msg_exit ("Use only one of -a, -d, and -l options.");
+    if (aopt + dopt + lopt + xopt > 1)
+        msg_exit ("Use only one of -a, -d, -l, and -x options.");
     if (pass && Popt)
         msg_exit ("Use only one of -p and -P options.");
+    if (xopt && (Popt || user || pass))
+        msg_exit ("-x cannot be used with -u, -p, or -P options.");
 
-    if (lopt) {
+    if (lopt || xopt) {
         if (!user)
             user = lmt_conf_get_db_rouser ();
         if (Popt)
@@ -179,6 +188,8 @@ main (int argc, char *argv[])
         _del (user, pass, fsname);
     else if (aopt)
         _add (user, pass, fsname, schemafile);
+    else if (xopt)
+        _xconf (user, pass);
 
     exit (0);
 }
@@ -257,6 +268,18 @@ _add (char *user, char *pass, char *fsname, char *schemafile)
         exit (1);
     if (buf)
         free (buf);
+}
+
+static void
+_xconf (char *user, char *pass)
+{
+    char *host = lmt_conf_get_db_host ();
+    int port = lmt_conf_get_db_port ();
+
+    printf ("dbhost:%s\n", host ? host : "");
+    printf ("dbport:%d\n", port);
+    printf ("dbuser:%s\n", user ? user : "");
+    printf ("dbauth:%s\n", pass ? pass : "");
 }
 
 /*
