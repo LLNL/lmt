@@ -52,7 +52,7 @@
 
 #include "lmtmysql.h"
 
-#define OPTIONS "a:d:lc:s:u:p:"
+#define OPTIONS "a:d:lc:s:u:p:P"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
@@ -63,6 +63,7 @@ static const struct option longopts[] = {
     {"schema-file",     required_argument,  0, 's'},
     {"user",            required_argument,  0, 'u'},
     {"password",        required_argument,  0, 'p'},
+    {"prompt-password", no_argument,        0, 'P'},
     {0, 0, 0, 0},
 };
 #else
@@ -90,6 +91,7 @@ usage(void)
         "  -s,--schema-file FILE  use an alternate schema file\n"
         "  -u,--user=USER         connect to the db with USER\n"
         "  -p,--password=PASS     connect to the db with PASS\n"
+        "  -P,--prompt-password   prompt for password\n"
     );
     exit (1);
 }
@@ -101,6 +103,7 @@ main (int argc, char *argv[])
     int aopt = 0;
     int dopt = 0;
     int lopt = 0;
+    int Popt = 0;
     char *fsname = NULL;
     char *conffile = NULL;
     char *schemafile = NULL;
@@ -135,6 +138,9 @@ main (int argc, char *argv[])
             case 'p':   /* --password PASS */
                 pass = optarg;
                 break;
+            case 'P':   /* --prompt-password */
+                Popt = 1;
+                break;
             default:
                 usage ();
         }
@@ -148,16 +154,22 @@ main (int argc, char *argv[])
         usage ();
     if (aopt + dopt + lopt > 1)
         msg_exit ("Use only one of -a, -d, and -l options.");
+    if (pass && Popt)
+        msg_exit ("Use only one of -p and -P options.");
 
     if (lopt) {
         if (!user)
             user = lmt_conf_get_db_rouser ();
-        if (!pass)
+        if (Popt)
+            pass = getpass ("Password: ");
+        else if (!pass)
             pass = lmt_conf_get_db_ropasswd ();
     } else {
         if (!user)
             user = lmt_conf_get_db_rwuser ();
-        if (!pass)
+        if (Popt)
+            pass = getpass ("Password: ");
+        else if (!pass)
             pass = lmt_conf_get_db_rwpasswd ();
     }
 

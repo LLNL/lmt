@@ -53,9 +53,12 @@ The default is to use the users configured in \fIlmt.conf\fR.
 .I "-p,--password=PASS"
 Connect to the database with password PASS.
 The default is to use the passwords configured in \fIlmt.conf\fR.
+.TP
+.I "-P,--prompt-password"
+Same as above but prompt for the password interactively.
 .SH MYSQL SETUP
 Refer to MySQL documentation to determine how to set up and secure your
-MySQL database, and create the LMT users.  A rough guide follows.
+MySQL database, and create the LMT users.
 .LP
 The \fBmysql_secure_installation\fR program can be used to secure your
 database, including changing the database root password.
@@ -63,31 +66,11 @@ database, including changing the database root password.
 LMT needs a read-only and a read/write user for accessing the database.
 These users and their passwords are stored in \fIlmt.conf\fR, using
 a strategy such as the one shown in \fIlmt.conf(5)\fR for protecting
-the read/write password.  The users can be created as follows:
-.LP
-.nf
-#!/bin/bash
-
-# The following will prompt for root password
-mysql --user=root --password mysql <<EOT
-
-# Create a read-only user for LMT
-CREATE USER 'lwatchclient'@'%';
-GRANT SHOW DATABASES on *.* TO 'lwatchclient'@'%';
-GRANT SELECT ON *.* TO 'lwatchclient'@'%';
-
-# Create a read/write user for LMT
-CREATE USER 'lwatchadmin'@'localhost' IDENTIFIED BY 'mypass';
-GRANT SHOW DATABASES on *.* TO 'lwatchadmin'@'localhost';
-GRANT SELECT,INSERT ON *.* TO 'lwatchadmin'@'localhost';
-
-# more privs if lmtinit should work without --user=root
-GRANT CREATE,DROP ON *.* TO 'lwatchadmin'@'localhost';
-
-EOT
-.fi
-.LP
+the read/write password.  Users can be created using a variant of the
+\fImkusers.sql\fR example script (see below).
 .SH FILES
 @X_DATADIR@/@PACKAGE@/lmt.conf
+.br
+@X_DATADIR@/@PACKAGE@/mkusers.sql
 .SH SEE ALSO
 lustre(7), lmt.conf(5), mysql_secure_installation(1)
