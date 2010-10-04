@@ -37,10 +37,10 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-noinst_PROGRAMS = lmtdiagnose$(EXEEXT)
 bin_PROGRAMS = ltop$(EXEEXT)
 sbin_PROGRAMS = lmtmetric$(EXEEXT) $(am__EXEEXT_1)
 @MYSQL_TRUE@am__append_1 = lmtinit
+@MYSQL_TRUE@am__append_2 = lmtinit.8
 subdir = utils
 DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/lmtinit.8.in $(srcdir)/ltop.1.in
@@ -62,26 +62,23 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 @MYSQL_TRUE@am__EXEEXT_1 = lmtinit$(EXEEXT)
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
-PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS) $(sbin_PROGRAMS)
-am_lmtdiagnose_OBJECTS = lmtdiagnose.$(OBJEXT)
-lmtdiagnose_OBJECTS = $(am_lmtdiagnose_OBJECTS)
-@MYSQL_TRUE@am__DEPENDENCIES_1 = $(top_builddir)/liblmtdb/liblmtdb.la
-am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) \
-	$(top_builddir)/liblmt/liblmt.la \
-	$(top_builddir)/libproc/libproc.la \
-	$(top_builddir)/liblsd/liblsd.la
-lmtdiagnose_DEPENDENCIES = $(am__DEPENDENCIES_2)
+PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
 am__lmtinit_SOURCES_DIST = lmtinit.c
 @MYSQL_TRUE@am_lmtinit_OBJECTS = lmtinit.$(OBJEXT)
 lmtinit_OBJECTS = $(am_lmtinit_OBJECTS)
-@MYSQL_TRUE@lmtinit_DEPENDENCIES = $(am__DEPENDENCIES_2)
+am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
+	$(top_builddir)/libproc/libproc.la \
+	$(top_builddir)/liblsd/liblsd.la
+@MYSQL_TRUE@lmtinit_DEPENDENCIES =  \
+@MYSQL_TRUE@	$(top_builddir)/liblmtdb/liblmtdb.la \
+@MYSQL_TRUE@	$(am__DEPENDENCIES_1)
 am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
 lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
-lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_2)
+lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_ltop_OBJECTS = ltop.$(OBJEXT) sample.$(OBJEXT)
 ltop_OBJECTS = $(am_ltop_OBJECTS)
-am__DEPENDENCIES_3 =
-ltop_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+am__DEPENDENCIES_2 =
+ltop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -93,10 +90,9 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(lmtdiagnose_SOURCES) $(lmtinit_SOURCES) \
-	$(lmtmetric_SOURCES) $(ltop_SOURCES)
-DIST_SOURCES = $(lmtdiagnose_SOURCES) $(am__lmtinit_SOURCES_DIST) \
-	$(lmtmetric_SOURCES) $(ltop_SOURCES)
+SOURCES = $(lmtinit_SOURCES) $(lmtmetric_SOURCES) $(ltop_SOURCES)
+DIST_SOURCES = $(am__lmtinit_SOURCES_DIST) $(lmtmetric_SOURCES) \
+	$(ltop_SOURCES)
 man1dir = $(mandir)/man1
 man8dir = $(mandir)/man8
 NROFF = nroff
@@ -251,31 +247,20 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = -I../liblsd -I../libproc -I../liblmt -I../liblmtdb
-@MYSQL_TRUE@DBLIB = $(top_builddir)/liblmtdb/liblmtdb.la
 common_ldadd = \
-	$(DBLIB) \
 	$(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
 
 ltop_SOURCES = ltop.c sample.c
 ltop_LDADD = $(common_ldadd) $(LIBCURSES)
+man1_MANS = ltop.1
+CLEANFILES = ltop.1 $(am__append_2)
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = $(common_ldadd)
-lmtdiagnose_SOURCES = lmtdiagnose.c
-lmtdiagnose_LDADD = $(common_ldadd)
 @MYSQL_TRUE@lmtinit_SOURCES = lmtinit.c
-@MYSQL_TRUE@lmtinit_LDADD = $(common_ldadd)
-man1_MANS = \
-	ltop.1
-
-@MYSQL_TRUE@man8_MANS = \
-@MYSQL_TRUE@	lmtinit.8
-
-CLEANFILES = \
-	ltop.1 \
-	lmtinit.8
-
+@MYSQL_TRUE@lmtinit_LDADD = $(top_builddir)/liblmtdb/liblmtdb.la $(common_ldadd)
+@MYSQL_TRUE@man8_MANS = lmtinit.8
 all: all-am
 
 .SUFFIXES:
@@ -341,13 +326,6 @@ clean-binPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-
-clean-noinstPROGRAMS:
-	@list='$(noinst_PROGRAMS)'; for p in $$list; do \
-	  f=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
-	  echo " rm -f $$p $$f"; \
-	  rm -f $$p $$f ; \
-	done
 install-sbinPROGRAMS: $(sbin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(sbindir)" || $(mkdir_p) "$(DESTDIR)$(sbindir)"
@@ -376,9 +354,6 @@ clean-sbinPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-lmtdiagnose$(EXEEXT): $(lmtdiagnose_OBJECTS) $(lmtdiagnose_DEPENDENCIES) 
-	@rm -f lmtdiagnose$(EXEEXT)
-	$(LINK) $(lmtdiagnose_LDFLAGS) $(lmtdiagnose_OBJECTS) $(lmtdiagnose_LDADD) $(LIBS)
 lmtinit$(EXEEXT): $(lmtinit_OBJECTS) $(lmtinit_DEPENDENCIES) 
 	@rm -f lmtinit$(EXEEXT)
 	$(LINK) $(lmtinit_LDFLAGS) $(lmtinit_OBJECTS) $(lmtinit_LDADD) $(LIBS)
@@ -395,7 +370,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtdiagnose.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtinit.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtmetric.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ltop.Po@am__quote@
@@ -632,7 +606,7 @@ maintainer-clean-generic:
 clean: clean-am
 
 clean-am: clean-binPROGRAMS clean-generic clean-libtool \
-	clean-noinstPROGRAMS clean-sbinPROGRAMS mostlyclean-am
+	clean-sbinPROGRAMS mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -684,14 +658,14 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am uninstall-man \
 uninstall-man: uninstall-man1 uninstall-man8
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-binPROGRAMS \
-	clean-generic clean-libtool clean-noinstPROGRAMS \
-	clean-sbinPROGRAMS ctags distclean distclean-compile \
-	distclean-generic distclean-libtool distclean-tags distdir dvi \
-	dvi-am html html-am info info-am install install-am \
-	install-binPROGRAMS install-data install-data-am install-exec \
-	install-exec-am install-info install-info-am install-man \
-	install-man1 install-man8 install-sbinPROGRAMS install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
+	clean-generic clean-libtool clean-sbinPROGRAMS ctags distclean \
+	distclean-compile distclean-generic distclean-libtool \
+	distclean-tags distdir dvi dvi-am html html-am info info-am \
+	install install-am install-binPROGRAMS install-data \
+	install-data-am install-exec install-exec-am install-info \
+	install-info-am install-man install-man1 install-man8 \
+	install-sbinPROGRAMS install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am uninstall-binPROGRAMS \

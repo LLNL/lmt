@@ -1,28 +1,30 @@
-LMT - Lustre Monitoring Tool
+LMT3 - Lustre Monitoring Tool
 
-LMT is a distributed system that provides a "top"-like display of the
+ULMT is a distributed system that provides a "top"-like display of the
 activity levels of the server-side (MDS, OSSes, and LNET routers)
 nodes of one or more Lustre-based filesystems.  It is possible to watch
 server metrics in real time, and to graph past behavior.  The clients
 provide this capability, but it is also possible to directly mine the
 MySQL database, e.g. with SQL scripts and GNU plot.
 
-Real time and historical data is kept in the MySQL datbase.  LMT clients,
-lwatch (GUI - java/swing), ltop (curses - java/charva), and lstat
-(java -command line) speak only to MySQL.  The clients are part of the
-lmt-client RPM.
+Real time and historical data is kept in the MySQL datbase.  The java
+clients, lwatch (GUI), oltop (curses), and lstat (command line) interface
+only to MySQL.  The clients are part of the lmt-client package, now
+separately distributed.
 
-There are four Cerebro "metric modules", lmt_mds, lmt_oss, lmt_ost, and
+There are four Cerebro "metric modules", lmt_mdt, lmt_ost, lmt_osc, and
 lmt_router, which collect data from /proc on servers and inject messages
-into the cerebro monitoring network.  The collection plugins are part of the
-lmt-server-agent RPM.
+into the cerebro monitoring network.  The collection plugins are part of
+the lmt-server-agent package.
 
 Cerebro data is extracted and inserted into the database by a single cerebro
-"monitor module".  The monitor module and various scripts for initializing,
-migrating, and munging the database data are part of the lmt-server RPM.
+"monitor module".  The monitor module and support utilities, including
+the new ltop client (C/curses) which interfaces directly to cerebro,
+are part of the lmt-server package.
 
-Because the clients and data collection are separate and communicate only
-via the database, we were able to develop LMT 2.0 in phases.  In Phase 1,
-the original LMT 1.0 data collection software was modified to inject data
-into MySQL and the new clients were written.  In Phase 2, data collection
-was moved to Cerebro.
+For more information, review the wiki pages at the LMT project page:
+
+http://code.google.com/p/lmt/
+
+Jim Garlick
+October, 2010
