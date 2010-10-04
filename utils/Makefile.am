@@ -32,6 +32,11 @@ endif
 
 man1_MANS = \
 	ltop.1
+if MYSQL
+man8_MANS = \
+	lmtinit.1
+endif
 
 CLEANFILES = \
-	ltop.1
+	ltop.1 \
+	lmtinit.1

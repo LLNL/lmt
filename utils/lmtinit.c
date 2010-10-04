@@ -85,7 +85,7 @@ usage(void)
     fprintf (stderr, "Usage: lmtinit [OPTIONS]\n"
         "  -a,--add FS            create database for file system\n"
         "  -d,--delete FS         remove database for file system\n"
-        "  -l,--list              list file systems in database\n"
+        "  -l,--list              list configured file systems\n"
         "  -c,--config-file FILE  use an alternate config file\n"
         "  -s,--schema-file FILE  use an alternate schema file\n"
         "  -u,--user=USER         connect to the db with USER\n"
@@ -237,12 +237,14 @@ done:
 static void
 _add (char *user, char *pass, char *fsname, char *schemafile)
 {
-    char *buf;
+    char *buf = NULL;
     
     if (_read_schema (schemafile, &buf) < 0)
         exit (1);
     if (lmt_db_add (user, pass, fsname, LMT_SCHEMA_VERSION, buf) < 0)
         exit (1);
+    if (buf)
+        free (buf);
 }
 
 /*

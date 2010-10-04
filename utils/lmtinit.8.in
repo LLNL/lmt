@@ -1,0 +1,79 @@
+.TH lmtinit 8 "@META_DATA@" "@META_ALIAS@" "@META_NAME@"
+.SH NAME
+lmtinit \- initialize LMT database 
+.SH SYNOPSIS
+.B "lmtinit [OPTIONS]"
+.SH DESCRIPTION
+.B lmtinit
+sets up MySQL for LMT use.
+Each file system that will be monitored must have a database
+populated with the lmt schema.  This can be set up with the
+\fI--add FSNAME\fR option.
+.LP
+A prerequisite for running \fBlmtinit\fR is have the appropriate
+MySQL accounts set up (see below), and database
+settings such as host, port, and users configured in the lmt.conf file.
+.LP
+The \fIcerebrod\fR functioning as the database interface must be
+restarted following addition of a new file system.
+.SH OPTIONS
+.B lmtinit 
+accepts the following command line options:
+.TP
+.I "-a,--add FSNAME"
+Create a database named \fIfilesystem\_FSNAME\fR and populate it with
+tables per the LMT schema.
+If database and table creation capabilities are not extended
+to the \fIlmt\_db\_rwuser\fR, then a user and password having this
+capability must be provided on the command line with
+the \fI--user\fR and \fI--password\fR options.
+.TP
+.I "-d,--delete FSNAME"
+Drop a database named \fIfilesystem\_FSNAME\fR.
+If database drop capability is not extended
+to the \fIlmt\_db\_rwuser\fR, then a user and password having this
+capability must be provided on the command line with
+the \fI--user\fR and \fI--password\fR options.
+.TP
+.I "-l,--list"
+List the currently configured file systems.
+If database list capability is not extended
+to the \fIlmt\_db\_rouser\fR, then a user and password having this
+capability must be provided on the command line with
+the \fI--user\fR and \fI--password\fR options.
+.TP
+.I "-c,--config-file FILE"
+Use an alternate lmt.conf file.
+.TP
+.I "-s,--schema-file FILE"
+Use an alternate schema file.
+.TP
+.I "-u,--user=USER"
+Connect to the database as USER.
+The default is to use the users configured in the lmt.conf file.
+.TP
+.I "-p,--password=PASS"
+Connect to the database with password PASS.
+The default is to use the passwords configured in the lmt.conf file.
+.SH MYSQL SETUP
+Refer to MySQL documentation to determine how to set up and secure your
+MySQL database, and create the LMT users.  Example:
+.nf
+#!/bin/bash
+
+# First run 'mysql_secure_installation'.
+
+# The following will prompt for root password
+mysql --user=root --password mysql <<EOT
+CREATE USER 'lwatchclient'@'%';
+GRANT SHOW DATABASES on *.* TO 'lwatchclient'@'%';
+GRANT SELECT ON *.* TO 'lwatchclient'@'%';
+CREATE USER 'lwatchadmin'@'localhost';
+GRANT SHOW DATABASES on *.* TO 'lwatchadmin'@'localhost';
+GRANT SELECT,INSERT ON *.* TO 'lwatchadmin'@'localhost';
+EOT
+.fi
+.SH FILES
+@X_DATADIR@/@PACKAGE@/lmt.conf
+.SH SEE ALSO
+lustre(7), lmt.conf(5)

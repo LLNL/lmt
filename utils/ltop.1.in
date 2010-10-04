@@ -10,18 +10,18 @@ displays information about a live Lustre file system monitored by LMT.
 .B ltop 
 accepts the following command line options:
 .TP
-.I "-f FSNAME"
+.I "-f,--filesystem FSNAME"
 Monitor the file system named FSNAME.
 You may monitor only one file system per \fBltop\fR session.
 The default is to monitor the first file system found.
 .TP
-.I "-t SECS"
+.I "-t,--sample-period SECS"
 Change the display refresh period from the default of two seconds.
 .TP
-.I "-r FILE"
+.I "-r,--record FILE"
 Log raw data from the session to FILE, so it can be played back with \fI\-p\fR.
 .TP
-.I "-p FILE"
+.I "-p,--play FILE"
 Play back raw data from FILE recorded with \fI\-r\fR or with the
 interactive \fIR\fR command.
 .SH "OST FIELD DESCRIPTIONS"
@@ -153,4 +153,4 @@ Alias for \fIPageUp\fR
 \fIControl-D\fR
 Alias for \fIPageDown\fR
 .SH SEE ALSO
-lustre(7)
+lustre(7), lmt.conf(5)

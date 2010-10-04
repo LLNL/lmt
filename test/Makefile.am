@@ -12,17 +12,13 @@ TESTS_ENVIRONMENT = env
 
 TESTS = \
 	t00-tparse \
-	t01-lmtconfig-sanity \
-	t02-lmtconfig-sanity \
 	t03-parse-brw_stats \
 	t04-parse-cpu-mem \
 	t05-parse-stats \
 	t06-parse-recovery \
 	t07-parse-oscinfo \
 	t08-parse-lnet \
-	t09-parse-uuid \
-	t10-lmtconfig-sanity \
-	t11-lmtconfig-sanity
+	t09-parse-uuid
 
 XFAIL_TESTS =
 

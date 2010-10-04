@@ -24,7 +24,9 @@ Lustre Monitoring Tool
 %package server
 Summary: Lustre Monitoring Tools Server
 Group: Applications/System
-Requires: cerebro >= 1.3, mysql-server >= 4.1.20, perl-DBI
+Requires: cerebro >= 1.3
+Requires: mysql-server >= 4.1.20
+Requires: perl-DBI
 %description server
 Lustre Monitoring Tools (LMT) Server
 
@@ -56,9 +58,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/cerebro/cerebro_monitor_lmt*
 %{_sbindir}/lmtsh
 %{_sbindir}/lmtinit
-%{_sbindir}/create_lmtconfig
 %{_bindir}/ltop
 %{_mandir}/man1/*
+%{_mandir}/man5/*
 %{_mandir}/man8/*
 %{_datadir}/lmt/*
 %dir %{_sysconfdir}/lmt

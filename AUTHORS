@@ -5,4 +5,4 @@ LMT is the work of several people:
 2.0 cerebro/mysql code: Herb Wartens
 2.0 java clients, LMT.pm: Neil O'Neil, Jeff Long, and Paul Spencer
 
-3.0 new cerebro/mysql/ltop: Jim Garlick <garlick.jim@gmail.com>
+3.0 cerebro/mysql code, utils: Jim Garlick <garlick.jim@gmail.com>

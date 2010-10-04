@@ -1,0 +1,94 @@
+.TH lmt.conf 5 "@META_DATA@" "@META_ALIAS@" "@META_NAME@"
+.SH NAME
+lmt.conf \- LMT configuration file
+.SH DESCRIPTION
+.B lmt.conf
+is the configuration file for LMT.  It is processed by an embedded
+LUA interpreter, then a set of global variables are read out.
+In the simplest case, variables are set explicitly, but it is also
+possible to compute them with LUA code.
+.LP
+The
+.B lmt.conf
+is read by all LMT cerebro modules and the command line utilities.
+After modifying the \fBlmt.conf\fR, \fIcerebrod\fR must be restarted
+for any changes to take effect in cerebro modules.
+.LP
+Normally the same \fBlmt.conf\fR would be installed on all systems
+participating in LMT monitoring.  That is, it should be present on
+lustre servers and the LMT server node.
+.SH OPTIONS
+.B lmt.conf 
+can define the following variables:
+.TP
+.I "lmt_cbr_debug = n"
+Set to 1 to enable cerebro debug logging (default = 0).
+.TP
+.I "lmt_proto_debug = n"
+Set to 1 to enable protocol debug logging (default = 0).
+.TP
+.I "lmt_db_debug = n"
+Set to 1 to enable database debug logging (default = 0).
+.TP
+.I "lmt_db_host = string"
+Set to database hostname (default = nil).
+The default causes MySQL's default (localhost) to be used.
+.TP
+.I "lmt_db_port = n"
+Set to database port (default = 0).
+The default causes MySQL's default port (3306) to be used.
+.TP
+.I "lmt_db_rouser = string"
+Set the user for read-only database access (default = nil).
+The default causes MySQL's default user (your uid) to be used.
+.TP
+.I "lmt_db_ropasswd = string"
+Set the password for read-only database access (default = nil).
+The default causes MySQL's default password (NO) to be used.
+.TP
+.I "lmt_db_rwuser = string"
+Set the user for read/write database access (default = nil).
+The default causes MySQL's default user (your uid) to be used.
+.TP
+.I "lmt_db_rwpasswd = string"
+Set the password for read/write database access (default = nil).
+.SH EXAMPLE
+.nf
+--
+-- Example lmt.conf
+-- Note: this file is parsed by an embedded LUA interpreter
+--
+
+lmt_cbr_debug = 0
+
+lmt_proto_debug = 0
+
+lmt_db_debug = 0
+
+lmt_db_host = nil
+lmt_db_port = 0
+
+lmt_db_rouser = "lwatchclient"
+lmt_db_ropasswd = nil
+
+lmt_db_rwuser = "lwatchadmin"
+
+--
+-- Assign lmt_db_rwpasswd from contents of rwpasswd file,
+-- or if not readable, assign a nil password.  Using this strategy,
+-- only UNIX users able to read the file can authenticate for read-write.
+--
+
+f = io.open("/usr/local/etc/lmt/rwpasswd")
+if (f) then
+  lmt_db_rwpasswd = f:read("*all")
+  f:close()
+else
+  lmt_db_rwpasswd = nil
+end
+.fi
+.LP
+.SH FILES
+@X_DATADIR@/@PACKAGE@/lmt.conf
+.SH SEE ALSO
+lustre(7), lmtinit(8)

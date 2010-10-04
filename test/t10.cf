@@ -1,6 +1,0 @@
-ost {
-  name test-oss5a[1-4],test-oss5b[1-4],test-oss5c[1-4],test-oss6a[1-4],test-oss6b[1-4],test-oss6c[1-4],test-oss7a[1-4],test-oss7b[1-4],test-oss7c[1-4],test-oss8a[1-4],test-oss8b[1-4],test-oss8c[1-4]
-  uuid test-OST{HEXINDEX}
-  skip 48
-  numdevs 7
-}

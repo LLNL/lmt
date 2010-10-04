@@ -1124,6 +1124,7 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
     char *qry = NULL;
     int retval = -1;
 
+    /* connect */
     if (!(conn = mysql_init (NULL)))
         msg_exit ("out of memory");
     if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL,
@@ -1133,6 +1134,7 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
         goto done;
     }
 
+    /* create database */
     len = strlen (sql_create_fs) + strlen (fs) + 1;
     qry = xmalloc (len);
     snprintf (qry, len, sql_create_fs, fs);
@@ -1143,6 +1145,8 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
         goto done;
     }
     free (qry);
+
+    /* switch to database */
     len = strlen (sql_use_fs) + strlen (fs) + 1;
     qry = xmalloc (len);
     snprintf (qry, len, sql_use_fs, fs);
@@ -1152,19 +1156,21 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
                  fs, mysql_error (conn));
         goto done;
     }
+
+    /* create tables and populate some of them */
     if (mysql_query (conn, sql_schema)) {
         if (lmt_conf_get_db_debug ())
             msg ("error executing schema sql for filesystem_%s: %s",
                  fs, mysql_error (conn));
         goto done;
     }   
-    /* FIXME: why are there results to eat here? */
     do {
         MYSQL_RES *res;
         if ((res = mysql_store_result (conn)))
             mysql_free_result (res);
     } while (mysql_next_result (conn) == 0);
 
+    /* create an entry in FILESYSTEM_INFO table */
     free (qry);
     len = strlen (sql_ins_filesystem_info)
         + strlen (fs) + strlen (schema_vers) + 1;
