@@ -52,6 +52,9 @@ The default causes MySQL's default user (your uid) to be used.
 .TP
 .I "lmt_db_rwpasswd = string"
 Set the password for read/write database access (default = nil).
+.TP
+.I "lmt_db_autoconf = n"
+Set to 0 to disable database self-populating with lustre config (default = 1).
 .SH EXAMPLE
 .nf
 --
