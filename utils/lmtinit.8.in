@@ -90,4 +90,4 @@ EOT
 .SH FILES
 @X_DATADIR@/@PACKAGE@/lmt.conf
 .SH SEE ALSO
-lustre(7), lmt.conf(5), mysql_secure_inst(1)
+lustre(7), lmt.conf(5), mysql_secure_installation(1)
