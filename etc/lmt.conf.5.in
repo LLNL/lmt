@@ -79,7 +79,7 @@ lmt_db_rwuser = "lwatchadmin"
 -- only UNIX users able to read the file can authenticate for read-write.
 --
 
-f = io.open("/usr/local/etc/lmt/rwpasswd")
+f = io.open("@X_DATADIR@/@PACKAGE@//rwpasswd")
 if (f) then
   lmt_db_rwpasswd = f:read("*all")
   f:close()

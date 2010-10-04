@@ -10,12 +10,10 @@ Each file system that will be monitored must have a database
 populated with the lmt schema.  This can be set up with the
 \fI--add FSNAME\fR option.
 .LP
-A prerequisite for running \fBlmtinit\fR is have the appropriate
-MySQL accounts set up (see below), and database
-settings such as host, port, and users configured in the lmt.conf file.
-.LP
-The \fIcerebrod\fR functioning as the database interface must be
-restarted following addition of a new file system.
+\fBlmtinit\fR requires that the LMT MySQL accounts
+(see \fBMYSQL SETUP\fR below) be set up,
+and that \fIlmt.conf\fR contains the database host, port, and users with 
+appropriate access.
 .SH OPTIONS
 .B lmtinit 
 accepts the following command line options:
@@ -43,37 +41,53 @@ capability must be provided on the command line with
 the \fI--user\fR and \fI--password\fR options.
 .TP
 .I "-c,--config-file FILE"
-Use an alternate lmt.conf file.
+Use an alternate \fIlmt.conf\fR.
 .TP
 .I "-s,--schema-file FILE"
 Use an alternate schema file.
 .TP
 .I "-u,--user=USER"
 Connect to the database as USER.
-The default is to use the users configured in the lmt.conf file.
+The default is to use the users configured in \fIlmt.conf\fR.
 .TP
 .I "-p,--password=PASS"
 Connect to the database with password PASS.
-The default is to use the passwords configured in the lmt.conf file.
+The default is to use the passwords configured in \fIlmt.conf\fR.
 .SH MYSQL SETUP
 Refer to MySQL documentation to determine how to set up and secure your
-MySQL database, and create the LMT users.  Example:
+MySQL database, and create the LMT users.  A rough guide follows.
+.LP
+The \fBmysql_secure_installation\fR program can be used to secure your
+database, including changing the database root password.
+.LP
+LMT needs a read-only and a read/write user for accessing the database.
+These users and their passwords are stored in \fIlmt.conf\fR, using
+a strategy such as the one shown in \fIlmt.conf(5)\fR for protecting
+the read/write password.  The users can be created as follows:
+.LP
 .nf
 #!/bin/bash
 
-# First run 'mysql_secure_installation'.
-
 # The following will prompt for root password
 mysql --user=root --password mysql <<EOT
+
+# Create a read-only user for LMT
 CREATE USER 'lwatchclient'@'%';
 GRANT SHOW DATABASES on *.* TO 'lwatchclient'@'%';
 GRANT SELECT ON *.* TO 'lwatchclient'@'%';
-CREATE USER 'lwatchadmin'@'localhost';
+
+# Create a read/write user for LMT
+CREATE USER 'lwatchadmin'@'localhost' IDENTIFIED BY 'mypass';
 GRANT SHOW DATABASES on *.* TO 'lwatchadmin'@'localhost';
 GRANT SELECT,INSERT ON *.* TO 'lwatchadmin'@'localhost';
+
+# more privs if lmtinit should work without --user=root
+GRANT CREATE,DROP ON *.* TO 'lwatchadmin'@'localhost';
+
 EOT
 .fi
+.LP
 .SH FILES
 @X_DATADIR@/@PACKAGE@/lmt.conf
 .SH SEE ALSO
-lustre(7), lmt.conf(5)
+lustre(7), lmt.conf(5), mysql_secure_inst(1)
