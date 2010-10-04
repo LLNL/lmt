@@ -153,12 +153,12 @@ main (int argc, char *argv[])
         if (!user)
             user = lmt_conf_get_db_rouser ();
         if (!pass)
-            user = lmt_conf_get_db_rouser ();
+            pass = lmt_conf_get_db_ropasswd ();
     } else {
         if (!user)
             user = lmt_conf_get_db_rwuser ();
         if (!pass)
-            user = lmt_conf_get_db_rwuser ();
+            pass = lmt_conf_get_db_rwpasswd ();
     }
 
     if (lopt)

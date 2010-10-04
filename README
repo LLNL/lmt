@@ -1,6 +1,6 @@
 LMT3 - Lustre Monitoring Tool
 
-ULMT is a distributed system that provides a "top"-like display of the
+LMT is a distributed system that provides a "top"-like display of the
 activity levels of the server-side (MDS, OSSes, and LNET routers)
 nodes of one or more Lustre-based filesystems.  It is possible to watch
 server metrics in real time, and to graph past behavior.  The clients

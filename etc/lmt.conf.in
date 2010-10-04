@@ -27,7 +27,7 @@ lmt_db_rwuser = "lwatchadmin"
 
 f = io.open("@X_SYSCONFDIR@/lmt/rwpasswd")
 if (f) then
-  lmt_db_rwpasswd = f:read("*all")
+  lmt_db_rwpasswd = f:read("*l")
   f:close()
 else
   lmt_db_rwpasswd = nil

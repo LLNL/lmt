@@ -72,6 +72,8 @@ static config_t config = {
     .proto_debug = 0,
 };
 
+#define PATH_LMTCONF        X_SYSCONFDIR "/" PACKAGE "/lmt.conf"
+
 static int
 _set_conf_str (char **cfg, char *s)
 {
@@ -189,13 +191,11 @@ lmt_conf_init (int vopt, char *path)
 {
 #ifdef HAVE_LUA_H
     lua_State *L;
-    static char buf[PATH_MAX];
     int res = -1;
 
     if (!path) {
-        snprintf (buf, sizeof (buf), "%s/lmt/lmt.conf", X_SYSCONFDIR);
-        if (access (buf, R_OK) == 0)
-            path = buf;  /* missing default config file is not fatal */
+        if (access (PATH_LMTCONF, R_OK) == 0)
+            path = PATH_LMTCONF; /* missing default config file is not fatal */
     }
     if (path) {
         L = lua_open ();

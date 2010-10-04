@@ -1130,7 +1130,7 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
     if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL,
                              CLIENT_MULTI_STATEMENTS)) {
         if (lmt_conf_get_db_debug ())
-            msg ("lmt_db_drop: %s",  mysql_error (conn));
+            msg ("lmt_db_add: %s",  mysql_error (conn));
         goto done;
     }
 
@@ -1152,7 +1152,7 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
     snprintf (qry, len, sql_use_fs, fs);
     if (mysql_query (conn, qry)) {
         if (lmt_conf_get_db_debug ())
-            msg ("error creating database filesystem_%s: %s",
+            msg ("error switching to database filesystem_%s: %s",
                  fs, mysql_error (conn));
         goto done;
     }
