@@ -1,4 +1,4 @@
-SUBDIRS = liblsd libproc liblmt perl
+SUBDIRS = liblsd libproc liblmt scripts
 if MYSQL
 SUBDIRS += liblmtdb
 endif

@@ -23341,22 +23341,22 @@ _ACEOF
 ##
 # Epilogue
 ##
-                                                                                                                                                                          ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 perl/Makefile perl/LMT.pm"
+                                                                                                                                                                          ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 scripts/Makefile scripts/LMT.pm"
 
 
-          ac_config_files="$ac_config_files perl/lmtsh"
+          ac_config_files="$ac_config_files scripts/lmtsh"
 
-          ac_config_files="$ac_config_files perl/lmt_update_fs_agg"
+          ac_config_files="$ac_config_files scripts/lmt_update_fs_agg"
 
-          ac_config_files="$ac_config_files perl/lmt_update_mds_agg"
+          ac_config_files="$ac_config_files scripts/lmt_update_mds_agg"
 
-          ac_config_files="$ac_config_files perl/lmt_update_ost_agg"
+          ac_config_files="$ac_config_files scripts/lmt_update_ost_agg"
 
-          ac_config_files="$ac_config_files perl/lmt_update_other_agg"
+          ac_config_files="$ac_config_files scripts/lmt_update_other_agg"
 
-          ac_config_files="$ac_config_files perl/lmt_update_router_agg"
+          ac_config_files="$ac_config_files scripts/lmt_update_router_agg"
 
-          ac_config_files="$ac_config_files perl/lmt_agg.cron"
+          ac_config_files="$ac_config_files scripts/lmt_agg.cron"
 
 
 cat >confcache <<\_ACEOF
@@ -23965,15 +23965,15 @@ do
   "etc/lmt.conf.5" ) CONFIG_FILES="$CONFIG_FILES etc/lmt.conf.5" ;;
   "utils/ltop.1" ) CONFIG_FILES="$CONFIG_FILES utils/ltop.1" ;;
   "utils/lmtinit.8" ) CONFIG_FILES="$CONFIG_FILES utils/lmtinit.8" ;;
-  "perl/Makefile" ) CONFIG_FILES="$CONFIG_FILES perl/Makefile" ;;
-  "perl/LMT.pm" ) CONFIG_FILES="$CONFIG_FILES perl/LMT.pm" ;;
-  "perl/lmtsh" ) CONFIG_FILES="$CONFIG_FILES perl/lmtsh" ;;
-  "perl/lmt_update_fs_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_fs_agg" ;;
-  "perl/lmt_update_mds_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_mds_agg" ;;
-  "perl/lmt_update_ost_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_ost_agg" ;;
-  "perl/lmt_update_other_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_other_agg" ;;
-  "perl/lmt_update_router_agg" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_update_router_agg" ;;
-  "perl/lmt_agg.cron" ) CONFIG_FILES="$CONFIG_FILES perl/lmt_agg.cron" ;;
+  "scripts/Makefile" ) CONFIG_FILES="$CONFIG_FILES scripts/Makefile" ;;
+  "scripts/LMT.pm" ) CONFIG_FILES="$CONFIG_FILES scripts/LMT.pm" ;;
+  "scripts/lmtsh" ) CONFIG_FILES="$CONFIG_FILES scripts/lmtsh" ;;
+  "scripts/lmt_update_fs_agg" ) CONFIG_FILES="$CONFIG_FILES scripts/lmt_update_fs_agg" ;;
+  "scripts/lmt_update_mds_agg" ) CONFIG_FILES="$CONFIG_FILES scripts/lmt_update_mds_agg" ;;
+  "scripts/lmt_update_ost_agg" ) CONFIG_FILES="$CONFIG_FILES scripts/lmt_update_ost_agg" ;;
+  "scripts/lmt_update_other_agg" ) CONFIG_FILES="$CONFIG_FILES scripts/lmt_update_other_agg" ;;
+  "scripts/lmt_update_router_agg" ) CONFIG_FILES="$CONFIG_FILES scripts/lmt_update_router_agg" ;;
+  "scripts/lmt_agg.cron" ) CONFIG_FILES="$CONFIG_FILES scripts/lmt_agg.cron" ;;
   "depfiles" ) CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
   "config/config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config/config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
@@ -24415,20 +24415,20 @@ s,@INSTALL@,$ac_INSTALL,;t t
 
   # Run the commands associated with the file.
   case $ac_file in
-    perl/lmtsh ) \
-       chmod +x perl/lmtsh ;;
-    perl/lmt_update_fs_agg ) \
-       chmod +x perl/lmt_update_fs_agg ;;
-    perl/lmt_update_mds_agg ) \
-       chmod +x perl/lmt_update_mds_agg ;;
-    perl/lmt_update_ost_agg ) \
-       chmod +x perl/lmt_update_ost_agg ;;
-    perl/lmt_update_other_agg ) \
-       chmod +x perl/lmt_update_other_agg ;;
-    perl/lmt_update_router_agg ) \
-       chmod +x perl/lmt_update_router_agg ;;
-    perl/lmt_agg.cron ) \
-       chmod +x perl/lmt_agg.cron ;;
+    scripts/lmtsh ) \
+       chmod +x scripts/lmtsh ;;
+    scripts/lmt_update_fs_agg ) \
+       chmod +x scripts/lmt_update_fs_agg ;;
+    scripts/lmt_update_mds_agg ) \
+       chmod +x scripts/lmt_update_mds_agg ;;
+    scripts/lmt_update_ost_agg ) \
+       chmod +x scripts/lmt_update_ost_agg ;;
+    scripts/lmt_update_other_agg ) \
+       chmod +x scripts/lmt_update_other_agg ;;
+    scripts/lmt_update_router_agg ) \
+       chmod +x scripts/lmt_update_router_agg ;;
+    scripts/lmt_agg.cron ) \
+       chmod +x scripts/lmt_agg.cron ;;
   esac
 done
 _ACEOF

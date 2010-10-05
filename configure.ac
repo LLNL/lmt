@@ -88,23 +88,23 @@ AC_CONFIG_FILES( \
   etc/lmt.conf.5 \
   utils/ltop.1 \
   utils/lmtinit.8 \
-  perl/Makefile \
-  perl/LMT.pm \
+  scripts/Makefile \
+  scripts/LMT.pm \
 )
 
-AC_CONFIG_FILES([perl/lmtsh], \
-       [chmod +x perl/lmtsh])
-AC_CONFIG_FILES([perl/lmt_update_fs_agg], \
-       [chmod +x perl/lmt_update_fs_agg])
-AC_CONFIG_FILES([perl/lmt_update_mds_agg], \
-       [chmod +x perl/lmt_update_mds_agg])
-AC_CONFIG_FILES([perl/lmt_update_ost_agg], \
-       [chmod +x perl/lmt_update_ost_agg])
-AC_CONFIG_FILES([perl/lmt_update_other_agg], \
-       [chmod +x perl/lmt_update_other_agg])
-AC_CONFIG_FILES([perl/lmt_update_router_agg], \
-       [chmod +x perl/lmt_update_router_agg])
-AC_CONFIG_FILES([perl/lmt_agg.cron], \
-       [chmod +x perl/lmt_agg.cron])
+AC_CONFIG_FILES([scripts/lmtsh], \
+       [chmod +x scripts/lmtsh])
+AC_CONFIG_FILES([scripts/lmt_update_fs_agg], \
+       [chmod +x scripts/lmt_update_fs_agg])
+AC_CONFIG_FILES([scripts/lmt_update_mds_agg], \
+       [chmod +x scripts/lmt_update_mds_agg])
+AC_CONFIG_FILES([scripts/lmt_update_ost_agg], \
+       [chmod +x scripts/lmt_update_ost_agg])
+AC_CONFIG_FILES([scripts/lmt_update_other_agg], \
+       [chmod +x scripts/lmt_update_other_agg])
+AC_CONFIG_FILES([scripts/lmt_update_router_agg], \
+       [chmod +x scripts/lmt_update_router_agg])
+AC_CONFIG_FILES([scripts/lmt_agg.cron], \
+       [chmod +x scripts/lmt_agg.cron])
 
 AC_OUTPUT

@@ -70,7 +70,7 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	uninstall-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = liblsd libproc liblmt perl liblmtdb utils test etc \
+DIST_SUBDIRS = liblsd libproc liblmt scripts liblmtdb utils test etc \
 	cerebro
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
@@ -228,7 +228,7 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-SUBDIRS = liblsd libproc liblmt perl $(am__append_1) utils test etc \
+SUBDIRS = liblsd libproc liblmt scripts $(am__append_1) utils test etc \
 	$(am__append_2)
 all: all-recursive
 
@@ -431,7 +431,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkdir_p) $(distdir)/config $(distdir)/etc $(distdir)/liblmtdb $(distdir)/perl $(distdir)/utils
+	$(mkdir_p) $(distdir)/config $(distdir)/etc $(distdir)/liblmtdb $(distdir)/scripts $(distdir)/utils
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \

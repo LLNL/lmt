@@ -38,7 +38,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-subdir = perl
+subdir = scripts
 DIST_COMMON = $(srcdir)/LMT.pm.in $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/lmt_agg.cron.in \
 	$(srcdir)/lmt_update_fs_agg.in $(srcdir)/lmt_update_mds_agg.in \
@@ -265,9 +265,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  perl/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  scripts/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu  perl/Makefile
+	  $(AUTOMAKE) --gnu  scripts/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
