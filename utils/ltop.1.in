@@ -136,6 +136,17 @@ Toggle record mode on/off.  Unless a file name was specified with the
 \fIp\fR
 Pause data collection/playback.
 .TP
+\fIRIGHT\fR
+Fast forward playback by one sample period.
+.TP
+\fILEFT\fR
+Rewind playback by one sample period.
+.TP
+\fITAB\fR
+Fast forward playback by one minute.
+.TP
+\fIBACKSPACE\fR
+Rewind playback by one minute.
 .SH "VI KEY BINDINGS"
 For convenience to
 .B vi

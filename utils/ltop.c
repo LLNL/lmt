@@ -132,6 +132,7 @@ static void _sort_ostlist (List ost_data, sort_t s, time_t tnow);
 static char *_find_first_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
+static void _rewind_file (FILE *f, List ost_data, List mdt_data);
 
 /* Hardwired display geometry.  We also assume 80 chars wide.
  */
@@ -380,6 +381,43 @@ main (int argc, char *argv[])
                 break;
             case 'p':               /* p - pause playback */
                 pause = !pause;
+                break;
+            case KEY_LEFT:          /* LeftArrow|h - rewind 1 sample_period */
+                if (playf) {
+                    time_t t1 = tcycle - sample_period;
+
+                    _rewind_file (playf, ost_data, mdt_data);
+                    do {
+                        _play_file (fs, mdt_data, ost_data, stale_secs, playf,
+                                    &tcycle, &sample_period);
+                    } while (tcycle < t1 && !feof (playf));
+                }
+                break;
+            case KEY_BACKSPACE:     /* BACKSPACE|0 - rewind 1 minute */
+                if (playf) {
+                    time_t t1 = tcycle - 60;
+
+                    _rewind_file (playf, ost_data, mdt_data);
+                    do {
+                        _play_file (fs, mdt_data, ost_data, stale_secs, playf,
+                                    &tcycle, &sample_period);
+                    } while (tcycle < t1 && !feof (playf));
+                }
+                break;
+            case KEY_RIGHT:         /* RightArrow - ffwd 1 sample_period */
+                if (playf)
+                    _play_file (fs, mdt_data, ost_data, stale_secs, playf,
+                                &tcycle, &sample_period);
+                break;
+            case '\t':              /* tab|$ - fast-fwd 1 minute */
+                if (playf) {
+                    time_t t1 = tcycle + 60;
+
+                    do {
+                        _play_file (fs, mdt_data, ost_data, stale_secs, playf,
+                                    &tcycle, &sample_period);
+                    } while (tcycle < t1 && !feof (playf));
+                }
                 break;
             case ERR:               /* timeout */
                 break;
@@ -1369,6 +1407,21 @@ _sort_ostlist (List ost_data, sort_t s, time_t tnow)
     }
     sort_tnow = tnow;
     list_sort (ost_data, c);
+}
+
+static int
+_list_find_all (void *x, void *key)
+{
+    return 1;
+}
+
+static void
+_rewind_file (FILE *f, List ost_data, List mdt_data)
+{
+    if (fseek (f, 0, SEEK_SET) < 0)
+        err_exit ("error rewinding playback file");
+    list_delete_all (ost_data, (ListFindF)_list_find_all, NULL);
+    list_delete_all (mdt_data, (ListFindF)_list_find_all, NULL);
 }
 
 /*
