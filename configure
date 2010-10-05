@@ -23341,7 +23341,7 @@ _ACEOF
 ##
 # Epilogue
 ##
-                                                                                                                                                                                    ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 scripts/Makefile perl/Makefile perl/LMT.pm"
+                                                                                                                                                                          ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 perl/Makefile perl/LMT.pm"
 
 
           ac_config_files="$ac_config_files perl/lmtsh"
@@ -23965,7 +23965,6 @@ do
   "etc/lmt.conf.5" ) CONFIG_FILES="$CONFIG_FILES etc/lmt.conf.5" ;;
   "utils/ltop.1" ) CONFIG_FILES="$CONFIG_FILES utils/ltop.1" ;;
   "utils/lmtinit.8" ) CONFIG_FILES="$CONFIG_FILES utils/lmtinit.8" ;;
-  "scripts/Makefile" ) CONFIG_FILES="$CONFIG_FILES scripts/Makefile" ;;
   "perl/Makefile" ) CONFIG_FILES="$CONFIG_FILES perl/Makefile" ;;
   "perl/LMT.pm" ) CONFIG_FILES="$CONFIG_FILES perl/LMT.pm" ;;
   "perl/lmtsh" ) CONFIG_FILES="$CONFIG_FILES perl/lmtsh" ;;

@@ -88,7 +88,6 @@ AC_CONFIG_FILES( \
   etc/lmt.conf.5 \
   utils/ltop.1 \
   utils/lmtinit.8 \
-  scripts/Makefile \
   perl/Makefile \
   perl/LMT.pm \
 )

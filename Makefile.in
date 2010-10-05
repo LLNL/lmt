@@ -70,8 +70,8 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	uninstall-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = liblsd libproc liblmt scripts perl liblmtdb utils test \
-	etc cerebro
+DIST_SUBDIRS = liblsd libproc liblmt perl liblmtdb utils test etc \
+	cerebro
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -228,8 +228,8 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-SUBDIRS = liblsd libproc liblmt scripts perl $(am__append_1) utils \
-	test etc $(am__append_2)
+SUBDIRS = liblsd libproc liblmt perl $(am__append_1) utils test etc \
+	$(am__append_2)
 all: all-recursive
 
 .SUFFIXES:

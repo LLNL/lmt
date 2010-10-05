@@ -1,4 +1,4 @@
-# Example script for creating LMT LySQL users.
+# Example script for creating LMT MySQL users.
 
 CREATE USER 'lwatchclient';
 GRANT SHOW DATABASES ON *.* TO 'lwatchclient';
