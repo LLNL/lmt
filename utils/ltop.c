@@ -125,7 +125,8 @@ static void _update_display_ost (WINDOW *win, List ost_data, int minost,
                                  int selost, int stale_secs, time_t tnow);
 static void _destroy_oststat (oststat_t *o);
 static void _destroy_mdtstat (mdtstat_t *m);
-static void _summarize_ost (List ost_data, List oss_data, int stale_secs);
+static void _summarize_ost (List ost_data, List oss_data, time_t tnow,
+                            int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
 static void _sort_ostlist (List ost_data, sort_t s, time_t tnow);
@@ -133,6 +134,7 @@ static char *_find_first_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
 static void _rewind_file (FILE *f, List ost_data, List mdt_data);
+static void _list_empty_out (List l);
 
 /* Hardwired display geometry.  We also assume 80 chars wide.
  */
@@ -176,7 +178,7 @@ main (int argc, char *argv[])
     char *conffile = NULL;
     WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
-    int ostview = 1, resort = 0;
+    int ostview = 1, resort = 0, recompute = 0;
     sort_t sortby = SORT_OST;
     char *fs = NULL;
     int sopt = 0;
@@ -317,10 +319,7 @@ main (int argc, char *argv[])
                 break;
             case 'c':               /* c - toggle compressed oss view */
                 ostview = !ostview;
-                if (!ostview)
-                    _summarize_ost (ost_data, oss_data, stale_secs);
-                resort = 1;
-                ostcount = list_count (ostview ? ost_data : oss_data);
+                recompute = 1;
                 minost = 0;
                 selost = -1;
                 break;
@@ -382,7 +381,7 @@ main (int argc, char *argv[])
             case 'p':               /* p - pause playback */
                 pause = !pause;
                 break;
-            case KEY_LEFT:          /* LeftArrow|h - rewind 1 sample_period */
+            case KEY_LEFT:          /* LeftArrow - rewind 1 sample_period */
                 if (playf) {
                     time_t t1 = tcycle - sample_period;
 
@@ -391,9 +390,11 @@ main (int argc, char *argv[])
                         _play_file (fs, mdt_data, ost_data, stale_secs, playf,
                                     &tcycle, &sample_period);
                     } while (tcycle < t1 && !feof (playf));
+                    last_sample = time (NULL);
+                    recompute = 1;
                 }
                 break;
-            case KEY_BACKSPACE:     /* BACKSPACE|0 - rewind 1 minute */
+            case KEY_BACKSPACE:     /* BACKSPACE - rewind 1 minute */
                 if (playf) {
                     time_t t1 = tcycle - 60;
 
@@ -402,14 +403,19 @@ main (int argc, char *argv[])
                         _play_file (fs, mdt_data, ost_data, stale_secs, playf,
                                     &tcycle, &sample_period);
                     } while (tcycle < t1 && !feof (playf));
+                    last_sample = time (NULL);
+                    recompute = 1;
                 }
                 break;
             case KEY_RIGHT:         /* RightArrow - ffwd 1 sample_period */
-                if (playf)
+                if (playf) {
                     _play_file (fs, mdt_data, ost_data, stale_secs, playf,
                                 &tcycle, &sample_period);
+                    last_sample = time (NULL);
+                    recompute = 1;
+                } 
                 break;
-            case '\t':              /* tab|$ - fast-fwd 1 minute */
+            case '\t':              /* tab - fast-fwd 1 minute */
                 if (playf) {
                     time_t t1 = tcycle + 60;
 
@@ -417,6 +423,8 @@ main (int argc, char *argv[])
                         _play_file (fs, mdt_data, ost_data, stale_secs, playf,
                                     &tcycle, &sample_period);
                     } while (tcycle < t1 && !feof (playf));
+                    last_sample = time (NULL);
+                    recompute = 1;
                 }
                 break;
             case ERR:               /* timeout */
@@ -430,16 +438,20 @@ main (int argc, char *argv[])
                 else
                     _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf,
                                    &tcycle);
+                last_sample = time (NULL);
+                recompute = 1;
             }
-            if (!ostview)
-                _summarize_ost (ost_data, oss_data, stale_secs);
-            ostcount = list_count (ostview ? ost_data : oss_data);
-            last_sample = time (NULL);
             timeout (sample_period * 1000);
-            resort = 1;
         } else
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
 
+        if (recompute) {
+            ostcount = list_count (ostview ? ost_data : oss_data);
+            if (!ostview)
+                _summarize_ost (ost_data, oss_data, tcycle, stale_secs);
+            resort = 1;
+            recompute = 0;
+        }
         if (resort) {
             _sort_ostlist (ost_data, sortby, tcycle); 
             _sort_ostlist (oss_data, sortby, tcycle); 
@@ -603,8 +615,8 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             mvwprintw (win, x, 0, "%4.4s %1.1s", o->name, o->oscstate);
         /* ost is in recovery - display recovery stats */
         } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
-            mvwprintw (win, x, 0, "%4.4s %1.1s   %s", o->name, o->oscstate,
-                       o->recov_status);
+            mvwprintw (win, x, 0, "%4.4s %1.1s %10.10s   %s",
+                       o->name, o->oscstate, o->ossname, o->recov_status);
         /* ost is in normal state */
         } else {
             mvwprintw (win, x, 0, "%4.4s %1.1s %10.10s"
@@ -1129,6 +1141,7 @@ static void
 _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
                FILE *recf, time_t *tp)
 {
+#if HAVE_CEREBRO_H
     time_t trcv, tnow = time (NULL);
     cmetric_t c;
     List l = NULL;
@@ -1136,9 +1149,7 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
     ListIterator itr;
     float vers;
 
-#if HAVE_CEREBRO_H
     if (lmt_cbr_get_metrics ("lmt_mdt,lmt_ost,lmt_osc", &l) < 0)
-#endif
         return;
     itr = list_iterator_create (l);
     while ((c = list_next (itr))) {
@@ -1164,6 +1175,7 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
     list_destroy (l);
     if (tp)
         *tp = tnow;
+#endif
 }
 
 /* Write a cerebro metric record and some other info to a line in a file.
@@ -1264,16 +1276,16 @@ _find_first_fs (FILE *playf, int stale_secs)
  * the OST's on that OSS.
  */
 static void
-_summarize_ost (List ost_data, List oss_data, int stale_secs)
+_summarize_ost (List ost_data, List oss_data, time_t tnow, int stale_secs)
 {
     oststat_t *o, *o2;
     ListIterator itr;
 
-    while ((o = list_dequeue (oss_data)))
-        _destroy_oststat (o);
-
+    _list_empty_out (oss_data);
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
+        if (tnow - o->ost_metric_timestamp > stale_secs)
+            continue;
         o2 = list_find_first (oss_data, (ListFindF)_match_oststat2, o->ossname);
         if (o2) {
             sample_add (o2->rbytes, o->rbytes);
@@ -1285,7 +1297,7 @@ _summarize_ost (List ost_data, List oss_data, int stale_secs)
             sample_add (o2->grant_rate, o->grant_rate);
             sample_add (o2->cancel_rate, o->cancel_rate);
             sample_add (o2->connect, o->connect);
-            if (o->ost_metric_timestamp > o2->ost_metric_timestamp)
+            if (o->ost_metric_timestamp < o2->ost_metric_timestamp)
                 o2->ost_metric_timestamp = o->ost_metric_timestamp;
             /* Ensure recov_status and oscstate reflect any unrecovered or
              * non-full state of individual OSTs.  Last in wins.
@@ -1416,12 +1428,18 @@ _list_find_all (void *x, void *key)
 }
 
 static void
+_list_empty_out (List l)
+{
+    list_delete_all (l, (ListFindF)_list_find_all, NULL);
+}
+
+static void
 _rewind_file (FILE *f, List ost_data, List mdt_data)
 {
     if (fseek (f, 0, SEEK_SET) < 0)
         err_exit ("error rewinding playback file");
-    list_delete_all (ost_data, (ListFindF)_list_find_all, NULL);
-    list_delete_all (mdt_data, (ListFindF)_list_find_all, NULL);
+    _list_empty_out (ost_data);
+    _list_empty_out (mdt_data);
 }
 
 /*
