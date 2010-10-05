@@ -65,6 +65,15 @@ The lock grant rate.
 .TP
 \fILCR\fR
 The lock cancellation rate.
+.TP
+\fI%cpu
+The percentage of cpu in use on the OSS.
+.TP
+\fI%mem
+The percentage of memory in use on the OSS.
+.TP
+\fI%spc
+The percentage of OST storage space in use.
 .SH "INTERACTIVE COMMANDS"
 .B ltop
 responds to the following single character commands interactively:
