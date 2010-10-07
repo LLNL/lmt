@@ -166,7 +166,7 @@ main (int argc, char *argv[])
     if (xopt && (Popt || user || pass))
         msg_exit ("-x cannot be used with -u, -p, or -P options.");
 
-    if (lopt || xopt) {
+    if (lopt) {
         if (!user)
             user = lmt_conf_get_db_rouser ();
         if (Popt)
