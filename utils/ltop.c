@@ -111,6 +111,11 @@ typedef struct {
     char mdsname[MAXHOSTNAMELEN];/* mds hostname */
 } mdtstat_t;
 
+typedef struct {
+    long p;
+    uint64_t t;
+} ts_t;
+
 typedef enum {
     SORT_OST, SORT_OSS, SORT_RBW, SORT_WBW, SORT_IOPS, SORT_EXP, SORT_LOCKS,
     SORT_LGR, SORT_LCR, SORT_CONN,
@@ -119,7 +124,8 @@ typedef enum {
 static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
                            int stale_secs, FILE *recf, time_t *tp);
 static void _play_file (char *fs, List mdt_data, List ost_data,
-                        int stale_secs, FILE *playf, time_t *tp, int *tdiffp);
+                        List time_series, int stale_secs, FILE *playf,
+                        time_t *tp, int *tdiffp);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
                                  List ost_data, int stale_secs, FILE *recf,
                                  FILE *playf, time_t tnow, int pause);
@@ -135,7 +141,8 @@ static void _sort_ostlist (List ost_data, sort_t s, time_t tnow);
 static char *_find_first_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
-static void _rewind_file (FILE *f, List ost_data, List mdt_data);
+static int _rewind_file (FILE *f, List time_series, int count);
+static void _rewind_file_to (FILE *f, List time_series, time_t target);
 static void _list_empty_out (List l);
 
 /* Hardwired display geometry.  We also assume 80 chars wide.
@@ -189,6 +196,7 @@ main (int argc, char *argv[])
     List ost_data = list_create ((ListDelF)_destroy_oststat);
     List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
     List oss_data = list_create ((ListDelF)_destroy_oststat);
+    List time_series = list_create ((ListDelF)free);
     time_t tcycle, last_sample = 0;
     char *recpath = "ltop.log";
     FILE *recf = NULL;
@@ -248,8 +256,8 @@ main (int argc, char *argv[])
      * If either the mds or any ost's are up, then ostcount > 0.
      */
     if (playf) {
-        _play_file (fs, mdt_data, ost_data, stale_secs, playf, &tcycle,
-                    &sample_period);
+        _play_file (fs, mdt_data, ost_data, time_series,
+                    stale_secs, playf, &tcycle, &sample_period);
         if (feof (playf))
             msg_exit ("premature end of file on playback file");
     } else
@@ -385,34 +393,37 @@ main (int argc, char *argv[])
                 break;
             case KEY_LEFT:          /* LeftArrow - rewind 1 sample_period */
                 if (playf) {
-                    time_t t1 = tcycle - sample_period;
+                    int count = _rewind_file (playf, time_series, 3);
 
-                    _rewind_file (playf, ost_data, mdt_data);
-                    do {
-                        _play_file (fs, mdt_data, ost_data, stale_secs, playf,
-                                    &tcycle, &sample_period);
-                    } while (tcycle < t1 && !feof (playf));
+                    if (count > 0) {
+                        _list_empty_out (mdt_data);
+                        _list_empty_out (ost_data);
+                    }
+                    while (count-- > 1)
+                        _play_file (fs, mdt_data, ost_data, time_series,
+                                    stale_secs, playf, &tcycle, &sample_period);
                     last_sample = time (NULL);
                     recompute = 1;
                 }
                 break;
             case KEY_BACKSPACE:     /* BACKSPACE - rewind 1 minute */
                 if (playf) {
-                    time_t t1 = tcycle - 60;
-
-                    _rewind_file (playf, ost_data, mdt_data);
-                    do {
-                        _play_file (fs, mdt_data, ost_data, stale_secs, playf,
-                                    &tcycle, &sample_period);
-                    } while (tcycle < t1 && !feof (playf));
+                    _list_empty_out (mdt_data);
+                    _list_empty_out (ost_data);
+                    _rewind_file_to (playf, time_series, tcycle - 60);
+                    (void)_rewind_file (playf, time_series, 1);
+                    _play_file (fs, mdt_data, ost_data, time_series,
+                                stale_secs, playf, &tcycle, &sample_period);
+                    _play_file (fs, mdt_data, ost_data, time_series,
+                                stale_secs, playf, &tcycle, &sample_period);
                     last_sample = time (NULL);
                     recompute = 1;
                 }
                 break;
             case KEY_RIGHT:         /* RightArrow - ffwd 1 sample_period */
                 if (playf) {
-                    _play_file (fs, mdt_data, ost_data, stale_secs, playf,
-                                &tcycle, &sample_period);
+                    _play_file (fs, mdt_data, ost_data, time_series,
+                                stale_secs, playf, &tcycle, &sample_period);
                     last_sample = time (NULL);
                     recompute = 1;
                 } 
@@ -422,8 +433,8 @@ main (int argc, char *argv[])
                     time_t t1 = tcycle + 60;
 
                     do {
-                        _play_file (fs, mdt_data, ost_data, stale_secs, playf,
-                                    &tcycle, &sample_period);
+                        _play_file (fs, mdt_data, ost_data, time_series,
+                                    stale_secs, playf, &tcycle, &sample_period);
                     } while (tcycle < t1 && !feof (playf));
                     last_sample = time (NULL);
                     recompute = 1;
@@ -435,8 +446,8 @@ main (int argc, char *argv[])
         if (time (NULL) - last_sample >= sample_period) {
             if (!pause) {
                 if (playf)
-                    _play_file (fs, mdt_data, ost_data, stale_secs, playf,
-                                &tcycle, &sample_period);
+                    _play_file (fs, mdt_data, ost_data, time_series,
+                                stale_secs, playf, &tcycle, &sample_period);
                 else
                     _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf,
                                    &tcycle);
@@ -464,6 +475,7 @@ main (int argc, char *argv[])
     list_destroy (ost_data);
     list_destroy (mdt_data);
     list_destroy (oss_data);
+    list_destroy (time_series);
     
     if (recf) {
         if (fclose (recf) == EOF)
@@ -1210,29 +1222,40 @@ _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                    (uint64_t)tnow, (uint64_t)trcv, node, name, s);
 }
 
+static ts_t *
+_ts_create (long p, uint64_t t)
+{
+    ts_t *ts = xmalloc (sizeof (ts_t));
+
+    ts->p = p;
+    ts->t = t;
+    return ts;
+}
+
 /* Analagous to _poll_cerebro (), except input is taken from a file
  * written by _record_file ().   The wall clock time recorded in the first
  * field groups records into batches.  This function reads only one batch,
  * and places its wall clock time in *tp.
  */
 static void
-_play_file (char *fs, List mdt_data, List ost_data, int stale_secs,
-            FILE *f, time_t *tp, int *tdiffp)
+_play_file (char *fs, List mdt_data, List ost_data, List time_series,
+            int stale_secs, FILE *f, time_t *tp, int *tdiffp)
 {
     static char s[65536];
     float vers;
     uint64_t tnow, trcv, tmark = 0;
     char node[64], name[16];
-    fpos_t pos;
+    long pos = 0;
     int tdiff = 0;
+    ts_t *ts = NULL;
 
     if (feof (f) || ferror (f))
         return;
     while (fscanf (f, "%"PRIu64" %"PRIu64" %64s %16s %65536[^\n]\n",
                    &tnow, &trcv, node, name, s) == 5) {
         if (tmark != 0 && tmark != tnow) {
-            if (fsetpos (f, &pos) < 0) /* rewind! */
-                err_exit ("fsetpos failed on playback file");
+            if (fseek (f, pos, SEEK_SET) < 0)
+                err_exit ("fseek failed on playback file");
             tdiff = tnow - tmark;
             break;
         }
@@ -1244,8 +1267,10 @@ _play_file (char *fs, List mdt_data, List ost_data, int stale_secs,
             _decode_ost_v2 (s, fs, ost_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_osc") && vers == 1)
             _decode_osc_v1 (s, fs, ost_data, tnow, trcv, stale_secs);
-        if (fgetpos (f, &pos) < 0)
-            err_exit ("fgetpos failed on playback file");
+        if ((pos = ftell (f)) < 0)
+            err_exit ("ftell failed on playback file");
+        if (!ts && time_series)
+            ts = _ts_create (pos, tnow);
         tmark = tnow;
     }
     if (ferror (f))
@@ -1256,6 +1281,39 @@ _play_file (char *fs, List mdt_data, List ost_data, int stale_secs,
         *tp = tmark;
     if (tdiffp && !feof (f))
         *tdiffp = tdiff;
+    if (ts && time_series)
+        list_prepend (time_series, ts); 
+        
+}
+
+static int
+_rewind_file (FILE *f, List time_series, int count)
+{
+    ts_t *ts;
+    int res = 0;
+
+    while (count-- && (ts = list_dequeue (time_series))) {
+        if (fseek (f, ts->p, SEEK_SET) < 0)
+            err_exit ("fseek failed on playback file");
+        res++;
+        free (ts);
+    }
+    return res;
+}
+
+static void
+_rewind_file_to (FILE *f, List time_series, time_t target)
+{
+    ts_t *ts;
+    int found = 0;
+
+    while (!found && (ts = list_dequeue (time_series))) {
+        if (fseek (f, ts->p, SEEK_SET) < 0)
+            err_exit ("fseek failed on playback file");
+        if (ts->t <= target)
+            found = 1;
+        free (ts);
+    }
 }
 
 /* Peek at the data to find a default file system to monitor.
@@ -1271,7 +1329,8 @@ _find_first_fs (FILE *playf, int stale_secs)
     char *ret = NULL;
 
     if (playf) {
-        _play_file (NULL, mdt_data, ost_data, stale_secs, playf, NULL, NULL);
+        _play_file (NULL, mdt_data, ost_data, NULL, stale_secs,
+                    playf, NULL, NULL);
         if (fseek (playf, 0, SEEK_SET) < 0)
             err_exit ("error rewinding playback file");
     } else
@@ -1451,15 +1510,6 @@ static void
 _list_empty_out (List l)
 {
     list_delete_all (l, (ListFindF)_list_find_all, NULL);
-}
-
-static void
-_rewind_file (FILE *f, List ost_data, List mdt_data)
-{
-    if (fseek (f, 0, SEEK_SET) < 0)
-        err_exit ("error rewinding playback file");
-    _list_empty_out (ost_data);
-    _list_empty_out (mdt_data);
 }
 
 /*
