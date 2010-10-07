@@ -90,6 +90,7 @@ AC_CONFIG_FILES( \
   utils/lmtinit.8 \
   scripts/Makefile \
   scripts/LMT.pm \
+  scripts/lmt_agg.cron.8 \
 )
 
 AC_CONFIG_FILES([scripts/lmtsh], \

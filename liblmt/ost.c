@@ -82,6 +82,36 @@ _get_iops (pctx_t ctx, char *name, uint64_t *iopsp)
 }
 
 static int
+_get_recovstr (pctx_t ctx, char *name, char *s, int len)
+{
+    hash_t rh = NULL;
+    shash_t *status, *completed_clients, *time_remaining;
+    int res = -1;
+
+    if (proc_lustre_hashrecov (ctx, name, &rh) < 0) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error reading lustre %s recovery_status from proc", name);
+        goto done;
+    }
+    if (!(status = hash_find (rh, "status:"))) {
+        if (lmt_conf_get_proto_debug ())
+            err ("error parsing lustre %s recovery_status from proc", name);
+        goto done;
+    }
+    completed_clients = hash_find (rh, "completed_clients:");
+    time_remaining = hash_find (rh, "time_remaining:");
+    /* N.B. ltop depends on placement of status in the first field */
+    snprintf (s, len, "%s %s %ss remaining", status->val,
+              completed_clients ? completed_clients->val : "",
+              time_remaining ? time_remaining->val : "0");
+    res = 0;
+done:
+    if (rh)
+        hash_destroy (rh);
+    return res;
+}
+
+static int
 _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
 {
     char *uuid = NULL;
@@ -92,9 +122,8 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     uint64_t lock_count, grant_rate, cancel_rate;
     uint64_t connect, reconnect;
     hash_t stats_hash = NULL;
-    hash_t recov_hash = NULL;
-    shash_t *recov_status, *recov_completed_clients;
     int n, retval = -1;
+    char recov_str[64];
 
     if (proc_lustre_uuid (ctx, name, &uuid) < 0) {
         if (lmt_conf_get_proto_debug ())
@@ -151,30 +180,15 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
             err ("error reading lustre %s ldlm cancel_rate from proc", name);
         goto done;
     }
-    if (proc_lustre_hashrecov (ctx, name, &recov_hash) < 0) {
-        if (lmt_conf_get_proto_debug ())
-            err ("error reading lustre %s recovery_status from proc", name);
+    if (_get_recovstr (ctx, name, recov_str, sizeof (recov_str)) < 0)
         goto done;
-    }
-    if (!(recov_status = hash_find (recov_hash, "status:"))) {
-        if (lmt_conf_get_proto_debug ())
-            err ("error parsing lustre %s recovery_status from proc", name);
-        goto done;
-    }
-    if (!(recov_completed_clients = hash_find (recov_hash,
-                                               "completed_clients:"))) {
-        if (lmt_conf_get_proto_debug ())
-            err ("error parsing lustre %s completed_clients from proc", name);
-        goto done;
-    }
     n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
                   ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                  ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%s %s;",
+                  ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%s;",
                   uuid, filesfree, filestotal, kbytesfree, kbytestotal,
                   read_bytes, write_bytes, iops, num_exports,
                   lock_count, grant_rate, cancel_rate,
-                  connect, reconnect,
-                  recov_status->val, recov_completed_clients->val);
+                  connect, reconnect, recov_str);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
             msg ("string overflow");
@@ -184,8 +198,6 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
 done:
     if (uuid)
         free (uuid);
-    if (recov_hash)
-        hash_destroy (recov_hash);
     if (stats_hash)
         hash_destroy (stats_hash);
     return retval;

@@ -1459,6 +1459,8 @@ _tag_nth_ost (List ost_data, int selost, List ost_data2)
         _tag_ost_byoss (ost_data2, o->ossname, o->tag);
 }
 
+/* Sort the list of OST's according to the specified criteria.
+ */
 static void
 _sort_ostlist (List ost_data, sort_t s, time_t tnow)
 {
@@ -1500,12 +1502,17 @@ _sort_ostlist (List ost_data, sort_t s, time_t tnow)
     list_sort (ost_data, c);
 }
 
+/* Helper for _list_empty_out ().
+ */
 static int
 _list_find_all (void *x, void *key)
 {
     return 1;
 }
 
+/* Utility function to destroy all elements of a List without
+ * destroying the list itself.
+ */
 static void
 _list_empty_out (List l)
 {

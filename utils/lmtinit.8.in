@@ -72,9 +72,13 @@ These users and their passwords are stored in \fIlmt.conf\fR, using
 a strategy such as the one shown in \fIlmt.conf(5)\fR for protecting
 the read/write password.  Users can be created using a variant of the
 \fImkusers.sql\fR example script (see below).
+.SH CRON SETUP
+The \fBlmt_agg.cron\fR script may optionally be run to create low-resolution
+data used to speed up real-time historical graphing in the java client.
+See \fIlmt_agg.cron(8)\fR for more information.
 .SH FILES
-@X_DATADIR@/@PACKAGE@/lmt.conf
+@X_SYSCONFDIR@/@PACKAGE@/lmt.conf
 .br
 @X_DATADIR@/@PACKAGE@/mkusers.sql
 .SH SEE ALSO
-lustre(7), lmt.conf(5), mysql_secure_installation(1)
+lustre(7), lmt.conf(5), mysql_secure_installation(1), lmt_agg.cron(8)

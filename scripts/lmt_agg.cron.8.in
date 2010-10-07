@@ -1,0 +1,47 @@
+.TH lmt_agg.cron 8 "@META_DATA@" "@META_ALIAS@" "@META_NAME@"
+.SH NAME
+lmt_agg.cron \- aggregate LMT data
+.SH SYNOPSIS
+.B "lmt_agg.cron [OPTIONS]"
+.SH DESCRIPTION
+.B lmt_agg.cron
+populates the LMT low-resolution (hour, day, week, month, year) data tables
+using data from the high-resolution data tables.
+The low-resolution data is used by the LMT java clients to speed up 
+real-time generation of historical graphs.
+If this capability is not desired, you may choose not to run \fBlmt_agg.cron\fR.
+.LP
+.B lmt_agg.cron
+is normally run hourly by cron on the LMT server host:
+.IP
+.nf
+20 * * * * @X_DATADIR@/@PACKAGE@/cron/lmt_agg.cron
+.fi
+.LP
+\fBlmt_agg.cron\fR processes all the high-resolution data that has
+accumulated since its last run, based on comparing the most recent rows
+inserted into the high and low resolution tables. Its runtime and temporary
+storage requirements depened on how much data is processed.
+.SH OPTIONS
+.B lmt_agg.cron 
+accepts the following options:
+.TP
+.I "-c PATH"
+Use an alternate config file.
+.TP
+.I "-bindir PATH"
+Use an alternate search directory for subordinate aggregation scripts.
+Default: @X_DATADIR@/@PACKAGE@.
+.TP
+.I "-logdir PATH"
+Use an alternate log directory.
+Default: TMPDIR environment variable or /var/tmp if unset.
+.TP
+.I "-keep"
+Retain log files after \fBlmt_agg.cron\fR completes.
+.SH FILES
+@X_SYSCONFDIR@/@PACKAGE@/lmt.conf
+.br
+@X_DATADIR@/@PACKAGE@
+.SH SEE ALSO
+lmt.conf(5)

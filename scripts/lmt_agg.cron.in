@@ -17,8 +17,8 @@
 #             -- Generate daily|weekly|monthly|yearly agg tables from hourly agg table
 #
 # Usage:
-#      lmt_agg.sh [-keep] [-bindir /path/to/utils] [-logdir /path/to/logs]
-#                     [-c /path/to/lmtrc] filesys1 [filesys2 ...]
+#      lmt_agg.cron [-keep] [-bindir /path/to/utils] [-logdir /path/to/logs]
+#                     [-c /path/to/lmt.conf] filesys1 [filesys2 ...]
 #
 #===============================================================================
 
@@ -36,7 +36,7 @@ do
    case $1 in
       -c)
 	  shift
-	  lmtrc="-c $1"
+	  conffile=$1
 	  shift
 	  ;;
       -bindir)
@@ -85,11 +85,11 @@ do
   echo "" >> $logFile
 
   echo Updating hourly ost agg table for $filesys >> $logFile
-  $lmtDir/lmt_update_ost_agg $lmtrc -f $filesys >> $logFile 2>&1
+  $lmtDir/lmt_update_ost_agg -c $conffile -f $filesys >> $logFile 2>&1
   echo Updating other ost agg tables for $filesys >> $logFile
-  $lmtDir/lmt_update_other_agg $lmtrc -o -f $filesys >> $logFile 2>&1
+  $lmtDir/lmt_update_other_agg -c $conffile -o -f $filesys >> $logFile 2>&1
   echo Updating filesys-level ost tables for $filesys >> $logFile
-  $lmtDir/lmt_update_fs_agg $lmtrc -f $filesys >> $logFile 2>&1
+  $lmtDir/lmt_update_fs_agg -c $conffile -f $filesys >> $logFile 2>&1
 
   echo "#####################" >> $logFile
   echo "#   ROUTER - $filesys" >> $logFile
@@ -97,9 +97,9 @@ do
   echo "" >> $logFile
 
   echo Updating hourly router agg table for $filesys >> $logFile
-  $lmtDir/lmt_update_router_agg $lmtrc -f $filesys >> $logFile 2>&1
+  $lmtDir/lmt_update_router_agg -c $conffile -f $filesys >> $logFile 2>&1
   echo Updating other router agg tables for $filesys >> $logFile
-  $lmtDir/lmt_update_other_agg $lmtrc -r -f $filesys >> $logFile 2>&1
+  $lmtDir/lmt_update_other_agg -c $conffile -r -f $filesys >> $logFile 2>&1
 
   echo "#####################" >> $logFile
   echo "#    MDS - $filesys"   >> $logFile
@@ -107,9 +107,9 @@ do
   echo "" >> $logFile
 
   echo Updating hourly mds agg table for $filesys >> $logFile
-  $lmtDir/lmt_update_mds_agg $lmtrc -f $filesys >> $logFile 2>&1
+  $lmtDir/lmt_update_mds_agg -c $conffile -f $filesys >> $logFile 2>&1
   echo Updating other mds agg tables for $filesys >> $logFile
-  $lmtDir/lmt_update_other_agg $lmtrc -m -f $filesys >> $logFile 2>&1
+  $lmtDir/lmt_update_other_agg -c $conffile -m -f $filesys >> $logFile 2>&1
 done
 
 if [ ! -z $logFile ] 

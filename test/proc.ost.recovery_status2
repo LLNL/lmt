@@ -1,0 +1,10 @@
+status: RECOVERING
+recovery_start: 1281389557
+time_remaining: 43
+connected_clients: 434
+req_replay_clients: 1
+lock_replay_clients: 3
+completed_clients: 172
+replayed_requests: 1043
+queued_requests: 2
+next_transno: 34234324234
