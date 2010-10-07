@@ -1,4 +1,4 @@
-.TH lmt.conf 5 "@META_DATA@" "@META_ALIAS@" "@META_NAME@"
+.TH lmt.conf 5 "@META_DATE@" "@META_ALIAS@" "@META_NAME@"
 .SH NAME
 lmt.conf \- LMT configuration file
 .SH DESCRIPTION

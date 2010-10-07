@@ -112,8 +112,8 @@ typedef struct {
 } mdtstat_t;
 
 typedef struct {
-    long p;
-    uint64_t t;
+    long p;                     /* file offset */
+    uint64_t t;                 /* time stamp */
 } ts_t;
 
 typedef enum {
@@ -1222,6 +1222,8 @@ _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                    (uint64_t)tnow, (uint64_t)trcv, node, name, s);
 }
 
+/* Create a (time, offset) tuple to be added to time_series List.
+ */
 static ts_t *
 _ts_create (long p, uint64_t t)
 {
@@ -1286,6 +1288,9 @@ _play_file (char *fs, List mdt_data, List ost_data, List time_series,
         
 }
 
+/* Seek to [count] batches of cerebro data ago.
+ * (position at beginning of batch).
+ */
 static int
 _rewind_file (FILE *f, List time_series, int count)
 {
@@ -1301,6 +1306,8 @@ _rewind_file (FILE *f, List time_series, int count)
     return res;
 }
 
+/* Seek to previous batch repeatedly until target time is reached.
+ */
 static void
 _rewind_file_to (FILE *f, List time_series, time_t target)
 {
