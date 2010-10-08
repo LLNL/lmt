@@ -7,7 +7,7 @@ Release:
 License: GPL
 Group: Applications/System
 Summary: Lustre Montitoring Tool
-URL: http://sourceforge.net/projects/lmt/
+URL: http://code.google.com/p/lmt
 Packager: Jim Garlick <garlick@llnl.gov>
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
