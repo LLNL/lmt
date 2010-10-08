@@ -1174,7 +1174,6 @@ static void
 _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
                FILE *recf, time_t *tp)
 {
-#if HAVE_CEREBRO_H
     time_t trcv, tnow = time (NULL);
     cmetric_t c;
     List l = NULL;
@@ -1182,6 +1181,9 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
     ListIterator itr;
     float vers;
 
+#if ! HAVE_CEREBRO_H
+    return;
+#endif
     if (lmt_cbr_get_metrics ("lmt_mdt,lmt_ost,lmt_osc", &l) < 0)
         return;
     itr = list_iterator_create (l);
@@ -1208,7 +1210,6 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
     list_destroy (l);
     if (tp)
         *tp = tnow;
-#endif
 }
 
 /* Write a cerebro metric record and some other info to a line in a file.
