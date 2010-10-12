@@ -8,9 +8,8 @@ provide this capability, but it is also possible to directly mine the
 MySQL database, e.g. with SQL scripts and GNU plot.
 
 Real time and historical data is kept in the MySQL datbase.  The java
-clients, lwatch (GUI), oltop (curses), and lstat (command line) interface
-only to MySQL.  The clients are part of the lmt-client package, now
-separately distributed.
+clients, lwatch (GUI) and lstat (command line) interface only to MySQL.
+The clients are part of the lmt-gui package, now separately distributed.
 
 There are four Cerebro "metric modules", lmt_mdt, lmt_ost, lmt_osc, and
 lmt_router, which collect data from /proc on servers and inject messages
