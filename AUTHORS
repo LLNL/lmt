@@ -1,11 +1,6 @@
-LMT version 1 (original python version):
-   Chris Morrone
-
-LMT version 2 (rewrite with mysql history and java clients)
-   Java clients, LMT.pm perl module, and data aggregation scripts written
-   by Neil O'Neil, Jeff Long, and Paul Spencer (of LLNL visualization group)
-   Cerebro plugins and create_lmtconfig written by Herb Wartens.
-   Database schema developed jointly.
-
-LMT version 3 (rewritten cerebro modules and C/curses ltop client)
-   Jim Garlick <garlick.jim@gmail.com>
+Chris Morrone
+Neil O'Neil
+Jeff Long
+Paul Spencer
+Herb Wartens
+Jim Garlick <garlick.jim@gmail.com>

@@ -116,11 +116,6 @@ typedef struct {
     uint64_t t;                 /* time stamp */
 } ts_t;
 
-typedef enum {
-    SORT_OST, SORT_OSS, SORT_RBW, SORT_WBW, SORT_IOPS, SORT_EXP, SORT_LOCKS,
-    SORT_LGR, SORT_LCR, SORT_CONN,
-} sort_t;
-
 static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
                            int stale_secs, FILE *recf, time_t *tp);
 static void _play_file (char *fs, List mdt_data, List ost_data,
@@ -137,7 +132,7 @@ static void _summarize_ost (List ost_data, List oss_data, time_t tnow,
                             int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
-static void _sort_ostlist (List ost_data, sort_t s, time_t tnow);
+static void _sort_ostlist (List ost_data, time_t tnow, int delta);
 static char *_find_first_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
@@ -188,7 +183,6 @@ main (int argc, char *argv[])
     WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
     int ostview = 1, resort = 0, recompute = 0;
-    sort_t sortby = SORT_OST;
     char *fs = NULL;
     int sopt = 0;
     int sample_period = 2; /* seconds */
@@ -262,7 +256,7 @@ main (int argc, char *argv[])
             msg_exit ("premature end of file on playback file");
     } else
         _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf, &tcycle);
-    _sort_ostlist (ost_data, sortby, tcycle);
+    _sort_ostlist (ost_data, tcycle, 0);
     assert (ostview);
     if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
@@ -339,45 +333,13 @@ main (int argc, char *argv[])
                 else
                     _tag_nth_ost (oss_data, selost, ost_data);
                 break;
-            case 't':               /* t - sort by ost */
-                sortby = SORT_OST;
-                resort = 1;
+            case '>': 
+                _sort_ostlist (ost_data, tcycle, 1); 
+                _sort_ostlist (oss_data, tcycle, 0); 
                 break;
-            case 's':               /* O - sort by oss */
-                sortby = SORT_OSS;
-                resort = 1;
-                break;
-            case 'r':               /* r - sort by read MB/s */
-                sortby = SORT_RBW;
-                resort = 1;
-                break;
-            case 'w':               /* w - sort by write MB/s */
-                sortby = SORT_WBW;
-                resort = 1;
-                break;
-            case 'i':               /* i - sort by IOPS */
-                sortby = SORT_IOPS;
-                resort = 1;
-                break;
-            case 'x':               /* x - sort by export count */
-                sortby = SORT_EXP;
-                resort = 1;
-                break;
-            case 'l':               /* l - sort by lock count */
-                sortby = SORT_LOCKS;
-                resort = 1;
-                break;
-            case 'g':               /* g - sort by lock grant rate */
-                sortby = SORT_LGR;
-                resort = 1;
-                break;
-            case 'L':               /* L - sort by lock cancellation rate */
-                sortby = SORT_LCR;
-                resort = 1;
-                break;
-            case 'C':               /* C - sort by (re-)connection rate */
-                sortby = SORT_CONN;
-                resort = 1;
+            case '<': 
+                _sort_ostlist (ost_data, tcycle, -1); 
+                _sort_ostlist (oss_data, tcycle, 0); 
                 break;
             case 'R':               /* R - toggle record mode */
                 if (!playf) {
@@ -466,8 +428,8 @@ main (int argc, char *argv[])
             recompute = 0;
         }
         if (resort) {
-            _sort_ostlist (ost_data, sortby, tcycle); 
-            _sort_ostlist (oss_data, sortby, tcycle); 
+            _sort_ostlist (ost_data, tcycle, 0); 
+            _sort_ostlist (oss_data, tcycle, 0); 
             resort = 0;
         }
     }
@@ -845,6 +807,46 @@ static int
 _cmp_oststat_bywbw (oststat_t *o1, oststat_t *o2)
 {
     return -1 * sample_rate_cmp (o1->wbytes, o2->wbytes, sort_tnow);
+}
+
+/* Used for list_sort () of OST list by pct_mem (descending order).
+ */
+static int
+_cmp_oststat_bymem (oststat_t *o1, oststat_t *o2)
+{
+    return -1 * sample_val_cmp (o1->pct_mem, o2->pct_mem, sort_tnow);
+}
+
+/* Used for list_sort () of OST list by pct_cpu (descending order).
+ */
+static int
+_cmp_oststat_bycpu (oststat_t *o1, oststat_t *o2)
+{
+    return -1 * sample_val_cmp (o1->pct_cpu, o2->pct_cpu, sort_tnow);
+}
+
+/* Used for no-op list_sort () of OST list.
+ */
+static int
+_cmp_oststat_noop (oststat_t *o1, oststat_t *o2)
+{
+    return 0;
+}
+
+/* Used for list_sort () of OST list by pct space used (descending order).
+ */
+static int
+_cmp_oststat_byspc (oststat_t *o1, oststat_t *o2)
+{
+    double t1 = sample_val (o1->kbytes_total, sort_tnow);
+    double f1 = sample_val (o1->kbytes_free, sort_tnow);
+    double p1 = t1 > 0 ? ((t1 - f1) / t1)*100.0 : 0;
+    double t2 = sample_val (o2->kbytes_total, sort_tnow);
+    double f2 = sample_val (o2->kbytes_free, sort_tnow);
+    double p2 = t2 > 0 ? ((t2 - f2) / t2)*100.0 : 0;
+    int ret = p1 == p2 ? 0 : p1 < p2 ? -1 : 1; /* ascending */
+
+    return -1 * ret;
 }
 
 /* Create an oststat record.
@@ -1468,46 +1470,46 @@ _tag_nth_ost (List ost_data, int selost, List ost_data2)
 }
 
 /* Sort the list of OST's according to the specified criteria.
+ * delta should be {-1, 0, 1} to indicate any change in sorting field.
  */
 static void
-_sort_ostlist (List ost_data, sort_t s, time_t tnow)
+_sort_ostlist (List ost_data, time_t tnow, int delta)
 {
-    ListCmpF c = NULL;
+    static int i = 0;
+    ListCmpF c[] = {
+        (ListCmpF)_cmp_oststat_byost,
+        (ListCmpF)_cmp_oststat_noop, /* OSC status - no-op sort */
+        (ListCmpF)_cmp_oststat_byoss,
+        (ListCmpF)_cmp_oststat_byexp,
+        (ListCmpF)_cmp_oststat_byconn,
+        (ListCmpF)_cmp_oststat_byrbw,
+        (ListCmpF)_cmp_oststat_bywbw,
+        (ListCmpF)_cmp_oststat_byiops,
+        (ListCmpF)_cmp_oststat_bylocks,
+        (ListCmpF)_cmp_oststat_bylgr,
+        (ListCmpF)_cmp_oststat_bylcr,
+        (ListCmpF)_cmp_oststat_bycpu,
+        (ListCmpF)_cmp_oststat_bymem,
+        (ListCmpF)_cmp_oststat_byspc,
+    };
+    int nc = sizeof (c) / sizeof (c[0]);
 
-    switch (s) {
-        case SORT_OST:
-            c = (ListCmpF)_cmp_oststat_byost;
+    switch (delta) {
+        case -1:
+            if (--i < 0)
+                i = nc - 1;
             break;
-        case SORT_OSS:
-            c = (ListCmpF)_cmp_oststat_byoss;
+        case +1:
+            if (++i == nc)
+                i = 0;
             break;
-        case SORT_RBW:
-            c = (ListCmpF)_cmp_oststat_byrbw;
-            break;
-        case SORT_WBW:
-            c = (ListCmpF)_cmp_oststat_bywbw;
-            break;
-        case SORT_IOPS:
-            c = (ListCmpF)_cmp_oststat_byiops;
-            break;
-        case SORT_EXP:
-            c = (ListCmpF)_cmp_oststat_byexp;
-            break;
-        case SORT_LOCKS:
-            c = (ListCmpF)_cmp_oststat_bylocks;
-            break;
-        case SORT_LGR:
-            c = (ListCmpF)_cmp_oststat_bylgr;
-            break;
-        case SORT_LCR:
-            c = (ListCmpF)_cmp_oststat_bylcr;
-            break;
-        case SORT_CONN:
-            c = (ListCmpF)_cmp_oststat_byconn;
+        default: /* 0 */
             break;
     }
+    assert (i >= 0 && i < nc);
+ 
     sort_tnow = tnow;
-    list_sort (ost_data, c);
+    list_sort (ost_data, c[i]);
 }
 
 /* Helper for _list_empty_out ().
