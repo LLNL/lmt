@@ -1,0 +1,23 @@
+Feedback from demo of 3.0-pre7 to LLNL lustre admin team 2010-10-13:
+
+- ltop
+  . add ? help screen [Chris Morrone]
+  . restore single-char field sorting commands [all]
+  . when aggregating ost's in oss view, and mult ost's are in recovery,
+    select ost with longest recovery time [Marc Stearman]
+  . like TIVO: pause, rewind, play live tv in ltop [Ned Bass]
+
+- consider replacing java clients with PHP for web view [Jim Silva]
+  . possibly aggregation tables are not necessary
+
+- LMT could subsume "lustre metrics" project [Jim Silva]
+  . monitor a sampling of clients
+  . maybe n of m osc's in full state?
+  . mdc also?
+
+- GUI client should display new info added to ltop [Jim Harm]
+  . requires db schema change
+
+- When ltop can read /proc directly, consider adding client stats
+  . sometimes users want to know what's going on on particular client
+    and this is difficult to determine [Marc Stearman]
