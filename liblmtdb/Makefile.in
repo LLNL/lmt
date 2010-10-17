@@ -55,7 +55,7 @@ CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 liblmtdb_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_liblmtdb_la_OBJECTS = lmtmysql.lo lmtdb.lo
+am_liblmtdb_la_OBJECTS = lmtdb.lo lmtmysql.lo
 liblmtdb_la_OBJECTS = $(am_liblmtdb_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
@@ -218,14 +218,13 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = -I../libproc -I../liblsd -I../liblmt $(MYSQL_CFLAGS)
 noinst_LTLIBRARIES = liblmtdb.la
 liblmtdb_la_SOURCES = \
-	lmtmysql.c \
-	lmtmysql.h \
 	lmtdb.c \
-	lmtdb.h
+	lmtdb.h \
+	lmtmysql.c \
+	lmtmysql.h
 
 liblmtdb_la_LIBADD = $(MYSQL_LIBS)
 all: all-am

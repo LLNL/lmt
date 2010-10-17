@@ -39,10 +39,10 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 subdir = scripts
-DIST_COMMON = $(srcdir)/LMT.pm.in $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/lmt_agg.cron.8.in \
-	$(srcdir)/lmt_agg.cron.in $(srcdir)/lmt_update_fs_agg.in \
-	$(srcdir)/lmt_update_mds_agg.in \
+DIST_COMMON = $(dist_scriptlib_DATA) $(srcdir)/LMT.pm.in \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(srcdir)/lmt_agg.cron.8.in $(srcdir)/lmt_agg.cron.in \
+	$(srcdir)/lmt_update_fs_agg.in $(srcdir)/lmt_update_mds_agg.in \
 	$(srcdir)/lmt_update_ost_agg.in \
 	$(srcdir)/lmt_update_other_agg.in \
 	$(srcdir)/lmt_update_router_agg.in $(srcdir)/lmtsh.in
@@ -63,7 +63,7 @@ CONFIG_CLEAN_FILES = LMT.pm lmt_agg.cron.8 lmtsh lmt_update_fs_agg \
 	lmt_update_router_agg lmt_agg.cron
 am__installdirs = "$(DESTDIR)$(cronlibdir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(man8dir)" \
-	"$(DESTDIR)$(scriptlibdir)"
+	"$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"
 cronlibSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 sbinSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 scriptlibSCRIPT_INSTALL = $(INSTALL_SCRIPT)
@@ -79,8 +79,9 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
+dist_scriptlibDATA_INSTALL = $(INSTALL_DATA)
 scriptlibDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(scriptlib_DATA)
+DATA = $(dist_scriptlib_DATA) $(scriptlib_DATA)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMDEP_FALSE = @AMDEP_FALSE@
@@ -240,10 +241,12 @@ scriptlib_SCRIPTS = \
 	lmt_update_other_agg \
 	lmt_update_router_agg
 
+dist_scriptlib_DATA = \
+	create_schema-1.1.sql \
+	mkusers.sql
+
 scriptlib_DATA = \
-	LMT.pm \
-        create_schema-1.1.sql \
-        mkusers.sql
+	LMT.pm
 
 cronlib_SCRIPTS = \
 	lmt_agg.cron
@@ -424,6 +427,23 @@ uninstall-man8:
 	  echo " rm -f '$(DESTDIR)$(man8dir)/$$inst'"; \
 	  rm -f "$(DESTDIR)$(man8dir)/$$inst"; \
 	done
+install-dist_scriptlibDATA: $(dist_scriptlib_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(scriptlibdir)" || $(mkdir_p) "$(DESTDIR)$(scriptlibdir)"
+	@list='$(dist_scriptlib_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(dist_scriptlibDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(scriptlibdir)/$$f'"; \
+	  $(dist_scriptlibDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(scriptlibdir)/$$f"; \
+	done
+
+uninstall-dist_scriptlibDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(dist_scriptlib_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(scriptlibdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(scriptlibdir)/$$f"; \
+	done
 install-scriptlibDATA: $(scriptlib_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(scriptlibdir)" || $(mkdir_p) "$(DESTDIR)$(scriptlibdir)"
@@ -479,7 +499,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(SCRIPTS) $(MANS) $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(cronlibdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(scriptlibdir)"; do \
+	for dir in "$(DESTDIR)$(cronlibdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(scriptlibdir)" "$(DESTDIR)$(scriptlibdir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: install-am
@@ -525,8 +545,8 @@ info: info-am
 
 info-am:
 
-install-data-am: install-cronlibSCRIPTS install-man \
-	install-scriptlibDATA install-scriptlibSCRIPTS
+install-data-am: install-cronlibSCRIPTS install-dist_scriptlibDATA \
+	install-man install-scriptlibDATA install-scriptlibSCRIPTS
 
 install-exec-am: install-sbinSCRIPTS
 
@@ -552,9 +572,9 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-cronlibSCRIPTS uninstall-info-am uninstall-man \
-	uninstall-sbinSCRIPTS uninstall-scriptlibDATA \
-	uninstall-scriptlibSCRIPTS
+uninstall-am: uninstall-cronlibSCRIPTS uninstall-dist_scriptlibDATA \
+	uninstall-info-am uninstall-man uninstall-sbinSCRIPTS \
+	uninstall-scriptlibDATA uninstall-scriptlibSCRIPTS
 
 uninstall-man: uninstall-man8
 
@@ -562,14 +582,16 @@ uninstall-man: uninstall-man8
 	distclean distclean-generic distclean-libtool distdir dvi \
 	dvi-am html html-am info info-am install install-am \
 	install-cronlibSCRIPTS install-data install-data-am \
-	install-exec install-exec-am install-info install-info-am \
-	install-man install-man8 install-sbinSCRIPTS \
-	install-scriptlibDATA install-scriptlibSCRIPTS install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
+	install-dist_scriptlibDATA install-exec install-exec-am \
+	install-info install-info-am install-man install-man8 \
+	install-sbinSCRIPTS install-scriptlibDATA \
+	install-scriptlibSCRIPTS install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-generic \
 	mostlyclean-libtool pdf pdf-am ps ps-am uninstall uninstall-am \
-	uninstall-cronlibSCRIPTS uninstall-info-am uninstall-man \
-	uninstall-man8 uninstall-sbinSCRIPTS uninstall-scriptlibDATA \
+	uninstall-cronlibSCRIPTS uninstall-dist_scriptlibDATA \
+	uninstall-info-am uninstall-man uninstall-man8 \
+	uninstall-sbinSCRIPTS uninstall-scriptlibDATA \
 	uninstall-scriptlibSCRIPTS
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

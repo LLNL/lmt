@@ -73,6 +73,7 @@ AC_DEFINE(WITH_LSD_LIST_MYSQL_COMPAT, 1,
 # Epilogue
 ##
 AC_CONFIG_FILES( \
+  lmt.spec \
   Makefile \
   liblsd/Makefile \
   libproc/Makefile \

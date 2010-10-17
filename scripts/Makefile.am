@@ -13,10 +13,12 @@ scriptlib_SCRIPTS = \
 	lmt_update_other_agg \
 	lmt_update_router_agg
 
+dist_scriptlib_DATA = \
+	create_schema-1.1.sql \
+	mkusers.sql
+
 scriptlib_DATA = \
-	LMT.pm \
-        create_schema-1.1.sql \
-        mkusers.sql
+	LMT.pm
 
 cronlib_SCRIPTS = \
 	lmt_agg.cron

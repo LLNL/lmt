@@ -38,7 +38,8 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 @CEREBRO_TRUE@am__append_1 = \
-@CEREBRO_TRUE@	lmtcerebro.c
+@CEREBRO_TRUE@	lmtcerebro.c \
+@CEREBRO_TRUE@	lmtcerebro.h
 
 subdir = liblmt
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
@@ -58,8 +59,9 @@ CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 liblmt_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
-am__liblmt_la_SOURCES_DIST = ost.c mdt.c osc.c router.c util.c \
-	lmtconf.c lmtcerebro.c
+am__liblmt_la_SOURCES_DIST = ost.c ost.h mdt.c mdt.h osc.c osc.h \
+	router.c router.h util.c util.h lmtconf.c lmtconf.h lmt.h \
+	lmtcerebro.c lmtcerebro.h
 @CEREBRO_TRUE@am__objects_1 = lmtcerebro.lo
 am_liblmt_la_OBJECTS = ost.lo mdt.lo osc.lo router.lo util.lo \
 	lmtconf.lo $(am__objects_1)
@@ -228,7 +230,8 @@ target_vendor = @target_vendor@
 AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = -I../libproc -I../liblsd
 noinst_LTLIBRARIES = liblmt.la
-liblmt_la_SOURCES = ost.c mdt.c osc.c router.c util.c lmtconf.c \
+liblmt_la_SOURCES = ost.c ost.h mdt.c mdt.h osc.c osc.h router.c \
+	router.h util.c util.h lmtconf.c lmtconf.h lmt.h \
 	$(am__append_1)
 liblmt_la_LIBADD = $(CEREBRO_LIBS) $(LIBLUA)
 all: all-am

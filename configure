@@ -23341,7 +23341,7 @@ _ACEOF
 ##
 # Epilogue
 ##
-                                                                                                                                                                                    ac_config_files="$ac_config_files Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 scripts/Makefile scripts/LMT.pm scripts/lmt_agg.cron.8"
+                                                                                                                                                                                              ac_config_files="$ac_config_files lmt.spec Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 scripts/Makefile scripts/LMT.pm scripts/lmt_agg.cron.8"
 
 
           ac_config_files="$ac_config_files scripts/lmtsh"
@@ -23950,6 +23950,7 @@ for ac_config_target in $ac_config_targets
 do
   case "$ac_config_target" in
   # Handling of arguments.
+  "lmt.spec" ) CONFIG_FILES="$CONFIG_FILES lmt.spec" ;;
   "Makefile" ) CONFIG_FILES="$CONFIG_FILES Makefile" ;;
   "liblsd/Makefile" ) CONFIG_FILES="$CONFIG_FILES liblsd/Makefile" ;;
   "libproc/Makefile" ) CONFIG_FILES="$CONFIG_FILES libproc/Makefile" ;;

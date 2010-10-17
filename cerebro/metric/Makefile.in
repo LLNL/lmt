@@ -260,6 +260,7 @@ common_libadd = \
 
 module_ldflags = -module -avoid-version -Wl,--version-script=metric.map
 modulelibdir = $(libdir)/cerebro
+EXTRA_DIST = metric.map
 modulelib_LTLIBRARIES = \
 	cerebro_metric_lmt_ost.la \
 	cerebro_metric_lmt_mdt.la \

@@ -1,6 +1,6 @@
-Name: lmt
-Version: 3.0
-Release: pre7
+Name: @META_NAME@
+Version: @META_VERSION@
+Release: @META_RELEASE@
 
 # TODO: lmt-utils subpackage for ltop (once ltop can read proc directly)
 

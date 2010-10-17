@@ -39,9 +39,9 @@ target_triplet = @target@
 @MYSQL_TRUE@am__append_1 = liblmtdb
 @CEREBRO_TRUE@am__append_2 = cerebro
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(top_srcdir)/config/config.h.in \
-	$(top_srcdir)/configure $(top_srcdir)/liblmtdb/Makefile.in \
-	AUTHORS COPYING ChangeLog INSTALL NEWS config/compile \
+	$(srcdir)/Makefile.in $(srcdir)/lmt.spec.in \
+	$(top_srcdir)/config/config.h.in $(top_srcdir)/configure \
+	AUTHORS COPYING ChangeLog INSTALL NEWS TODO config/compile \
 	config/config.guess config/config.sub config/depcomp \
 	config/install-sh config/ltmain.sh config/missing
 subdir = .
@@ -59,7 +59,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno configure.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
-CONFIG_CLEAN_FILES = liblmtdb/Makefile
+CONFIG_CLEAN_FILES = lmt.spec
 SOURCES =
 DIST_SOURCES =
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
@@ -230,6 +230,7 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 SUBDIRS = liblsd libproc liblmt scripts $(am__append_1) utils test etc \
 	$(am__append_2)
+EXTRA_DIST = META lmt.spec
 all: all-recursive
 
 .SUFFIXES:
@@ -283,7 +284,7 @@ $(top_srcdir)/config/config.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 
 distclean-hdr:
 	-rm -f config/config.h config/stamp-h1
-liblmtdb/Makefile: $(top_builddir)/config.status $(top_srcdir)/liblmtdb/Makefile.in
+lmt.spec: $(top_builddir)/config.status $(srcdir)/lmt.spec.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 
 mostlyclean-libtool:
@@ -431,7 +432,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkdir_p) $(distdir)/config $(distdir)/etc $(distdir)/liblmtdb $(distdir)/scripts $(distdir)/utils
+	$(mkdir_p) $(distdir)/. $(distdir)/config $(distdir)/etc $(distdir)/scripts $(distdir)/utils
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \
