@@ -340,6 +340,12 @@ done:
 }
 
 static int
+_cmp_subdir_entries (char *e1, char *e2)
+{
+    return strcmp (e1, e2);
+}
+
+static int
 _subdirlist (pctx_t ctx, const char *path, List *lp)
 {
     List l = list_create((ListDelF)free);
@@ -358,10 +364,12 @@ _subdirlist (pctx_t ctx, const char *path, List *lp)
         ret = 0;
     proc_close (ctx);
 done:
-    if (ret == 0)
+    if (ret == 0) {
+        list_sort (l, (ListCmpF)_cmp_subdir_entries);
         *lp = l;
-    else
+    } else {
          list_destroy (l);
+    }
     return ret;
 }
 

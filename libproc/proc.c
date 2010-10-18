@@ -220,7 +220,7 @@ proc_readdir (pctx_t ctx, proc_readdir_flag_t flag, char **namep)
     assert (ctx->pctx_dp);
 
     while ((d = readdir (ctx->pctx_dp))) { 
-        if (!strcmp(d->d_name, "..") || !strcmp(d->d_name, "."))
+        if (d->d_name[0] == '.') /* ignore ".", "..", ".svn", etc */
             continue;
         if ((flag & PROC_READDIR_NODIR) && d->d_type == DT_DIR)
             continue;

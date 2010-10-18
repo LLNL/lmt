@@ -1,0 +1,25 @@
+test_versions() {
+    test_bin=$1
+
+    echo -e "\n$(basename $0):"
+
+    for path in lustre_versions/*; do
+        version=$(basename $path)
+        $test_bin $path/proc >$TEST-$version.out 2>&1
+
+        if diff $path/outputs/$TEST.exp \
+                $TEST-$version.out >$TEST-$version.diff; then
+            echo "  $version: PASS"
+        else
+            echo "  $version: FAIL"
+            PASS=false
+        fi
+    done
+
+    $PASS
+}
+
+TEST=$(basename $0 | cut -d- -f1)
+# test $(id -u) == 0 || exit 77 #skip if not root
+
+PASS=true

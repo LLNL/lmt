@@ -20,6 +20,8 @@ TESTS = \
 	t08-parse-lnet \
 	t09-parse-uuid
 
+EXTRA_DIST = $(TESTS) *.exp lustre_versions test_header
+
 XFAIL_TESTS =
 
 CLEANFILES = *.out *.diff

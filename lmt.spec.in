@@ -44,6 +44,9 @@ Lustre Monitoring Tools (LMT) Server Agent
 %configure
 make
 
+%check
+SKIP_INTERACTIVE=true make -C test check
+
 %install
 rm -rf   $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT

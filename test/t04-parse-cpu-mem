@@ -1,16 +1,5 @@
-#!/bin/bash -e
+#!/bin/bash
 
-TEST=$(basename $0 | cut -d- -f1)
-# test $(id -u) == 0 || exit 77 #skip if not root
+. test_header
 
-# Set up fake proc directory for test
-tmpdir=$(mktemp -d)
-cp proc.stat $tmpdir/stat
-cp proc.meminfo $tmpdir/meminfo
-
-./tproc $tmpdir/ >$TEST.out 2>&1
-
-[ -n "$tmpdir" ] && rm -rf $tmpdir
-
-diff $TEST.exp $TEST.out >$TEST.diff
-
+test_versions ./tproc

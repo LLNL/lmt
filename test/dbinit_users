@@ -1,4 +1,5 @@
 #!/bin/bash
+[ -n "$SKIP_INTERACTIVE" ] && exit 77
 
 # First run 'mysql_secure_installation'.
 
