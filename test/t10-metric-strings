@@ -1,0 +1,54 @@
+#!/bin/bash
+
+set -e
+set -u
+
+TEST=$(basename $0 | cut -d- -f1)
+# test $(id -u) == 0 || exit 77 #skip if not root
+
+test_metrics() {
+    local path=$1
+    local version=$(basename $path)
+    local exp_file=$path/outputs/$TEST.exp
+    local out_file=$TEST-$version.out
+    local diff_file=$TEST-$version.diff
+
+    [ -r $exp_file ] || {
+        echo "$exp_file is not readable" > $out_file
+        exit 1
+    }
+
+    rm -f $out_file
+    rm -f $diff_file
+    
+    while read line; do
+        ref_string="$(eval echo "\"$line\"")"
+        m_name=$(echo $ref_string | cut -f1 -d:)
+        tst_string=$(../utils/lmtmetric -r $path/proc -m $m_name)
+        echo $tst_string >> $out_file
+        if [ "$ref_string" != "$tst_string" ]; then
+            # not really a diff, but close enough
+            cat <<EndOfFile >> $diff_file
+expected: "$ref_string"
+got:      "$tst_string"
+EndOfFile
+        fi
+    done < $exp_file
+
+    if [ -s $diff_file ]; then
+        echo "  $version: FAIL"
+        PASS=false
+    else
+        echo "  $version: PASS"
+    fi
+}
+
+PASS=true
+
+echo -e "\n$(basename $0):"
+
+for path in lustre_versions/*; do
+    test_metrics $path
+done
+
+$PASS

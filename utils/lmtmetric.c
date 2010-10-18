@@ -118,7 +118,8 @@ main (int argc, char *argv[])
     if (optind < argc)
         usage();
     if (metric && strcmp (metric, "ost") && strcmp (metric, "mdt")
-               && strcmp (metric, "osc") && strcmp (metric, "router"))
+               && strcmp (metric, "osc") && strcmp (metric, "router")
+               && strcmp (metric, "sysstat"))
         usage();
     if (!metric)
         metric = "sysstat";

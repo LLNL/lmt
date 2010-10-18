@@ -1,0 +1,11 @@
+status: RECOVERING
+recovery_start: 1286888571
+time_remaining: 291
+connected_clients: 1/2
+req_replay_clients: 0
+lock_repay_clients: 0
+completed_clients: 1
+evicted_clients: 0
+replayed_requests: 0
+queued_requests: 0
+next_transno: 7199

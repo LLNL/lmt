@@ -1,0 +1,7 @@
+status: COMPLETE
+recovery_start: 1286396906
+recovery_duration: 47
+completed_clients: 2/2
+replayed_requests: 0
+last_transno: 272
+VBR: OFF

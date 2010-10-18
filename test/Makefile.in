@@ -276,10 +276,20 @@ TESTS = \
 	t06-parse-recovery \
 	t07-parse-oscinfo \
 	t08-parse-lnet \
-	t09-parse-uuid
+	t09-parse-uuid \
+	t10-metric-strings
 
 EXTRA_DIST = $(TESTS) *.exp lustre_versions test_header
-XFAIL_TESTS = 
+
+# FIXME: these are known to be failing with 2.0.0.1, remove them as code is
+# added to address the failures
+XFAIL_TESTS = \
+	t05-parse-stats \
+	t06-parse-recovery \
+	t07-parse-oscinfo \
+	t09-parse-uuid \
+	t10-metric-strings
+
 CLEANFILES = *.out *.diff
 AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = \

@@ -1,0 +1,55 @@
+tbrw_stats: pages per bulk r/w
+tbrw_stats: discontiguous pages
+tbrw_stats: discontiguous blocks
+tbrw_stats: disk fragmented I/Os
+tbrw_stats: disk I/Os in flight
+tbrw_stats: I/O time (1/1000s)
+tbrw_stats: disk I/O size
+tbrw_stats: pages per bulk r/w
+tbrw_stats: 1: 186, 112
+tbrw_stats: 2: 0, 10
+tbrw_stats: 4: 0, 28
+tbrw_stats: 8: 0, 16
+tbrw_stats: 16: 0, 9
+tbrw_stats: 32: 0, 4
+tbrw_stats: 64: 0, 5
+tbrw_stats: 128: 0, 6
+tbrw_stats: 256: 0, 13
+tbrw_stats: discontiguous pages
+tbrw_stats: 0: 186, 202
+tbrw_stats: 1: 0, 1
+tbrw_stats: discontiguous blocks
+tbrw_stats: 0: 186, 202
+tbrw_stats: 1: 0, 1
+tbrw_stats: disk fragmented I/Os
+tbrw_stats: 0: 186, 0
+tbrw_stats: 1: 0, 201
+tbrw_stats: 2: 0, 2
+tbrw_stats: disk I/Os in flight
+tbrw_stats: 1: 0, 173
+tbrw_stats: 2: 0, 25
+tbrw_stats: 3: 0, 7
+tbrw_stats: I/O time (1/1000s)
+tbrw_stats: 1: 186, 152
+tbrw_stats: 2: 0, 21
+tbrw_stats: 4: 0, 12
+tbrw_stats: 8: 0, 11
+tbrw_stats: 16: 0, 5
+tbrw_stats: 32: 0, 2
+tbrw_stats: disk I/O size
+tbrw_stats: 4096: 0, 113
+tbrw_stats: 8192: 0, 10
+tbrw_stats: 16384: 0, 28
+tbrw_stats: 32768: 0, 16
+tbrw_stats: 65536: 0, 9
+tbrw_stats: 131072: 0, 4
+tbrw_stats: 262144: 0, 5
+tbrw_stats: 524288: 0, 7
+tbrw_stats: 1048576: 0, 13
+tbrw_stats: pages per bulk r/w
+tbrw_stats: discontiguous pages
+tbrw_stats: discontiguous blocks
+tbrw_stats: disk fragmented I/Os
+tbrw_stats: disk I/Os in flight
+tbrw_stats: I/O time (1/1000s)
+tbrw_stats: disk I/O size
