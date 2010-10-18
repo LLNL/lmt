@@ -1,8 +1,0 @@
-#!/bin/bash
-[ -n "$SKIP_INTERACTIVE" ] && exit 77
-
-schema=../scripts/create_schema-1.1.sql
-
-# Will prompt for password
-../scripts/create_lmtconfig.pl -s ${schema} -d test -f test.cf | tee test.sql \
-	| mysql --user root --password
