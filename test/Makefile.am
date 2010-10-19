@@ -28,7 +28,6 @@ EXTRA_DIST = $(TESTS) *.exp lustre_versions test_header
 XFAIL_TESTS = \
 	t05-parse-stats \
 	t06-parse-recovery \
-	t07-parse-oscinfo \
 	t09-parse-uuid \
 	t10-metric-strings
 
