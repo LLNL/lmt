@@ -1,1 +1,1 @@
-tosc: lustre-OST0001-osc-MDT0000: u='lustre-OST0001' s='FULL'
+tosc: zeno-OST0000-osc: u='zeno-OST0000' s='FULL'
