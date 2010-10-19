@@ -1,0 +1,16 @@
+snapshot_time             1287444900.740596 secs.usecs
+read_bytes                246494 samples [bytes] 4096 1048576 258464649216
+write_bytes               272366 samples [bytes] 12288 1048576 285593305088
+get_info                  29 samples [reqs]
+set_info_async            29 samples [reqs]
+connect                   33 samples [reqs]
+reconnect                 5 samples [reqs]
+disconnect                33 samples [reqs]
+statfs                    497496 samples [reqs]
+create                    10 samples [reqs]
+destroy                   4 samples [reqs]
+sync                      4 samples [reqs]
+preprw                    518860 samples [reqs]
+commitrw                  518860 samples [reqs]
+llog_init                 1 samples [reqs]
+notify                    1 samples [reqs]
