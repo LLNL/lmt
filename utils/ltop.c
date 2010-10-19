@@ -1534,85 +1534,53 @@ _tag_nth_ost (List ost_data, int selost, List ost_data2)
         _tag_ost_byoss (ost_data2, o->ossname, o->tag);
 }
 
+typedef struct {
+    ListCmpF fun;
+    char k;
+} sort_t;
+
 /* Sort the list of OST's according to the specified key (k).
  */
 static void
 _sort_ostlist (List ost_data, time_t tnow, char k)
 {
     static int i = 0;
-    ListCmpF c[] = {
-        (ListCmpF)_cmp_oststat_byost,
-        (ListCmpF)_cmp_oststat_noop, /* OSC status - no-op sort */
-        (ListCmpF)_cmp_oststat_byoss,
-        (ListCmpF)_cmp_oststat_byexp,
-        (ListCmpF)_cmp_oststat_byconn,
-        (ListCmpF)_cmp_oststat_byrbw,
-        (ListCmpF)_cmp_oststat_bywbw,
-        (ListCmpF)_cmp_oststat_byiops,
-        (ListCmpF)_cmp_oststat_bylocks,
-        (ListCmpF)_cmp_oststat_bylgr,
-        (ListCmpF)_cmp_oststat_bylcr,
-        (ListCmpF)_cmp_oststat_bycpu,
-        (ListCmpF)_cmp_oststat_bymem,
-        (ListCmpF)_cmp_oststat_byspc,
+    sort_t c[] = {
+        { .fun = (ListCmpF)_cmp_oststat_byost,   .k = 't' },
+        { .fun = (ListCmpF)_cmp_oststat_noop,    .k =  0  }, /* no-op */
+        { .fun = (ListCmpF)_cmp_oststat_byoss,   .k = 's' },
+        { .fun = (ListCmpF)_cmp_oststat_byexp,   .k = 'x' },
+        { .fun = (ListCmpF)_cmp_oststat_byconn,  .k = 'C' },
+        { .fun = (ListCmpF)_cmp_oststat_byrbw,   .k = 'r' },
+        { .fun = (ListCmpF)_cmp_oststat_bywbw,   .k = 'w' },
+        { .fun = (ListCmpF)_cmp_oststat_byiops,  .k = 'i' },
+        { .fun = (ListCmpF)_cmp_oststat_bylocks, .k = 'l' },
+        { .fun = (ListCmpF)_cmp_oststat_bylgr,   .k = 'g' },
+        { .fun = (ListCmpF)_cmp_oststat_bylcr,   .k = 'L' },
+        { .fun = (ListCmpF)_cmp_oststat_bycpu,   .k = 'u' },
+        { .fun = (ListCmpF)_cmp_oststat_bymem,   .k = 'm' },
+        { .fun = (ListCmpF)_cmp_oststat_byspc,   .k = 'S' },
     };
-    int nc = sizeof (c) / sizeof (c[0]);
+    int j, nc = sizeof (c) / sizeof (c[0]);
 
-    switch (k) {
-        case '<': /* move sorting field left */
-            if (--i < 0)
-                i = nc - 1;
-            break;
-        case '>': /* move sorting field right */
-            if (++i == nc)
-                i = 0;
-            break;
-        case 't': /* ost */
+    if (k == '<') {
+        if (--i < 0)
+            i = nc - 1;
+    } else if (k == '>') {
+        if (++i == nc)
             i = 0;
-            break;
-        case 's': /* oss */
-            i = 2;
-            break;
-        case 'x': /* exp */
-            i = 3;
-            break;
-        case 'C': /* conn */
-            i = 4;
-            break;
-        case 'r': /* rmb/s */
-            i = 5;
-            break;
-        case 'w': /* wmb/s */
-            i = 6;
-            break;
-        case 'i': /* iops */
-            i = 7;
-            break;
-        case 'l': /* locks */
-            i = 8;
-            break;
-        case 'g': /* lgr */
-            i = 9;
-            break;
-        case 'L': /* lcr */
-            i = 10;
-            break;
-        case 'u': /* cpu */
-            i = 11;
-            break;
-        case 'm': /* mem */
-            i = 12;
-            break;
-        case 'S': /* spc */
-            i = 13;
-            break;
-        default: /* 0 */
-            break;
+    } else if (k != 0) {
+        for (j = 0; j < nc; j++) {
+            if (c[j].k == k) {
+                i = j;
+                break;
+            }
+        }
     }
     assert (i >= 0 && i < nc);
  
     sort_tnow = tnow;
-    list_sort (ost_data, c[i]);
+    list_sort (ost_data, c[i].fun);
 }
 
 /* Helper for _list_empty_out ().
