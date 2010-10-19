@@ -424,7 +424,9 @@ main (int argc, char *argv[])
             case ERR:               /* timeout */
                 break;
         }
-        if (time (NULL) - last_sample >= sample_period) {   /* timeout */
+        if (c != ERR && c != '?')
+            showhelp = 0;
+        if (time (NULL) - last_sample >= sample_period) {
             if (!pause) {
                 if (playf)
                     _play_file (fs, mdt_data, ost_data, time_series,
@@ -436,11 +438,8 @@ main (int argc, char *argv[])
                 recompute = 1;
             }
             timeout (sample_period * 1000);
-        } else {                                            /* keypress */
+        } else
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
-            if (c != '?')
-                showhelp = 0;
-        }
 
         if (recompute) {
             ostcount = list_count (ostview ? ost_data : oss_data);
@@ -477,11 +476,11 @@ static void _update_display_help (WINDOW *win)
 {
     int y = 0;
     wclear (win);
-   wattron (win, A_REVERSE);
+    wattron (win, A_REVERSE);
     mvwprintw (win, y++, 0,
               "Help for Interactive Commands - ltop version %s-%s",
                META_VERSION, META_RELEASE);
-   wattroff (win, A_REVERSE);
+    wattroff (win, A_REVERSE);
     y++;
     mvwprintw (win, y++, 2, "PageUp   Page up through OST information");
     mvwprintw (win, y++, 2, "PageDn   Page down through OST information");
