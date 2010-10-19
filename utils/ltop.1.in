@@ -104,6 +104,42 @@ Initially, entries are sorted by the leftmost field, OST index.
 Sort OST/OSS view by the next field to the left, wrapping around at the end.
 Initially, entries are sorted by the leftmost field, OST index.
 .TP
+\fIs\fR
+Sort by OSS name, ascending order.
+.TP
+\fIx\fR
+Sort by export count, ascending order.
+.TP
+\fIC\fR
+Sort by (re-)connect rate, descending order.
+.TP
+\fIr\fR
+Sort by read bandwidth, descending order.
+.TP
+\fIw\fR
+Sort by write bandwidth, descending order.
+.TP
+\fIi\fR
+Sort by IOPS, descending order.
+.TP
+\fIl\fR
+Sort by lock count, descending order.
+.TP
+\fIg\fR
+Sort by lock grant rate, descending order.
+.TP
+\fIL\fR
+Sort by lock cancellation rate, descending order.
+.TP
+\fIu\fR
+Sort by percent cpu utilization, descending order.
+.TP
+\fIm\fR
+Sort by percent memory utilization , descending order.
+.TP
+\fIS\fR
+Sort by percent disk space utilization , descending order.
+.TP
 \fIDOWN\fR
 Move cursor down.
 .TP

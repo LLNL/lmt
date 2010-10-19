@@ -121,6 +121,7 @@ static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
 static void _play_file (char *fs, List mdt_data, List ost_data,
                         List time_series, int stale_secs, FILE *playf,
                         time_t *tp, int *tdiffp);
+static void _update_display_help (WINDOW *win);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
                                  List ost_data, int stale_secs, FILE *recf,
                                  FILE *playf, time_t tnow, int pause);
@@ -132,7 +133,7 @@ static void _summarize_ost (List ost_data, List oss_data, time_t tnow,
                             int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
-static void _sort_ostlist (List ost_data, time_t tnow, int delta);
+static void _sort_ostlist (List ost_data, time_t tnow, char k);
 static char *_find_first_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
@@ -196,6 +197,7 @@ main (int argc, char *argv[])
     FILE *recf = NULL;
     FILE *playf = NULL;
     int pause = 0;
+    int showhelp = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -281,11 +283,15 @@ main (int argc, char *argv[])
      *   create oss_data (summary of ost_data), [repeat]
      */
     while (!isendwin ()) {
-        _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs, recf,
-                             playf, tcycle, pause);
-        _update_display_ost (ostwin, ostview ? ost_data : oss_data,
-                             minost, selost, stale_secs, tcycle);
-        switch (getch ()) {
+        if (showhelp) {
+            _update_display_help (topwin);
+        } else {
+            _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs,
+                                 recf, playf, tcycle, pause);
+            _update_display_ost (ostwin, ostview ? ost_data : oss_data,
+                                 minost, selost, stale_secs, tcycle);
+        }
+        switch ((c = getch ())) {
             case KEY_DC:            /* Delete - turn off highlighting */
                 selost = -1;
                 _clear_tags (ost_data);
@@ -333,12 +339,22 @@ main (int argc, char *argv[])
                 else
                     _tag_nth_ost (oss_data, selost, ost_data);
                 break;
-            case '>': 
-                _sort_ostlist (ost_data, tcycle, 1); 
-                _sort_ostlist (oss_data, tcycle, 0); 
-                break;
+            case '>':               /* change sorting column (ost/oss) */
             case '<': 
-                _sort_ostlist (ost_data, tcycle, -1); 
+            case 't': 
+            case 's': 
+            case 'r': 
+            case 'w': 
+            case 'i': 
+            case 'x': 
+            case 'l': 
+            case 'g': 
+            case 'L': 
+            case 'C': 
+            case 'u': 
+            case 'm': 
+            case 'S': 
+                _sort_ostlist (ost_data, tcycle, c); 
                 _sort_ostlist (oss_data, tcycle, 0); 
                 break;
             case 'R':               /* R - toggle record mode */
@@ -402,10 +418,13 @@ main (int argc, char *argv[])
                     recompute = 1;
                 }
                 break;
+            case '?':               /* ? - display help screen */
+                showhelp = 1;
+                break;
             case ERR:               /* timeout */
                 break;
         }
-        if (time (NULL) - last_sample >= sample_period) {
+        if (time (NULL) - last_sample >= sample_period) {   /* timeout */
             if (!pause) {
                 if (playf)
                     _play_file (fs, mdt_data, ost_data, time_series,
@@ -417,8 +436,11 @@ main (int argc, char *argv[])
                 recompute = 1;
             }
             timeout (sample_period * 1000);
-        } else
+        } else {                                            /* keypress */
             timeout ((sample_period - (time (NULL) - last_sample)) * 1000);
+            if (c != '?')
+                showhelp = 0;
+        }
 
         if (recompute) {
             ostcount = list_count (ostview ? ost_data : oss_data);
@@ -449,6 +471,50 @@ main (int argc, char *argv[])
     exit (0);
 }
 
+/* Show help window.
+ */
+static void _update_display_help (WINDOW *win)
+{
+    int y = 0;
+    wclear (win);
+   wattron (win, A_REVERSE);
+    mvwprintw (win, y++, 0,
+              "Help for Interactive Commands - ltop version %s-%s",
+               META_VERSION, META_RELEASE);
+   wattroff (win, A_REVERSE);
+    y++;
+    mvwprintw (win, y++, 2, "PageUp   Page up through OST information");
+    mvwprintw (win, y++, 2, "PageDn   Page down through OST information");
+    mvwprintw (win, y++, 2, "UpArrow  Move cursor up");
+    mvwprintw (win, y++, 2, "DnArrow  Move cursor down");
+    mvwprintw (win, y++, 2, "Space    Tag/untag OST under cursor");
+    mvwprintw (win, y++, 2, "DEL      Park cursor and clear tags");
+    mvwprintw (win, y++, 2, "R        Toggle record mode");
+    mvwprintw (win, y++, 2, "p        Pause data collection/playback");
+    mvwprintw (win, y++, 2, "RtArrow  fast-fwd playback one sample period");
+    mvwprintw (win, y++, 2, "LftArrow rewind playback one sample period");
+    mvwprintw (win, y++, 2, "TAB      fast-fwd playback one minute");
+    mvwprintw (win, y++, 2, "Backspc  rewind playback one minute");
+    mvwprintw (win, y++, 2, "c        Toggle OST/OSS view");
+    mvwprintw (win, y++, 2, ">        Sort on next right column");
+    mvwprintw (win, y++, 2, "<        Sort on next left column");
+    mvwprintw (win, y++, 2, "s        Sort on OSS name (ascending)");
+    mvwprintw (win, y++, 2, "x        Sort on export count (ascending)");
+    mvwprintw (win, y++, 2, "C        Sort on connect rate (descending)");
+    mvwprintw (win, y++, 2, "r        Sort on read b/w (descending)");
+    mvwprintw (win, y++, 2, "w        Sort on write b/w (descending)");
+    mvwprintw (win, y++, 2, "i        Sort on IOPS (descending)");
+    mvwprintw (win, y++, 2, "l        Sort on lock count (descending)");
+    mvwprintw (win, y++, 2, "g        Sort on lock grant rate (descending)");
+    mvwprintw (win, y++, 2, "L        Sort on lock cancellation rate (descending)");
+    mvwprintw (win, y++, 2, "u        Sort on %%cpu utilization (descending)");
+    mvwprintw (win, y++, 2, "m        Sort on %%memory utilization (descending)");
+    mvwprintw (win, y++, 2, "S        Sort on %%disks space utilization (descending)");
+    mvwprintw (win, y++, 2, "q        Quit");
+              
+    wrefresh (win);
+}
+
 /* Update the top (summary) window of the display.
  * Sum data rate and free space over all OST's.
  * Sum op rates and free inodes over all MDT's (>1 if CMD).
@@ -459,7 +525,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                      int pause)
 {
     time_t trcv = 0;
-    int x = 0;
+    int y = 0;
     ListIterator itr;
     double rmbps = 0, wmbps = 0, iops = 0;
     double tbytes_free = 0, tbytes_total = 0;
@@ -501,59 +567,59 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
 
     wclear (win);
 
-    mvwprintw (win, x, 0, "Filesystem: %s", fs);
+    mvwprintw (win, y, 0, "Filesystem: %s", fs);
     if (pause) {
         wattron (win, A_REVERSE);
-        mvwprintw (win, x, 73, "PAUSED");
+        mvwprintw (win, y, 73, "PAUSED");
         wattroff (win, A_REVERSE);
     } else if (recf) {
         wattron (win, A_REVERSE);
         if (ferror (recf))
-            mvwprintw (win, x, 68, "WRITE ERROR");
+            mvwprintw (win, y, 68, "WRITE ERROR");
         else
-            mvwprintw (win, x, 70, "RECORDING");
+            mvwprintw (win, y, 70, "RECORDING");
         wattroff (win, A_REVERSE);
     } else if (playf) {
         char *ts = ctime (&tnow);
 
         wattron (win, A_REVERSE);
         if (ferror (playf))
-            mvwprintw (win, x, 69, "READ ERROR");
+            mvwprintw (win, y, 69, "READ ERROR");
         else if (feof (playf))
-            mvwprintw (win, x, 68, "END OF FILE");
+            mvwprintw (win, y, 68, "END OF FILE");
         else
-            mvwprintw (win, x, 55, "%*s", strlen (ts) - 1, ts);
+            mvwprintw (win, y, 55, "%*s", strlen (ts) - 1, ts);
         wattroff (win, A_REVERSE);
     }
-    x++;
+    y++;
     if (tnow - trcv > stale_secs)
         return;
-    mvwprintw (win, x++, 0,
+    mvwprintw (win, y++, 0,
       "    Inodes: %10.3fm total, %10.3fm used (%3.0f%%), %10.3fm free",
                minodes_total, minodes_total - minodes_free,
                ((minodes_total - minodes_free) / minodes_total) * 100,
                minodes_free);
-    mvwprintw (win, x++, 0,
+    mvwprintw (win, y++, 0,
       "     Space: %10.3ft total, %10.3ft used (%3.0f%%), %10.3ft free",
                tbytes_total, tbytes_total - tbytes_free,
                ((tbytes_total - tbytes_free) / tbytes_total) * 100,
                tbytes_free);
-    mvwprintw (win, x++, 0,
+    mvwprintw (win, y++, 0,
       "   Bytes/s: %10.3fg read,  %10.3fg write,            %6.0f IOPS",
                rmbps / 1024, wmbps / 1024, iops);
-    mvwprintw (win, x++, 0,
+    mvwprintw (win, y++, 0,
       "   MDops/s: %6.0f open,   %6.0f close,  %6.0f getattr,  %6.0f setattr",
                open, close, getattr, setattr);
-    mvwprintw (win, x++, 0,
+    mvwprintw (win, y++, 0,
       "            %6.0f link,   %6.0f unlink, %6.0f mkdir,    %6.0f rmdir",
                link, unlink, mkdir, rmdir);
-    mvwprintw (win, x++, 0,
+    mvwprintw (win, y++, 0,
       "            %6.0f statfs, %6.0f rename, %6.0f getxattr",
                statfs, rename, getxattr);
 
     wrefresh (win);
 
-    assert (x == TOPWIN_LINES);
+    assert (y == TOPWIN_LINES);
 }
 
 /* Update the ost window of the display.
@@ -567,32 +633,32 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
 {
     ListIterator itr;
     oststat_t *o;
-    int x = 0;
+    int y = 0;
     int skipost = minost;
 
     wclear (win);
 
     wattron (win, A_REVERSE);
-    mvwprintw (win, x++, 0, "%-80s", " OST S        OSS"
+    mvwprintw (win, y++, 0, "%-80s", " OST S        OSS"
                "   Exp   CR rMB/s wMB/s  IOPS   LOCKS  LGR  LCR"
                " %cpu %mem %spc");
     wattroff(win, A_REVERSE);
-    assert (x == OSTWIN_H_LINES);
+    assert (y == OSTWIN_H_LINES);
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
         if (skipost-- > 0)
             continue;
-        if (x - 1 + minost == selost)
+        if (y - 1 + minost == selost)
             wattron (win, A_REVERSE);
         if (o->tag)
             wattron (win, A_UNDERLINE);
         /* available info is expired */
         if ((tnow - o->ost_metric_timestamp) > stale_secs) {
-            mvwprintw (win, x, 0, "%4.4s %1.1s", o->name, o->oscstate);
+            mvwprintw (win, y, 0, "%4.4s %1.1s", o->name, o->oscstate);
         /* ost is in recovery - display recovery stats */
         } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
-            mvwprintw (win, x, 0, "%4.4s %1.1s %10.10s   %s",
+            mvwprintw (win, y, 0, "%4.4s %1.1s %10.10s   %s",
                        o->name, o->oscstate, o->ossname, o->recov_status);
         /* ost is in normal state */
         } else {
@@ -600,7 +666,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             double kfree = sample_val (o->kbytes_free, tnow);
             double pct_used = ktot > 0 ? ((ktot - kfree) / ktot)*100.0 : 0;
 
-            mvwprintw (win, x, 0, "%4.4s %1.1s %10.10s"
+            mvwprintw (win, y, 0, "%4.4s %1.1s %10.10s"
                        " %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f"
                        " %4.0f %4.0f %4.0f",
                        o->name, o->oscstate, o->ossname,
@@ -616,11 +682,11 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
                        sample_val (o->pct_mem, tnow),
                        pct_used);
         }
-        if (x - 1 + minost == selost)
+        if (y - 1 + minost == selost)
             wattroff(win, A_REVERSE);
         if (o->tag)
             wattroff(win, A_UNDERLINE);
-        x++;
+        y++;
     }
     list_iterator_destroy (itr);
 
@@ -1469,11 +1535,10 @@ _tag_nth_ost (List ost_data, int selost, List ost_data2)
         _tag_ost_byoss (ost_data2, o->ossname, o->tag);
 }
 
-/* Sort the list of OST's according to the specified criteria.
- * delta should be {-1, 0, 1} to indicate any change in sorting field.
+/* Sort the list of OST's according to the specified key (k).
  */
 static void
-_sort_ostlist (List ost_data, time_t tnow, int delta)
+_sort_ostlist (List ost_data, time_t tnow, char k)
 {
     static int i = 0;
     ListCmpF c[] = {
@@ -1494,14 +1559,53 @@ _sort_ostlist (List ost_data, time_t tnow, int delta)
     };
     int nc = sizeof (c) / sizeof (c[0]);
 
-    switch (delta) {
-        case -1:
+    switch (k) {
+        case '<': /* move sorting field left */
             if (--i < 0)
                 i = nc - 1;
             break;
-        case +1:
+        case '>': /* move sorting field right */
             if (++i == nc)
                 i = 0;
+            break;
+        case 't': /* ost */
+            i = 0;
+            break;
+        case 's': /* oss */
+            i = 2;
+            break;
+        case 'x': /* exp */
+            i = 3;
+            break;
+        case 'C': /* conn */
+            i = 4;
+            break;
+        case 'r': /* rmb/s */
+            i = 5;
+            break;
+        case 'w': /* wmb/s */
+            i = 6;
+            break;
+        case 'i': /* iops */
+            i = 7;
+            break;
+        case 'l': /* locks */
+            i = 8;
+            break;
+        case 'g': /* lgr */
+            i = 9;
+            break;
+        case 'L': /* lcr */
+            i = 10;
+            break;
+        case 'u': /* cpu */
+            i = 11;
+            break;
+        case 'm': /* mem */
+            i = 12;
+            break;
+        case 'S': /* spc */
+            i = 13;
             break;
         default: /* 0 */
             break;
