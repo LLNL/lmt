@@ -27,7 +27,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,10 +67,12 @@ xstrdup (const char *s)
 char *
 xstrndup (const char *s, size_t n)
 {
-    char *cpy = strndup (s, n);
+    char *cpy = malloc (n + 1);
 
     if (!cpy)
         msg_exit ("out of memory");
+    strncpy (cpy, s, n);
+    cpy[n] = '\0';
     return cpy;
 }
 

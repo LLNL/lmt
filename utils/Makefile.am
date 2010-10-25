@@ -20,7 +20,6 @@ CLEANFILES = ltop.1
 
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = \
-	$(top_builddir)/liblmtdb/liblmtdb.la \
 	$(common_ldadd) \
 	$(MYSQL_LIBS)
 

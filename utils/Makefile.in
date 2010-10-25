@@ -75,8 +75,7 @@ am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
 am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
 lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
 am__DEPENDENCIES_2 =
-lmtmetric_DEPENDENCIES = $(top_builddir)/liblmtdb/liblmtdb.la \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
+lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am_ltop_OBJECTS = ltop.$(OBJEXT) sample.$(OBJEXT)
 ltop_OBJECTS = $(am_ltop_OBJECTS)
 ltop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
@@ -259,7 +258,6 @@ man1_MANS = ltop.1
 CLEANFILES = ltop.1 $(am__append_2)
 lmtmetric_SOURCES = lmtmetric.c
 lmtmetric_LDADD = \
-	$(top_builddir)/liblmtdb/liblmtdb.la \
 	$(common_ldadd) \
 	$(MYSQL_LIBS)
 
