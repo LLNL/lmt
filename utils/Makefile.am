@@ -19,13 +19,13 @@ man1_MANS = ltop.1
 CLEANFILES = ltop.1
 
 lmtmetric_SOURCES = lmtmetric.c
-lmtmetric_LDADD = \
-	$(common_ldadd) \
-	$(MYSQL_LIBS)
+lmtmetric_LDADD = $(common_ldadd) 
 
 if MYSQL
 lmtinit_SOURCES = lmtinit.c
-lmtinit_LDADD = $(top_builddir)/liblmtdb/liblmtdb.la $(common_ldadd)
+lmtinit_LDADD = \
+	$(top_builddir)/liblmtdb/liblmtdb.la \
+	$(common_ldadd) $(MYSQL_LIBS)
 man8_MANS = lmtinit.8
 CLEANFILES += lmtinit.8
 endif

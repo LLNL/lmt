@@ -69,13 +69,13 @@ lmtinit_OBJECTS = $(am_lmtinit_OBJECTS)
 am__DEPENDENCIES_1 = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
+am__DEPENDENCIES_2 =
 @MYSQL_TRUE@lmtinit_DEPENDENCIES =  \
 @MYSQL_TRUE@	$(top_builddir)/liblmtdb/liblmtdb.la \
-@MYSQL_TRUE@	$(am__DEPENDENCIES_1)
+@MYSQL_TRUE@	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am_lmtmetric_OBJECTS = lmtmetric.$(OBJEXT)
 lmtmetric_OBJECTS = $(am_lmtmetric_OBJECTS)
-am__DEPENDENCIES_2 =
-lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
+lmtmetric_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_ltop_OBJECTS = ltop.$(OBJEXT) sample.$(OBJEXT)
 ltop_OBJECTS = $(am_ltop_OBJECTS)
 ltop_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
@@ -257,12 +257,12 @@ ltop_LDADD = $(common_ldadd) $(LIBCURSES)
 man1_MANS = ltop.1
 CLEANFILES = ltop.1 $(am__append_2)
 lmtmetric_SOURCES = lmtmetric.c
-lmtmetric_LDADD = \
-	$(common_ldadd) \
-	$(MYSQL_LIBS)
-
+lmtmetric_LDADD = $(common_ldadd) 
 @MYSQL_TRUE@lmtinit_SOURCES = lmtinit.c
-@MYSQL_TRUE@lmtinit_LDADD = $(top_builddir)/liblmtdb/liblmtdb.la $(common_ldadd)
+@MYSQL_TRUE@lmtinit_LDADD = \
+@MYSQL_TRUE@	$(top_builddir)/liblmtdb/liblmtdb.la \
+@MYSQL_TRUE@	$(common_ldadd) $(MYSQL_LIBS)
+
 @MYSQL_TRUE@man8_MANS = lmtinit.8
 all: all-am
 
