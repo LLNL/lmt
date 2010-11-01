@@ -1,0 +1,19 @@
+========================================================================
+Release Notes for LMT 3.0.0                                 01 Nov 2010
+========================================================================
+
+* Once a database has been created for a particular file system, its
+  Lustre configuration is determined on the fly as servers report in.
+
+* ltop now interfaces directly with cerebro (not mysql).  See ltop(1).
+
+* There is one config file for database users, etc: /etc/lmt/lmt.conf,
+  see lmt.conf(5)
+
+* Protocol has been updated.  The old protocol is supported for migration:
+  1) Update monitor (mysql server) node first, then
+  2) update metric (lustre servers) second.
+
+* Logging and error handling is improved.
+
+* lwatch client is now released in separate lmt-gui package.
