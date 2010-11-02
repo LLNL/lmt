@@ -1,8 +1,8 @@
+TODO list (remove items when complete)
+
 Feedback from demo of 3.0-pre7 to LLNL lustre admin team 2010-10-13:
 
 - ltop
-  x add ? help screen [Chris Morrone]
-  x restore single-char field sorting commands [all] (done for pre8 jg)
   . when aggregating ost's in oss view, and mult ost's are in recovery,
     select ost with longest recovery time [Marc Stearman]
   . like TIVO: pause, rewind, play live tv in ltop [Ned Bass]
@@ -22,4 +22,6 @@ Feedback from demo of 3.0-pre7 to LLNL lustre admin team 2010-10-13:
   . sometimes users want to know what's going on on particular client
     and this is difficult to determine [Marc Stearman]
 
-[x] completed
+Feedback from demo of 3.0-pre8 to CUG at NERSC 2010-10-28:
+
+- ltop should highlight column that is used for sorting [Andrew Uselton]
