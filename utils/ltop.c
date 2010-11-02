@@ -656,10 +656,11 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         if ((tnow - o->ost_metric_timestamp) > stale_secs) {
             mvwprintw (win, y, 0, "%4.4s %1.1s", o->name, o->oscstate);
         /* ost is in recovery - display recovery stats */
-        } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0) {
+        } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0
+                && strncmp (o->recov_status, "INACTIVE", 8) != 0) {
             mvwprintw (win, y, 0, "%4.4s %1.1s %10.10s   %s",
                        o->name, o->oscstate, o->ossname, o->recov_status);
-        /* ost is in normal state */
+        /* ost is not in recover (state == INACTIVE|COMPLETE) */
         } else {
             double ktot = sample_val (o->kbytes_total, tnow);
             double kfree = sample_val (o->kbytes_free, tnow);
