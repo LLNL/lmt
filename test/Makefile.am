@@ -6,7 +6,8 @@ check_PROGRAMS = \
 	trecov \
 	tosc \
 	tlnet \
-	tuuid
+	tuuid \
+	tversion
 
 TESTS_ENVIRONMENT = env
 
@@ -19,17 +20,12 @@ TESTS = \
 	t07-parse-oscinfo \
 	t08-parse-lnet \
 	t09-parse-uuid \
-	t10-metric-strings
+	t10-metric-strings \
+	t11-parse-version
 
 EXTRA_DIST = $(TESTS) *.exp lustre_versions test_header
 
-# FIXME: these are known to be failing with 2.0.0.1, remove them as code is
-# added to address the failures
-XFAIL_TESTS = \
-	t05-parse-stats \
-	t06-parse-recovery \
-	t09-parse-uuid \
-	t10-metric-strings
+XFAIL_TESTS =
 
 CLEANFILES = *.out *.diff
 

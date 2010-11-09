@@ -1,0 +1,11 @@
+snapshot_time             1287759486.872490 secs.usecs
+req_waittime              24 samples [usec] 15 1550 3322 2692062
+req_qdepth                24 samples [reqs] 0 1 1 1
+req_active                24 samples [reqs] 1 1 24 24
+req_timeout               24 samples [sec] 1 10 33 123
+reqbuf_avail              59 samples [bufs] 127 128 7542 964106
+ldlm_ibits_enqueue        3 samples [reqs] 1 1 3 3
+mds_getattr               11 samples [usec] 42 124 665 47493
+mds_connect               1 samples [usec] 422 422 422 178084
+mds_statfs                2 samples [usec] 46 48 94 4420
+obd_ping                  7 samples [usec] 34 114 361 24309

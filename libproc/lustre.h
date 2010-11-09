@@ -24,6 +24,7 @@
 int proc_lustre_ostlist (pctx_t ctx, List *lp);
 int proc_lustre_mdtlist (pctx_t ctx, List *lp);
 int proc_lustre_osclist (pctx_t ctx, List *lp);
+int proc_lustre_mdt_exportlist (pctx_t ctx, char *name, List *lp);
 
 
 int proc_lustre_files (pctx_t ctx, char *name, uint64_t *fp, uint64_t *tp);
@@ -78,6 +79,19 @@ int proc_lustre_lnet_newbytes (pctx_t ctx, uint64_t *valp);
 
 int proc_lustre_lnet_routing_enabled (pctx_t ctx, int *valp);
 
+int proc_fs_lustre_version (pctx_t ctx, int *major, int *minor, int *patch,
+                            int *fix);
+
+/* lifted from lustre/include/lustre/lustre_idl.h */
+#define PACKED_VERSION(major,minor,patch,fix) (((major)<<24) + ((minor)<<16) +\
+                                               ((patch)<<8) + (fix))
+#define PACKED_VERSION_MAJOR(version) ((int)((version)>>24)&255)
+#define PACKED_VERSION_MINOR(version) ((int)((version)>>16)&255)
+#define PACKED_VERSION_PATCH(version) ((int)((version)>>8)&255)
+#define PACKED_VERSION_FIX(version) ((int)(version)&255)
+
+#define LUSTRE_1_8 PACKED_VERSION(1,8,0,0)
+#define LUSTRE_2_0 PACKED_VERSION(2,0,0,0)
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
