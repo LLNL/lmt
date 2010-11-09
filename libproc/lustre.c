@@ -65,8 +65,8 @@
 #define PROC_FS_LUSTRE_OSC_OST_SERVER_UUID \
                                         "fs/lustre/osc/%s/ost_server_uuid"
 
-#define PROC_FS_LUSTRE_1_8_MDT_STATS    "fs/lustre/mds/%s/stats"
-#define PROC_FS_LUSTRE_2_0_MDT_STATS    "fs/lustre/mdt/%s/md_stats"
+#define PROC_FS_LUSTRE_1_8_MDT_STATS    "%s/stats"
+#define PROC_FS_LUSTRE_2_0_MDT_STATS    "%s/md_stats"
 #define PROC_FS_LUSTRE_OST_STATS        "fs/lustre/obdfilter/%s/stats"
 
 #define PROC_FS_LUSTRE_MDT_EXPORTS      "%s/%s/exports"
@@ -217,6 +217,47 @@ _find_lustre_backfs_type (pctx_t ctx)
     } else {
         return BACKFS_LDISKFS;
     }
+}
+
+/*
+ * Abstract the logic of finding the stats entry for a given OSD name
+ * for this Lustre version.
+ */
+static int
+_build_osd_stats_path (pctx_t ctx, char *name, char **stats)
+{
+    int ret = -1;
+    int lustre_version = _packed_lustre_version (ctx);
+
+    if (strstr (name, "-MDT")) {
+        if (lustre_version >= LUSTRE_2_0) {
+            if (_find_lustre_backfs_type (ctx) == BACKFS_ZFS) {
+                if ((ret = _build_mdt_path (ctx,
+                                            PROC_FS_LUSTRE_1_8_MDT_STATS,
+                                            stats)) < 0)
+                    goto done;
+            } else {
+                if ((ret = _build_mdt_path (ctx,
+                                            PROC_FS_LUSTRE_2_0_MDT_STATS,
+                                            stats)) < 0)
+                    goto done;
+            }
+        } else {
+            if ((ret = _build_mdt_path (ctx,
+                                        PROC_FS_LUSTRE_1_8_MDT_STATS,
+                                        stats)) < 0)
+                goto done;
+        }
+    } else if (strstr (name, "-OST")) {
+        /* Ugly, but avoids a problem with free-ing a constant later. */
+        if (!(*stats = strdup (PROC_FS_LUSTRE_OST_STATS)))
+            msg_exit ("out of memory");
+        ret = 0;
+    } else {
+        errno = EINVAL;
+    }
+done:
+    return ret;
 }
 
 /*
@@ -820,7 +861,7 @@ _aggregate_mdt_export_stats (pctx_t ctx, char *mdt_name, hash_t h)
     int ret = -1;
     List l = list_create ((ListDelF)free);
     ListIterator itr = NULL;
-    char *name;
+    char *name, *mdt_dir = _find_mdt_dir (ctx);
 
     ret = proc_lustre_mdt_exportlist (ctx, mdt_name, &l);
 
@@ -835,7 +876,7 @@ _aggregate_mdt_export_stats (pctx_t ctx, char *mdt_name, hash_t h)
     itr = list_iterator_create (l);
     while ((name = list_next (itr))) {
         if ((ret = proc_openf (ctx, PROC_FS_LUSTRE_MDT_EXPORT_STATS,
-                               PROC_FS_LUSTRE_2_0_MDT_DIR, mdt_name, name)) < 0)
+                               mdt_dir, mdt_name, name)) < 0)
             goto done;
         if ((ret = _hash_aggregate_stats (ctx, h)) < 0)
             goto done;
@@ -854,35 +895,31 @@ proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp)
     hash_t h = NULL;
     int ret = -1;
     int lustre_version = _packed_lustre_version (ctx);
+    char *stats;
+
+    if ((ret = _build_osd_stats_path (ctx, name, &stats)) < 0)
+        goto done;
 
     h = hash_create (STATS_HASH_SIZE, (hash_key_f)hash_key_string,
                     (hash_cmp_f)strcmp, (hash_del_f)_destroy_shash);
 
-    if (strstr (name, "-OST")) {
-        ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_STATS, name);
-        ret = _hash_stats (ctx, h);
-    } else if (strstr (name, "-MDT")) {
-        if (lustre_version >= LUSTRE_2_0) {
-            if ((ret = _aggregate_mdt_export_stats (ctx, name, h)) < 0)
-                goto done;
-
-            ret = proc_openf (ctx, PROC_FS_LUSTRE_2_0_MDT_STATS, name);
-            ret = _hash_stats (ctx, h);
-
-            /* Fix MDT stats names */
-            hash_for_each (h, (hash_arg_f)_rekey_mdt_stats, NULL);
-        } else {
-            ret = proc_openf (ctx, PROC_FS_LUSTRE_1_8_MDT_STATS, name);
-            ret = _hash_stats (ctx, h);
-        }
-    } else {
-        errno = EINVAL;
-    }
+    ret = proc_openf (ctx, stats, name);
+    ret = _hash_stats (ctx, h);
+    proc_close (ctx);
+    free (stats);
 
     if (ret < 0)
         goto done;
 
-    proc_close (ctx);
+    if (strstr (name, "-MDT")) {
+        if (lustre_version >= LUSTRE_2_0) {
+            if ((ret = _aggregate_mdt_export_stats (ctx, name, h)) < 0)
+                goto done;
+
+            /* Fix MDT stats names */
+            hash_for_each (h, (hash_arg_f)_rekey_mdt_stats, NULL);
+        }
+    }
 done:
     if (ret == 0)
         *hp = h;                           
