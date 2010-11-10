@@ -356,7 +356,7 @@ _subdirlist (pctx_t ctx, const char *path, List *lp)
     if ((ret = proc_open (ctx, path)) < 0)
         goto done;
     while ((ret = proc_readdir (ctx, PROC_READDIR_NOFILE, &name)) >= 0) {
-        if (strstr (name, "-osc-") && !strstr (name, "MDT")) {
+        if (strstr (name, "-osc-") && !strstr (name, "MDT"))
             free (name);            /* ignore client-instantiated osc's */
         else                        /*  e.g. lc1-OST0005-osc-ffff81007f018c00 */
             list_append (l, name);
