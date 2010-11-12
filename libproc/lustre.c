@@ -103,6 +103,9 @@
 
 #define STATS_HASH_SIZE                 64
 
+#define ZFS_HACK 1
+
+
 /* forward declaration */
 static int _read_lustre_version_string (pctx_t ctx, char **version_string);
 
@@ -457,7 +460,7 @@ int
 proc_lustre_ldlm_lock_count (pctx_t ctx, char *name, uint64_t *np)
 {
     int ret = -1;
-    uint64_t n;
+    uint64_t n = 0;
     char *tmpl;
 
     if (strstr (name, "-OST")) {
@@ -468,8 +471,13 @@ proc_lustre_ldlm_lock_count (pctx_t ctx, char *name, uint64_t *np)
         errno = EINVAL;
         goto done;
     }
-    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0)
+    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0) {
+#if ZFS_HACK
+        if (errno == ENOENT)
+            ret = 0;
+#endif
         goto done;
+    }
 done:
     if (ret == 0)
         *np = n;
@@ -480,7 +488,7 @@ int
 proc_lustre_ldlm_grant_rate (pctx_t ctx, char *name, uint64_t *np)
 {
     int ret = -1;
-    uint64_t n;
+    uint64_t n = 0;
     char *tmpl;
 
     if (strstr (name, "-OST")) {
@@ -491,8 +499,13 @@ proc_lustre_ldlm_grant_rate (pctx_t ctx, char *name, uint64_t *np)
         errno = EINVAL;
         goto done;
     }
-    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0)
+    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0) {
+#if ZFS_HACK
+        if (errno == ENOENT)
+            ret = 0;
+#endif
         goto done;
+    }
 done:
     if (ret == 0)
         *np = n;
@@ -503,7 +516,7 @@ int
 proc_lustre_ldlm_cancel_rate (pctx_t ctx, char *name, uint64_t *np)
 {
     int ret = -1;
-    uint64_t n;
+    uint64_t n = 0;
     char *tmpl;
 
     if (strstr (name, "-OST")) {
@@ -514,8 +527,13 @@ proc_lustre_ldlm_cancel_rate (pctx_t ctx, char *name, uint64_t *np)
         errno = EINVAL;
         goto done;
     }
-    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0)
+    if ((ret = _readint1 (ctx, tmpl, name, &n)) < 0) {
+#if ZFS_HACK
+        if (errno == ENOENT)
+            ret = 0;
+#endif
         goto done;
+    }
 done:
     if (ret == 0)
         *np = n;
@@ -876,8 +894,13 @@ _aggregate_mdt_export_stats (pctx_t ctx, char *mdt_name, hash_t h)
     itr = list_iterator_create (l);
     while ((name = list_next (itr))) {
         if ((ret = proc_openf (ctx, PROC_FS_LUSTRE_MDT_EXPORT_STATS,
-                               mdt_dir, mdt_name, name)) < 0)
+                               mdt_dir, mdt_name, name)) < 0) {
+#if ZFS_HACK
+            if (errno == ENOENT)
+                ret = 0;
+#endif
             goto done;
+        }
         if ((ret = _hash_aggregate_stats (ctx, h)) < 0)
             goto done;
         proc_close (ctx);
