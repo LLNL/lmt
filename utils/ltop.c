@@ -246,7 +246,7 @@ main (int argc, char *argv[])
     if (!fs)
         fs = _find_first_fs(playf, stale_secs);
     if (!fs)
-        msg_exit ("No live file system data found.  Try using -f option.");
+        msg_exit ("No live file system data found.");
 
     /* Poll cerebro for data, then sort the ost data for display.
      * If either the mds or any ost's are up, then ostcount > 0.
