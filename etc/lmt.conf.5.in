@@ -21,39 +21,39 @@ lustre servers and the LMT server node.
 .B lmt.conf 
 can define the following variables:
 .TP
-.I "lmt_cbr_debug = n"
+\fIlmt_cbr_debug = n\fR
 Set to 1 to enable cerebro debug logging (default = 0).
 .TP
-.I "lmt_proto_debug = n"
+\fIlmt_proto_debug = n\fR
 Set to 1 to enable protocol debug logging (default = 0).
 .TP
-.I "lmt_db_debug = n"
+\fIlmt_db_debug = n\fR
 Set to 1 to enable database debug logging (default = 0).
 .TP
-.I "lmt_db_host = string"
+\fIlmt_db_host = "string"\fR
 Set to database hostname (default = nil).
-The default causes MySQL's default (localhost) to be used.
+The default causes MySQL's default ("localhost") to be used.
 .TP
-.I "lmt_db_port = n"
+\fIlmt_db_port = n\fR
 Set to database port (default = 0).
 The default causes MySQL's default port (3306) to be used.
 .TP
-.I "lmt_db_rouser = string"
+\fIlmt_db_rouser = "string"\fR
 Set the user for read-only database access (default = nil).
 The default causes MySQL's default user (your uid) to be used.
 .TP
-.I "lmt_db_ropasswd = string"
+\fIlmt_db_ropasswd = "string"\fR
 Set the password for read-only database access (default = nil).
 The default causes MySQL's default password (NO) to be used.
 .TP
-.I "lmt_db_rwuser = string"
+\fIlmt_db_rwuser = "string"\fR
 Set the user for read/write database access (default = nil).
 The default causes MySQL's default user (your uid) to be used.
 .TP
-.I "lmt_db_rwpasswd = string"
+\fIlmt_db_rwpasswd = "string"\fR
 Set the password for read/write database access (default = nil).
 .TP
-.I "lmt_db_autoconf = n"
+\fIlmt_db_autoconf = n\fR
 Set to 0 to disable database self-populating with lustre config (default = 1).
 .SH EXAMPLE
 .nf
