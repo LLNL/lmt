@@ -479,7 +479,12 @@ Examples:
   vt OST_AGGREGATE_HOUR   - List all var ids associated with OST_AGGREGATE_HOUR
 EOF
 
-exit 1;
+    exit 1;
+}
+
+# getopts calls this if it sees --help
+sub HELP_MESSAGE {
+    Usage();
 }
 
 sub execAndPrintQuery {
