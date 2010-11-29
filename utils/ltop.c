@@ -270,7 +270,7 @@ main (int argc, char *argv[])
      */
     if (!(topwin = initscr ()))
         err_exit ("error initializing parent window");
-    if (!(ostwin = newwin (ostcount, 80, TOPWIN_LINES, 0)))
+    if (!(ostwin = newwin (ostcount + 1, 80, TOPWIN_LINES, 0)))
         err_exit ("error initializing subwindow");
     raw ();
     noecho ();
