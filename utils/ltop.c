@@ -621,6 +621,17 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     assert (y == TOPWIN_LINES);
 }
 
+/* Left "truncate" s by returning an offset into it such that the new
+ * string has at most max characters.
+ */
+static char *
+_ltrunc (char *s, int max)
+{
+    int len = strlen (s);
+
+    return s + (len > max ? len - max : 0);
+}
+
 /* Update the ost window of the display.
  * Minost is the first ost to display (zero origin).
  * Selost is the selected ost, or -1 if none are selected (zero origin).
@@ -659,7 +670,8 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
         } else if (strncmp (o->recov_status, "COMPLETE", 8) != 0
                 && strncmp (o->recov_status, "INACTIVE", 8) != 0) {
             mvwprintw (win, y, 0, "%4.4s %1.1s %10.10s   %s",
-                       o->name, o->oscstate, o->ossname, o->recov_status);
+                       o->name, o->oscstate, _ltrunc (o->ossname, 10),
+                       o->recov_status);
         /* ost is not in recover (state == INACTIVE|COMPLETE) */
         } else {
             double ktot = sample_val (o->kbytes_total, tnow);
@@ -669,7 +681,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             mvwprintw (win, y, 0, "%4.4s %1.1s %10.10s"
                        " %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f"
                        " %4.0f %4.0f %4.0f",
-                       o->name, o->oscstate, o->ossname,
+                       o->name, o->oscstate, _ltrunc (o->ossname, 10),
                        sample_val (o->num_exports, tnow),
                        sample_rate (o->connect, tnow),
                        sample_rate (o->rbytes, tnow) / (1024*1024),
