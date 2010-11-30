@@ -1034,6 +1034,19 @@ proc_lustre_parsestat (hash_t stats, const char *key, uint64_t *countp,
     shash_t *s;
     int ret = -1;
 
+    /* Zero the counters here to avoid returning uninitialized values
+       if the requested key doesn't exist in Lustre stats. */
+    if (countp)
+        *countp = 0;
+    if (minp)
+        *minp = 0;
+    if (maxp)
+        *maxp = 0;
+    if (sump)
+        *sump = 0;
+    if (sumsqp)
+        *sumsqp = 0;
+
     if (!(s = hash_find (stats, key))) {
         errno = EINVAL;
         goto done;

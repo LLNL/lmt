@@ -11,6 +11,8 @@ test_metrics() {
     local version=$(basename $path)
     local exp_file=$path/outputs/$TEST.exp
     local out_file=$TEST-$version.out
+    local ref_file=$TEST-$version.ref
+    local fault_file=$TEST-$version.fault
     local diff_file=$TEST-$version.diff
 
     [ -r $exp_file ] || {
@@ -19,6 +21,8 @@ test_metrics() {
     }
 
     rm -f $out_file
+    rm -f $ref_file
+    rm -f $fault_file
     rm -f $diff_file
     
     while read line; do
@@ -27,11 +31,12 @@ test_metrics() {
         tst_string=$(../utils/lmtmetric -r $path/proc -m $m_name)
         echo $tst_string >> $out_file
         if [ "$ref_string" != "$tst_string" ]; then
-            # not really a diff, but close enough
-            cat <<EndOfFile >> $diff_file
-expected: "$ref_string"
-got:      "$tst_string"
-EndOfFile
+            echo $ref_string >> $ref_file
+            echo $ref_string | tr ";" "\n" >> $ref_file
+
+            echo $tst_string >> $fault_file
+            echo $tst_string | tr ";" "\n" >> $fault_file
+            diff -u $ref_file $fault_file >> $diff_file || true
         fi
     done < $exp_file
 
