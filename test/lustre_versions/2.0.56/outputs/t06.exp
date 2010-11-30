@@ -1,0 +1,8 @@
+trecov: ost: lustre-OST0000
+trecov: lustre-OST0000: status:='INACTIVE'
+trecov: ost: lustre-OST0001
+trecov: lustre-OST0001: status:='INACTIVE'
+trecov: ost: lustre-OST0002
+trecov: lustre-OST0002: status:='INACTIVE'
+trecov: mdt: lustre-MDT0000
+trecov: lustre-MDT0000: status:='INACTIVE'

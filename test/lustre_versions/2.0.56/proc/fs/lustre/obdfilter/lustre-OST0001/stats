@@ -1,0 +1,17 @@
+snapshot_time             1289605979.68853 secs.usecs
+read_bytes                152 samples [bytes] 0 0 0
+write_bytes               437 samples [bytes] 2 1048576 13487560
+get_page                  589 samples [usec] 0 684 4645 1499697
+get_info                  706 samples [reqs]
+set_info_async            4 samples [reqs]
+connect                   2 samples [reqs]
+statfs                    47 samples [reqs]
+create                    28 samples [reqs]
+destroy                   484 samples [reqs]
+setattr                   461 samples [reqs]
+punch                     45 samples [reqs]
+sync                      373 samples [reqs]
+preprw                    589 samples [reqs]
+commitrw                  589 samples [reqs]
+llog_init                 2 samples [reqs]
+ping                      18 samples [reqs]

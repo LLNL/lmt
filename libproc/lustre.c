@@ -936,8 +936,10 @@ proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp)
 
     if (strstr (name, "-MDT")) {
         if (lustre_version >= LUSTRE_2_0) {
-            if ((ret = _aggregate_mdt_export_stats (ctx, name, h)) < 0)
-                goto done;
+            /* 2.x prior to 2.0.56 was missing aggregate MDT stats. */
+            if (lustre_version < PACKED_VERSION (2,0,56,0))
+                if ((ret = _aggregate_mdt_export_stats (ctx, name, h)) < 0)
+                    goto done;
 
             /* Fix MDT stats names */
             hash_for_each (h, (hash_arg_f)_rekey_mdt_stats, NULL);
