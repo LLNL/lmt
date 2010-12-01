@@ -147,12 +147,11 @@ static void _list_empty_out (List l);
 #define OSTWIN_H_LINES  1       /* header lines in ostwin */
 #define HDRLINES    (TOPWIN_LINES + OSTWIN_H_LINES)
 
-#define OPTIONS "f:c:t:s:r:p:"
+#define OPTIONS "f:t:s:r:p:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
     {"filesystem",      required_argument,  0, 'f'},
-    {"config-file",     required_argument,  0, 'c'},
     {"sample-period",   required_argument,  0, 't'},
     {"stale-secs",      required_argument,  0, 's'},
     {"record",          required_argument,  0, 'r'},
@@ -180,7 +179,6 @@ int
 main (int argc, char *argv[])
 {
     int c;
-    char *conffile = NULL;
     WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
     int ostview = 1, resort = 0, recompute = 0;
@@ -208,9 +206,6 @@ main (int argc, char *argv[])
             case 'f':   /* --filesystem FS */
                 fs = optarg;
                 break;
-            case 'c':   /* --config-file FILE */
-                conffile = optarg;
-                break;
             case 't':   /* --sample-period SECS */
                 sample_period = strtoul (optarg, NULL, 10);
                 sopt = 1;
@@ -233,8 +228,6 @@ main (int argc, char *argv[])
     }
     if (optind < argc)
         usage();
-    if (lmt_conf_init (1, conffile) < 0) /* FIXME: needed? */
-        exit (1);
     if (playf && sopt)
         msg_exit ("--sample-period and --play cannot be used together");
     if (playf && recf)
