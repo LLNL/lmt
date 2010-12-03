@@ -129,6 +129,7 @@ main (int argc, char *argv[])
         err_exit ("proc_create");
 
     do {
+        errno = 0; 
         if (!strcmp (metric, "sysstat"))
             n = _sysstat (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "ost"))
@@ -139,10 +140,12 @@ main (int argc, char *argv[])
             n = lmt_osc_string_v1 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "router"))
             n = lmt_router_string_v1 (ctx, buf, sizeof (buf));
-        if (n < 0)
-            printf ("%s: %s\n", metric, strerror(errno));
+        if (n < 0 && errno == 0)
+            msg ("%s metric information unavailable", metric);
+        else if (n < 0)
+            err ("%s metric", metric);
         else
-            printf ("%s: %s\n", metric, buf);
+            msg ("%s: %s", metric, buf);
         if (update_period > 0)
             sleep (update_period);
     } while (update_period > 0);
