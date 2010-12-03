@@ -1,4 +1,16 @@
 ========================================================================
+Release Notes for LMT 3.0.4                                 03 Dec 2010
+========================================================================
+
+* Issue 45: ltop doesn't show ost's if mdt metric isn't reporting in
+  Fix curses update problem in this case
+
+* Issue 46: handle duplicate statfs line in /proc/fs/lustre/mds/target/stats   	
+  Change stats hashing code to allow duplicates (last in wins).
+
+* Enable protocol debugging in lmtmetric to get verbose errors.
+
+========================================================================
 Release Notes for LMT 3.0.3                                 03 Dec 2010
 ========================================================================
 
