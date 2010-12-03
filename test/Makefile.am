@@ -25,7 +25,7 @@ TESTS = \
 
 EXTRA_DIST = $(TESTS) *.exp lustre_versions test_header
 
-XFAIL_TESTS = t10-metric-strings
+XFAIL_TESTS = 
 
 CLEANFILES = *.out *.diff
 

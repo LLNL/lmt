@@ -4,6 +4,9 @@ Release Notes for LMT 3.1.0                                 03 Dec 2010
 
 * Merge lustre 2.x portability changes from lmt-lustre2x branch.
 
+* Add temporary workaround for missing mdt, ldlm proc files in 2.0.50.zfs
+  and also some variant of 1.8.3 discussed in issue 28.
+
 ========================================================================
 Release Notes for LMT 3.0.4                                 03 Dec 2010
 ========================================================================
