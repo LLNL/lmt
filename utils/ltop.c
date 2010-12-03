@@ -584,13 +584,17 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
         wattroff (win, A_REVERSE);
     }
     y++;
-    if (tnow - trcv > stale_secs)
-        return;
-    mvwprintw (win, y++, 0,
-      "    Inodes: %10.3fm total, %10.3fm used (%3.0f%%), %10.3fm free",
-               minodes_total, minodes_total - minodes_free,
-               ((minodes_total - minodes_free) / minodes_total) * 100,
-               minodes_free);
+    if (tnow - trcv <= stale_secs) { /* mdt data is live */
+        mvwprintw (win, y++, 0,
+          "    Inodes: %10.3fm total, %10.3fm used (%3.0f%%), %10.3fm free",
+                   minodes_total, minodes_total - minodes_free,
+                   ((minodes_total - minodes_free) / minodes_total) * 100,
+                   minodes_free);
+    } else  {
+        mvwprintw (win, y++, 0,
+          "    Inodes: %11s total, %11s used (%3s%%), %11s free",
+                    "", "", "", "" );
+    } 
     mvwprintw (win, y++, 0,
       "     Space: %10.3ft total, %10.3ft used (%3.0f%%), %10.3ft free",
                tbytes_total, tbytes_total - tbytes_free,
@@ -599,19 +603,28 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     mvwprintw (win, y++, 0,
       "   Bytes/s: %10.3fg read,  %10.3fg write,            %6.0f IOPS",
                rmbps / 1024, wmbps / 1024, iops);
-    mvwprintw (win, y++, 0,
-      "   MDops/s: %6.0f open,   %6.0f close,  %6.0f getattr,  %6.0f setattr",
-               open, close, getattr, setattr);
-    mvwprintw (win, y++, 0,
-      "            %6.0f link,   %6.0f unlink, %6.0f mkdir,    %6.0f rmdir",
-               link, unlink, mkdir, rmdir);
-    mvwprintw (win, y++, 0,
-      "            %6.0f statfs, %6.0f rename, %6.0f getxattr",
-               statfs, rename, getxattr);
-
+    if (tnow - trcv <= stale_secs) { /* mdt data is live */
+        mvwprintw (win, y++, 0,
+          "   MDops/s: %6.0f open,   %6.0f close,  %6.0f getattr,  %6.0f setattr",
+                   open, close, getattr, setattr);
+        mvwprintw (win, y++, 0,
+          "            %6.0f link,   %6.0f unlink, %6.0f mkdir,    %6.0f rmdir",
+                   link, unlink, mkdir, rmdir);
+        mvwprintw (win, y++, 0,
+          "            %6.0f statfs, %6.0f rename, %6.0f getxattr",
+                   statfs, rename, getxattr);
+    } else {
+        mvwprintw (win, y++, 0,
+          "   MDops/s: %6s open,   %6s close,  %6s getattr,  %6s setattr",
+                   "", "", "", "");
+        mvwprintw (win, y++, 0,
+          "            %6s link,   %6s unlink, %6s mkdir,    %6s rmdir",
+                   "", "", "", "");
+        mvwprintw (win, y++, 0,
+          "            %6s statfs, %6s rename, %6s getxattr",
+                   "", "", "");
+    }
     wrefresh (win);
-
-    assert (y == TOPWIN_LINES);
 }
 
 /* Left "truncate" s by returning an offset into it such that the new
