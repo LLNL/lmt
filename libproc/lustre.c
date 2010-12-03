@@ -441,6 +441,23 @@ _parse_stat (char *s, shash_t **itemp)
     return 0;
 }
 
+static void *
+_hash_insert_lastinwins (hash_t h, const void *key, void *data, hash_del_f del)
+{
+    void *res = NULL, *old = NULL;
+
+    if (!(res = hash_insert (h, key, data))) {
+        if (errno != EEXIST)
+            goto done;
+        old = hash_remove (h, key);
+        if (old)
+            del (old);
+        res = hash_insert (h, key, data);
+    }
+done: 
+    return res;
+}
+
 static int
 _hash_stats (pctx_t ctx, hash_t h)
 {
@@ -452,7 +469,8 @@ _hash_stats (pctx_t ctx, hash_t h)
     while ((ret = proc_gets (ctx, NULL, line, sizeof (line))) >= 0) {
         if ((ret = _parse_stat (line, &s)) < 0)
             break;
-        if (!hash_insert (h, s->key, s)) {
+        if (!_hash_insert_lastinwins (h, s->key, s,
+                                     (hash_del_f)_destroy_shash)) {
             _destroy_shash (s);
             ret = -1;
             break;

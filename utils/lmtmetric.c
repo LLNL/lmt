@@ -97,6 +97,7 @@ main (int argc, char *argv[])
 
     err_init (argv[0]);
     lmt_conf_init (0, NULL);
+    lmt_conf_set_proto_debug (1);
 
     optind = 0;
     opterr = 0;
