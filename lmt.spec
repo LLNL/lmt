@@ -1,5 +1,5 @@
 Name: lmt
-Version: 3.0.2
+Version: 3.0.3
 Release: 1
 
 # TODO: lmt-utils subpackage for ltop (once ltop can read proc directly)

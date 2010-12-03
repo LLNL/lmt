@@ -1,4 +1,44 @@
 ========================================================================
+Release Notes for LMT 3.0.3                                 03 Dec 2010
+========================================================================
+
+Fixes for various issues.  More detail is available via the issues tab at:
+
+http://code.google.com/p/lmt/
+
+* Issue 20: ltop error message not correct
+  Make ltop error message more clear when no file system data is present.
+
+* Issue 22: lmt_db_host setting does not work
+  Add double quotes to lmt.conf man page option descriptions.
+
+* Issue 27: Installation documentation is still not very clear
+  Fix lmtsh getopt to handle --help sensibly.
+
+* Issue 29: ltop doesn't report correctly OSTs information
+  Fix bug that made the last OST in a single-page display invisible.
+
+* Issue 30: ltop improperly truncates oss names
+  Left truncate hostnames in ltop column to preserve numerical suffixes.
+
+* Issue 33: ltop shouldn't try to parse lmt.conf
+  Ltop doesn't use lmt.conf info so why should it fail if lmt.conf has error?
+
+* Issue 34: old monitor module can't grok new router metric data
+  Fix lmt3 router metric version string so it works with both lmt3 and lmt2.
+
+* Issue 41: LMT Router Bandwidth Variable Needed For Aggregation Script
+  This missing row in ROUTER_VARIABLE_INFO broke router aggregation.
+  Add to schema script so it will be created for new database configs.
+
+* Issue 43: existing ROUTER_INFO entries conflict with lmt3 autoconf entries
+  Manually adding routers to the database while lmt is running caused problems.
+  Add a couple of new error messages that would make this easier to debug.
+
+* Issue 44: mkusers.sql doesn't include host 
+  The mkusers.sql script provided should include @localhost for lwatchclient.
+
+========================================================================
 Release Notes for LMT 3.0.2                                 10 Nov 2010
 ========================================================================
 
