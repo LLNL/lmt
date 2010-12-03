@@ -145,7 +145,7 @@ main (int argc, char *argv[])
         else if (n < 0)
             err ("%s metric", metric);
         else
-            msg ("%s: %s", metric, buf);
+            printf ("%s: %s\n", metric, buf);
         if (update_period > 0)
             sleep (update_period);
     } while (update_period > 0);
