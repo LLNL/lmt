@@ -228,6 +228,8 @@ _populate_idhash_all (lmt_db_t db, const char *pfx, const char *sql)
         id = strtoul (row[1], NULL, 10);
         s = _create_svcid (pfx, row[0], id);
         if (!hash_insert (db->idhash, s->key, s)) {
+            if (lmt_conf_get_db_debug ())
+                err ("idhash insert error: %s %s", lmt_db_fsname (db), s->key);
             _destroy_svcid (s);
             goto done;
         }
@@ -265,6 +267,8 @@ _populate_idhash_one (lmt_db_t db, const char *pfx,
     id = strtoul (row[1], NULL, 10);
     s = _create_svcid (pfx, row[0], id);
     if (!hash_insert (db->idhash, s->key, s)) {
+        if (lmt_conf_get_db_debug ())
+            err ("idhash insert error: %s %s", lmt_db_fsname (db), s->key);
         _destroy_svcid (s);
         goto done;
     }
