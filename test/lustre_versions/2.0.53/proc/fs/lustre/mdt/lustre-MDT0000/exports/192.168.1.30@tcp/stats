@@ -1,0 +1,8 @@
+snapshot_time             1287763103.794647 secs.usecs
+open                      5391 samples [reqs]
+close                     3075 samples [reqs]
+mknod                     20 samples [reqs]
+unlink                    1401 samples [reqs]
+mkdir                     121 samples [reqs]
+rmdir                     125 samples [reqs]
+rename                    82 samples [reqs]

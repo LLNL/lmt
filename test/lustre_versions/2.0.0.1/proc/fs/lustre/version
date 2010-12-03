@@ -1,0 +1,3 @@
+lustre: 2.0.0.1
+kernel: patchless_client
+build:  2.0.0.1-20100719134824-PRISTINE-2.6.18-164.11.1.el5_lustre.2.0.0.1

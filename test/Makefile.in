@@ -38,7 +38,7 @@ host_triplet = @host@
 target_triplet = @target@
 check_PROGRAMS = tparse$(EXEEXT) tproc$(EXEEXT) tbrw_stats$(EXEEXT) \
 	tstats$(EXEEXT) trecov$(EXEEXT) tosc$(EXEEXT) tlnet$(EXEEXT) \
-	tuuid$(EXEEXT)
+	tuuid$(EXEEXT) tversion$(EXEEXT)
 subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -102,6 +102,12 @@ tuuid_LDADD = $(LDADD)
 tuuid_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
 	$(top_builddir)/libproc/libproc.la \
 	$(top_builddir)/liblsd/liblsd.la
+tversion_SOURCES = tversion.c
+tversion_OBJECTS = tversion.$(OBJEXT)
+tversion_LDADD = $(LDADD)
+tversion_DEPENDENCIES = $(top_builddir)/liblmt/liblmt.la \
+	$(top_builddir)/libproc/libproc.la \
+	$(top_builddir)/liblsd/liblsd.la
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -115,10 +121,10 @@ LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(tbrw_stats_SOURCES) tlnet.c $(tosc_SOURCES) \
 	$(tparse_SOURCES) $(tproc_SOURCES) $(trecov_SOURCES) \
-	$(tstats_SOURCES) tuuid.c
+	$(tstats_SOURCES) tuuid.c tversion.c
 DIST_SOURCES = $(tbrw_stats_SOURCES) tlnet.c $(tosc_SOURCES) \
 	$(tparse_SOURCES) $(tproc_SOURCES) $(trecov_SOURCES) \
-	$(tstats_SOURCES) tuuid.c
+	$(tstats_SOURCES) tuuid.c tversion.c
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -277,18 +283,11 @@ TESTS = \
 	t07-parse-oscinfo \
 	t08-parse-lnet \
 	t09-parse-uuid \
-	t10-metric-strings
+	t10-metric-strings \
+	t11-parse-version
 
 EXTRA_DIST = $(TESTS) *.exp lustre_versions test_header
-
-# FIXME: these are known to be failing with 2.0.0.1, remove them as code is
-# added to address the failures
-XFAIL_TESTS = \
-	t05-parse-stats \
-	t06-parse-recovery \
-	t09-parse-uuid \
-	t10-metric-strings
-
+XFAIL_TESTS = t10-metric-strings
 CLEANFILES = *.out *.diff
 AM_CFLAGS = @GCCWARN@
 AM_CPPFLAGS = \
@@ -369,6 +368,9 @@ tstats$(EXEEXT): $(tstats_OBJECTS) $(tstats_DEPENDENCIES)
 tuuid$(EXEEXT): $(tuuid_OBJECTS) $(tuuid_DEPENDENCIES) 
 	@rm -f tuuid$(EXEEXT)
 	$(LINK) $(tuuid_LDFLAGS) $(tuuid_OBJECTS) $(tuuid_LDADD) $(LIBS)
+tversion$(EXEEXT): $(tversion_OBJECTS) $(tversion_DEPENDENCIES) 
+	@rm -f tversion$(EXEEXT)
+	$(LINK) $(tversion_LDFLAGS) $(tversion_OBJECTS) $(tversion_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -384,6 +386,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/trecov.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tstats.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tuuid.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tversion.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

@@ -1,0 +1,3 @@
+lustre: 2.0.56
+kernel: patchless_client
+build:  2.0.56.0-gf83e7db-CHANGED-2.6.18-194.17.1.el5_lustre.gf83e7db
