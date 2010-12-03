@@ -104,7 +104,8 @@ lmt_router_string_v1 (pctx_t ctx, char *s, int len)
             err ("error reading lustre lnet newbytes from proc");
         goto done;
     }
-    n = snprintf (s, len, "1;%s;%f;%f;%"PRIu64,
+    /* N.B. Use 1.0 not 1 for version for backwards compat - issue 34 */
+    n = snprintf (s, len, "1.0;%s;%f;%f;%"PRIu64,
                   uts.nodename, cpupct, mempct, newbytes);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
