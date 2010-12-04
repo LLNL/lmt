@@ -126,14 +126,15 @@ static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
                                  List ost_data, int stale_secs, FILE *recf,
                                  FILE *playf, time_t tnow, int pause);
 static void _update_display_ost (WINDOW *win, List ost_data, int minost,
-                                 int selost, int stale_secs, time_t tnow);
+                                 int selost, int stale_secs, time_t tnow,
+                                 int i);
 static void _destroy_oststat (oststat_t *o);
 static void _destroy_mdtstat (mdtstat_t *m);
 static void _summarize_ost (List ost_data, List oss_data, time_t tnow,
                             int stale_secs);
 static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
-static void _sort_ostlist (List ost_data, time_t tnow, char k);
+static void _sort_ostlist (List ost_data, time_t tnow, char k, int *ip);
 static char *_find_first_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
@@ -196,6 +197,7 @@ main (int argc, char *argv[])
     FILE *playf = NULL;
     int pause = 0;
     int showhelp = 0;
+    int ost_fp = 0;
 
     err_init (argv[0]);
     optind = 0;
@@ -251,7 +253,7 @@ main (int argc, char *argv[])
             msg_exit ("premature end of file on playback file");
     } else
         _poll_cerebro (fs, mdt_data, ost_data, stale_secs, recf, &tcycle);
-    _sort_ostlist (ost_data, tcycle, 0);
+    _sort_ostlist (ost_data, tcycle, 0, &ost_fp);
     assert (ostview);
     if ((ostcount = list_count (ost_data)) == 0)
         msg_exit ("no data found for file system `%s'", fs);
@@ -282,7 +284,7 @@ main (int argc, char *argv[])
             _update_display_top (topwin, fs, ost_data, mdt_data, stale_secs,
                                  recf, playf, tcycle, pause);
             _update_display_ost (ostwin, ostview ? ost_data : oss_data,
-                                 minost, selost, stale_secs, tcycle);
+                                 minost, selost, stale_secs, tcycle, ost_fp);
         }
         switch ((c = getch ())) {
             case KEY_DC:            /* Delete - turn off highlighting */
@@ -347,8 +349,8 @@ main (int argc, char *argv[])
             case 'u': 
             case 'm': 
             case 'S': 
-                _sort_ostlist (ost_data, tcycle, c); 
-                _sort_ostlist (oss_data, tcycle, 0); 
+                _sort_ostlist (ost_data, tcycle, c, &ost_fp); 
+                _sort_ostlist (oss_data, tcycle, 0, &ost_fp); 
                 break;
             case 'R':               /* R - toggle record mode */
                 if (!playf) {
@@ -442,8 +444,8 @@ main (int argc, char *argv[])
             recompute = 0;
         }
         if (resort) {
-            _sort_ostlist (ost_data, tcycle, 0); 
-            _sort_ostlist (oss_data, tcycle, 0); 
+            _sort_ostlist (ost_data, tcycle, 0, &ost_fp); 
+            _sort_ostlist (oss_data, tcycle, 0, &ost_fp); 
             resort = 0;
         }
     }
@@ -642,10 +644,11 @@ _ltrunc (char *s, int max)
  * Minost is the first ost to display (zero origin).
  * Selost is the selected ost, or -1 if none are selected (zero origin).
  * Stale_secs is the number of seconds after which data is expried.
+ * i is the column currently used for sorting (zero origin).
  */
 static void
 _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
-                     int stale_secs, time_t tnow)
+                     int stale_secs, time_t tnow, int i)
 {
     ListIterator itr;
     oststat_t *o;
@@ -653,13 +656,24 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     int skipost = minost;
 
     wclear (win);
+    wmove (win, y++, 0);
 
     wattron (win, A_REVERSE);
-    mvwprintw (win, y++, 0, "%-80s", " OST S        OSS"
-               "   Exp   CR rMB/s wMB/s  IOPS   LOCKS  LGR  LCR"
-               " %cpu %mem %spc");
+    wprintw (win, "%sOST",        i == 0  ? ">" : " ");
+    wprintw (win, "%sS",          i == 1  ? ">" : " ");
+    wprintw (win, "       %sOSS", i == 2  ? ">" : " ");
+    wprintw (win, "  %sExp",      i == 3  ? ">" : " ");
+    wprintw (win, "  %sCR",       i == 4  ? ">" : " ");
+    wprintw (win, "%srMB/s",      i == 5  ? ">" : " ");
+    wprintw (win, "%swMB/s",      i == 6  ? ">" : " ");
+    wprintw (win, " %sIOPS",      i == 7  ? ">" : " ");
+    wprintw (win, "  %sLOCKS",    i == 8  ? ">" : " ");
+    wprintw (win, " %sLGR",       i == 9  ? ">" : " ");
+    wprintw (win, " %sLCR",       i == 10 ? ">" : " ");
+    wprintw (win, "%s%%cpu",      i == 11 ? ">" : " ");
+    wprintw (win, "%s%%mem",      i == 12 ? ">" : " ");
+    wprintw (win, "%s%%spc",      i == 13 ? ">" : " ");
     wattroff(win, A_REVERSE);
-    assert (y == OSTWIN_H_LINES);
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
@@ -1561,10 +1575,9 @@ typedef struct {
 /* Sort the list of OST's according to the specified key (k).
  */
 static void
-_sort_ostlist (List ost_data, time_t tnow, char k)
+_sort_ostlist (List ost_data, time_t tnow, char k, int *ip)
 {
-    static int i = 0;
-    sort_t c[] = {
+    sort_t c[] = { /* order affects - see _update_display_ost () */
         { .fun = (ListCmpF)_cmp_oststat_byost,   .k = 't' },
         { .fun = (ListCmpF)_cmp_oststat_noop,    .k =  0  }, /* no-op */
         { .fun = (ListCmpF)_cmp_oststat_byoss,   .k = 's' },
@@ -1580,7 +1593,7 @@ _sort_ostlist (List ost_data, time_t tnow, char k)
         { .fun = (ListCmpF)_cmp_oststat_bymem,   .k = 'm' },
         { .fun = (ListCmpF)_cmp_oststat_byspc,   .k = 'S' },
     };
-    int j, nc = sizeof (c) / sizeof (c[0]);
+    int i = *ip, j, nc = sizeof (c) / sizeof (c[0]);
 
     if (k == '<') {
         if (--i < 0)
@@ -1600,6 +1613,7 @@ _sort_ostlist (List ost_data, time_t tnow, char k)
  
     sort_tnow = tnow;
     list_sort (ost_data, c[i].fun);
+    *ip = i;
 }
 
 /* Helper for _list_empty_out ().
