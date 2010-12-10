@@ -230,7 +230,6 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 SUBDIRS = liblsd libproc liblmt scripts $(am__append_1) utils test etc \
 	$(am__append_2)
-rpmdir = $(realpath $(top_builddir)/rpm)
 EXTRA_DIST = META lmt.spec
 all: all-recursive
 
