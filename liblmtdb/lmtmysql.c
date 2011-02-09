@@ -153,11 +153,11 @@ const char *sql_sel_router_info_tmpl =
 
 /* sql for lmtinit */
 const char *sql_drop_fs =
-    "drop database filesystem_%s";
+    "drop database `filesystem_%s`";
 const char *sql_create_fs =
-    "create database filesystem_%s";
+    "create database `filesystem_%s`";
 const char *sql_use_fs =
-    "use filesystem_%s";
+    "use `filesystem_%s`";
 
 const char *sql_ins_filesystem_info =
     "insert into FILESYSTEM_INFO "
