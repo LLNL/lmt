@@ -82,7 +82,7 @@ lmt_db_rwuser = "lwatchadmin"
 -- only UNIX users able to read the file can authenticate for read-write.
 --
 
-f = io.open("@X_DATADIR@/@PACKAGE@//rwpasswd")
+f = io.open("@X_SYSCONFDIR@/@PACKAGE@/rwpasswd")
 if (f) then
   lmt_db_rwpasswd = f:read("*l")
   f:close()
@@ -92,6 +92,6 @@ end
 .fi
 .LP
 .SH FILES
-@X_DATADIR@/@PACKAGE@/lmt.conf
+@X_SYSCONFDIR@/@PACKAGE@/lmt.conf
 .SH SEE ALSO
 lustre(7), lmtinit(8)
