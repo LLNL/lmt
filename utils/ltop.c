@@ -1026,11 +1026,12 @@ _copy_oststat (oststat_t *o1)
 
 /* Match an OST or MDT target against a file system name.
  * Target names are assumed to be of the form fs-OSTxxxx or fs-MDTxxxx.
+ * Careful of hyphen in file system name (see issue #50).
  */
 static int
 _fsmatch (char *name, char *fs)
 {
-    char *p = strchr (name, '-');
+    char *p = strrchr (name, '-');
     int len = p ? p - name : strlen (name);
 
     if (strlen (fs) == len && strncmp (name, fs, len) == 0)
