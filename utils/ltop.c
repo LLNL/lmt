@@ -172,7 +172,14 @@ static time_t sort_tnow = 0;
 static void
 usage (void)
 {
-    fprintf (stderr, "Usage: ltop [OPTIONS]\n");
+    fprintf (stderr,
+"Usage: ltop [OPTIONS]\n"
+"   -f,--filesystem NAME      monitor file system NAME [default 1st found]\n"
+"   -t,--sample-period SECS   change display refresh [default 1]\n"
+"   -r,--record FILE          record session to FILE\n"
+"   -p,--play FILE            play session from FILE\n"
+"   -s,--stale-secs SECS      ignore data when it is older SECS [default 12]\n"
+    );
     exit (1);
 }
 
