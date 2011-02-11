@@ -174,11 +174,11 @@ usage (void)
 {
     fprintf (stderr,
 "Usage: ltop [OPTIONS]\n"
-"   -f,--filesystem NAME      monitor file system NAME [default 1st found]\n"
-"   -t,--sample-period SECS   change display refresh [default 1]\n"
+"   -f,--filesystem NAME      monitor file system NAME [default: first found]\n"
+"   -t,--sample-period SECS   change display refresh [default: 1]\n"
 "   -r,--record FILE          record session to FILE\n"
 "   -p,--play FILE            play session from FILE\n"
-"   -s,--stale-secs SECS      ignore data when it is older SECS [default 12]\n"
+"   -s,--stale-secs SECS      ignore data older than SECS [default: 12]\n"
     );
     exit (1);
 }

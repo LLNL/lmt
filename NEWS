@@ -1,4 +1,14 @@
 ========================================================================
+Release Notes for LMT 3.1.2                                 11 Feb 2011
+========================================================================
+
+* Issue 48: lmtinit cannot handle hyphen in database name
+
+* Issue 50: ltop not working with hyphenated file system name
+
+* ltop: added options description to Usage message.
+
+========================================================================
 Release Notes for LMT 3.1.1                                 03 Dec 2010
 ========================================================================
 
