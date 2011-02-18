@@ -1137,7 +1137,7 @@ _decode_ost_v2 (char *val, char *fs, List ost_data,
                 time_t tnow, time_t trcv, int stale_secs)
 {
     List ostinfo;
-    char *s, *ossname, *ostname, *recov_status;
+    char *s, *p, *ossname, *ostname, *recov_status;
     float pct_cpu, pct_mem;
     uint64_t read_bytes, write_bytes;
     uint64_t kbytes_free, kbytes_total;
@@ -1149,6 +1149,9 @@ _decode_ost_v2 (char *val, char *fs, List ost_data,
     
     if (lmt_ost_decode_v2 (val, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
         return;
+    /* Issue 53: drop domain name, if any */
+    if ((p = strchr (ossname, '.')))
+        *p = '\0';
     itr = list_iterator_create (ostinfo);
     while ((s = list_next (itr))) {
         if (lmt_ost_decode_v2_ostinfo (s, &ostname,
