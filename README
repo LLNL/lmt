@@ -21,9 +21,9 @@ Cerebro data is extracted and inserted into the database by a single cerebro
 the new ltop client (C/curses) which interfaces directly to cerebro,
 are part of the lmt-server package.
 
-For more information, review the wiki pages at the LMT project page:
+For more information, review the LMT wiki pages:
 
-http://code.google.com/p/lmt/
+http://github.com/chaos/lmt/wiki
 
 Jim Garlick
 October, 2010

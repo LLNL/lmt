@@ -4,7 +4,7 @@
  *  UCRL-CODE-232438 *  All Rights Reserved.  *
  *  This file is part of Lustre Monitoring Tool, version 2.
  *  Authors: H. Wartens, P. Spencer, N. O'Neill, J. Long, J. Garlick
- *  For details, see http://code.google.com/p/lmt/.
+ *  For details, see http://github.com/chaos/lmt.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License (as published by the
