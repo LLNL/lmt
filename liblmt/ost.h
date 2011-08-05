@@ -28,8 +28,10 @@ int lmt_ost_string_v2 (pctx_t ctx, char *s, int len);
 
 int lmt_ost_decode_v2 (const char *s, char **ossnamep,
                         float *pct_cpup, float *pct_memp, List *ostinfop);
+
 int lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
-                        uint64_t *read_bytesp, uint64_t *write_bytesp,
+                        uint64_t *read_bytesp, uint64_t *hitsp,
+                        uint64_t *accessp, uint64_t *write_bytesp,
                         uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                         uint64_t *inodes_freep, uint64_t *inodes_totalp,
                         uint64_t *iopsp, uint64_t *num_exportsp,

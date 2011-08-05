@@ -186,6 +186,7 @@ _parse_ost_v2 (const char *s)
     uint64_t iops, num_exports;
     uint64_t lock_count, grant_rate, cancel_rate;
     uint64_t connect, reconnect;
+    uint64_t hits, access;
     List ostinfo = NULL;
     ListIterator itr = NULL;
     char *osi;
@@ -195,7 +196,8 @@ _parse_ost_v2 (const char *s)
     if (!(itr = list_iterator_create (ostinfo)))
         goto done;
     while ((osi = list_next (itr))) {
-        if (lmt_ost_decode_v2_ostinfo (osi, &ostname, &read_bytes, &write_bytes,
+        if (lmt_ost_decode_v2_ostinfo (osi, &ostname, &read_bytes, 
+                                       &hits, &access, &write_bytes,
                                        &kbytes_free, &kbytes_total,
                                        &inodes_free, &inodes_total, &iops,
                                        &num_exports, &lock_count, &grant_rate,

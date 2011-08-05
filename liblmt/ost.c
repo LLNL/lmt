@@ -121,6 +121,7 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     uint64_t iops, num_exports;
     uint64_t lock_count, grant_rate, cancel_rate;
     uint64_t connect, reconnect;
+    uint64_t hits, access;
     hash_t stats_hash = NULL;
     int n, retval = -1;
     char recov_str[64];
@@ -143,8 +144,10 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
                            NULL, NULL);
     proc_lustre_parsestat (stats_hash, "reconnect", &reconnect, NULL, NULL,
                            NULL, NULL);
-    //proc_lustre_parsestat (stats_hash, "commitrw", &iops, NULL, NULL,
-    //                       NULL, NULL);
+    proc_lustre_parsestat (stats_hash, "cache_access", &access, NULL, NULL,
+			               NULL, NULL);
+    proc_lustre_parsestat (stats_hash, "cache_hit", &hits, NULL, NULL,
+			               NULL, NULL);
     if (_get_iops (ctx, name, &iops) < 0) {
         if (lmt_conf_get_proto_debug ())
             err ("error reading lustre %s brw_stats", name);
@@ -183,10 +186,10 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     if (_get_recovstr (ctx, name, recov_str, sizeof (recov_str)) < 0)
         goto done;
     n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                  ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                  ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%s;",
+                  ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
+                  ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%s;",
                   uuid, filesfree, filestotal, kbytesfree, kbytestotal,
-                  read_bytes, write_bytes, iops, num_exports,
+                  read_bytes, hits, access, write_bytes, iops, num_exports,
                   lock_count, grant_rate, cancel_rate,
                   connect, reconnect, recov_str);
     if (n >= len) {
@@ -275,7 +278,7 @@ lmt_ost_decode_v2 (const char *s, char **ossnamep, float *pct_cpup,
             msg ("lmt_ost_v2: parse error: skipping oss component");
         goto done;
     }
-    while ((cpy = strskipcpy (&s, 15, ';')))
+    while ((cpy = strskipcpy (&s, 17, ';')))
         list_append (ostinfo, cpy);
     if (strlen (s) > 0) {
         if (lmt_conf_get_proto_debug ())
@@ -297,7 +300,8 @@ done:
 
 int
 lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
-                           uint64_t *read_bytesp, uint64_t *write_bytesp,
+                           uint64_t *read_bytesp, uint64_t *hitsp,
+                           uint64_t *accessp, uint64_t *write_bytesp,
                            uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
                            uint64_t *inodes_freep, uint64_t *inodes_totalp,
                            uint64_t *iopsp, uint64_t *num_exportsp,
@@ -315,14 +319,16 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
     uint64_t iops, num_exports;
     uint64_t lock_count, grant_rate, cancel_rate;
     uint64_t connect, reconnect;
+    uint64_t hits, access;
 
     if (sscanf (s,   "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
                 ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
-                ";%"PRIu64";%"PRIu64";%[^;];",
+                ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%[^;];",
                 ostname, &inodes_free, &inodes_total, &kbytes_free,
-                &kbytes_total, &read_bytes, &write_bytes, &iops, &num_exports,
+                &kbytes_total, &read_bytes, &hits, &access,
+                &write_bytes, &iops, &num_exports,
                 &lock_count, &grant_rate, &cancel_rate,
-                &connect, &reconnect, recov_status) != 15) {
+                &connect, &reconnect, recov_status) != 17) {
         if (lmt_conf_get_proto_debug ())
             msg ("lmt_ost_v2: parse error: ostinfo");
         goto done;
@@ -342,6 +348,8 @@ lmt_ost_decode_v2_ostinfo (const char *s, char **ostnamep,
     *connectp = connect;
     *reconnectp = reconnect;
     *recov_statusp = recov_status;
+    *hitsp = hits;
+    *accessp = access;
     retval = 0;
 done:
     if (retval < 0) {
