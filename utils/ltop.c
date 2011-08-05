@@ -85,6 +85,8 @@ typedef struct {
     sample_t kbytes_total;      /* total space (kbytes) */
     sample_t pct_cpu;
     sample_t pct_mem;
+    sample_t hits;              /* hits in the read cache */
+    sample_t access;            /* accesses in the read cache */
     char recov_status[32];      /* free form string representing recov status */
     time_t ost_metric_timestamp;/* cerebro timestamp for ost metric (not osc) */
     char ossname[MAXHOSTNAMELEN];/* oss hostname */
@@ -243,7 +245,7 @@ main (int argc, char *argv[])
         msg_exit ("--record and --play cannot be used together");
 #if ! HAVE_CEREBRO_H
     if (!playf)
-	msg_exit ("ltop was not built with cerebro support, use -p option");
+        msg_exit ("ltop was not built with cerebro support, use -p option");
 #endif
     if (!fs)
         fs = _find_first_fs(playf, stale_secs);
@@ -668,18 +670,19 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     wattron (win, A_REVERSE);
     wprintw (win, "%sOST",        i == 0  ? ">" : " ");
     wprintw (win, "%sS",          i == 1  ? ">" : " ");
-    wprintw (win, "       %sOSS", i == 2  ? ">" : " ");
+    wprintw (win, "     %sOSS",   i == 2  ? ">" : " ");
     wprintw (win, "  %sExp",      i == 3  ? ">" : " ");
-    wprintw (win, "  %sCR",       i == 4  ? ">" : " ");
+    wprintw (win, " %sCR",        i == 4  ? ">" : " ");
     wprintw (win, "%srMB/s",      i == 5  ? ">" : " ");
     wprintw (win, "%swMB/s",      i == 6  ? ">" : " ");
     wprintw (win, " %sIOPS",      i == 7  ? ">" : " ");
-    wprintw (win, "  %sLOCKS",    i == 8  ? ">" : " ");
+    wprintw (win, " %sLOCKS",     i == 8  ? ">" : " ");
     wprintw (win, " %sLGR",       i == 9  ? ">" : " ");
     wprintw (win, " %sLCR",       i == 10 ? ">" : " ");
     wprintw (win, "%s%%cpu",      i == 11 ? ">" : " ");
     wprintw (win, "%s%%mem",      i == 12 ? ">" : " ");
     wprintw (win, "%s%%spc",      i == 13 ? ">" : " ");
+    wprintw (win, "%s%%hit",      i == 14 ? ">" : " ");
     wattroff(win, A_REVERSE);
 
     itr = list_iterator_create (ost_data);
@@ -704,10 +707,12 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
             double ktot = sample_val (o->kbytes_total, tnow);
             double kfree = sample_val (o->kbytes_free, tnow);
             double pct_used = ktot > 0 ? ((ktot - kfree) / ktot)*100.0 : 0;
+            double hit_ratio = (sample_val (o->hits, tnow) /
+                                sample_val (o->access, tnow))*100.00;
 
-            mvwprintw (win, y, 0, "%4.4s %1.1s %10.10s"
-                       " %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f"
-                       " %4.0f %4.0f %4.0f",
+            mvwprintw (win, y, 0, "%4.4s %1.1s %8.10s"
+                       " %5.0f %3.0f %5.0f %5.0f %5.0f %5.0f %4.0f %4.0f"
+                       " %4.0f %4.0f %4.0f  %4.0f",
                        o->name, o->oscstate, _ltrunc (o->ossname, 10),
                        sample_val (o->num_exports, tnow),
                        sample_rate (o->connect, tnow),
@@ -719,7 +724,7 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
                        sample_val (o->cancel_rate, tnow),
                        sample_val (o->pct_cpu, tnow),
                        sample_val (o->pct_mem, tnow),
-                       pct_used);
+                       pct_used, hit_ratio);
         }
         if (y - 1 + minost == selost)
             wattroff(win, A_REVERSE);
@@ -966,18 +971,20 @@ _create_oststat (char *name, int stale_secs)
     strncpy (o->name, ostx ? ostx + 4 : name, sizeof(o->name) - 1);
     strncpy (o->fsname, name, ostx ? ostx - name : sizeof (o->fsname) - 1);
     *o->oscstate = '\0';
-    o->rbytes =       sample_create (stale_secs);
-    o->wbytes =       sample_create (stale_secs);
-    o->iops =         sample_create (stale_secs);
-    o->num_exports =  sample_create (stale_secs);
-    o->lock_count =   sample_create (stale_secs);
-    o->grant_rate =   sample_create (stale_secs);
-    o->cancel_rate =  sample_create (stale_secs);
-    o->connect =      sample_create (stale_secs);
-    o->kbytes_free =  sample_create (stale_secs);
+    o->rbytes       = sample_create (stale_secs);
+    o->wbytes       = sample_create (stale_secs);
+    o->iops         = sample_create (stale_secs);
+    o->num_exports  = sample_create (stale_secs);
+    o->lock_count   = sample_create (stale_secs);
+    o->grant_rate   = sample_create (stale_secs);
+    o->cancel_rate  = sample_create (stale_secs);
+    o->connect      = sample_create (stale_secs);
+    o->kbytes_free  = sample_create (stale_secs);
     o->kbytes_total = sample_create (stale_secs);
     o->pct_cpu      = sample_create (stale_secs);
     o->pct_mem      = sample_create (stale_secs);
+    o->hits         = sample_create (stale_secs);
+    o->access       = sample_create (stale_secs);
     return o;
 }
 
@@ -998,6 +1005,8 @@ _destroy_oststat (oststat_t *o)
     sample_destroy (o->kbytes_total);
     sample_destroy (o->pct_cpu);
     sample_destroy (o->pct_mem);
+    sample_destroy (o->hits);
+    sample_destroy (o->access);
     free (o);
 }
 
@@ -1009,18 +1018,20 @@ _copy_oststat (oststat_t *o1)
     oststat_t *o = xmalloc (sizeof (*o));
 
     memcpy (o, o1, sizeof (*o));
-    o->rbytes =       sample_copy (o1->rbytes);
-    o->wbytes =       sample_copy (o1->wbytes);
-    o->iops =         sample_copy (o1->iops);
-    o->num_exports =  sample_copy (o1->num_exports);
-    o->lock_count =   sample_copy (o1->lock_count);
-    o->grant_rate =   sample_copy (o1->grant_rate);
-    o->cancel_rate =  sample_copy (o1->cancel_rate);
-    o->connect =      sample_copy (o1->connect);
-    o->kbytes_free =  sample_copy (o1->kbytes_free);
+    o->rbytes       = sample_copy (o1->rbytes);
+    o->wbytes       = sample_copy (o1->wbytes);
+    o->iops         = sample_copy (o1->iops);
+    o->num_exports  = sample_copy (o1->num_exports);
+    o->lock_count   = sample_copy (o1->lock_count);
+    o->grant_rate   = sample_copy (o1->grant_rate);
+    o->cancel_rate  = sample_copy (o1->cancel_rate);
+    o->connect      = sample_copy (o1->connect);
+    o->kbytes_free  = sample_copy (o1->kbytes_free);
     o->kbytes_total = sample_copy (o1->kbytes_total);
     o->pct_cpu      = sample_copy (o1->pct_cpu);
     o->pct_mem      = sample_copy (o1->pct_mem);
+    o->hits         = sample_copy (o1->hits);
+    o->access       = sample_copy (o1->access);
     return o;
 }
 
@@ -1089,12 +1100,13 @@ _decode_osc_v1 (char *val, char *fs, List ost_data,
  * Create an entry if one doesn't exist.
  */
 static void
-_update_ost (char *ostname, char *ossname, uint64_t read_bytes,
-             uint64_t write_bytes, uint64_t iops, uint64_t num_exports,
-             uint64_t lock_count, uint64_t grant_rate, uint64_t cancel_rate,
-             uint64_t connect, char *recov_status, uint64_t kbytes_free,
-             uint64_t kbytes_total, float pct_cpu, float pct_mem,
-             List ost_data, time_t tnow, time_t trcv, int stale_secs)
+_update_ost (char *ostname, char *ossname, uint64_t read_bytes, uint64_t hits,
+             uint64_t access, uint64_t write_bytes, uint64_t iops, 
+             uint64_t num_exports, uint64_t lock_count, uint64_t grant_rate, 
+             uint64_t cancel_rate, uint64_t connect, char *recov_status, 
+             uint64_t kbytes_free, uint64_t kbytes_total, float pct_cpu, 
+             float pct_mem, List ost_data, time_t tnow, time_t trcv, 
+             int stale_secs)
 {
     oststat_t *o;
 
@@ -1113,6 +1125,8 @@ _update_ost (char *ostname, char *ossname, uint64_t read_bytes,
             sample_invalidate (o->kbytes_total);
             sample_invalidate (o->pct_cpu);
             sample_invalidate (o->pct_mem);
+            sample_invalidate (o->hits);
+            sample_invalidate (o->access);
             snprintf (o->ossname, sizeof (o->ossname), "%s", ossname);
         }
         o->ost_metric_timestamp = trcv;
@@ -1128,6 +1142,8 @@ _update_ost (char *ostname, char *ossname, uint64_t read_bytes,
         sample_update (o->kbytes_total, (double)kbytes_total, trcv);
         sample_update (o->pct_cpu, (double)pct_cpu, trcv);
         sample_update (o->pct_mem, (double)pct_mem, trcv);
+        sample_update (o->hits, (double)hits, trcv);
+        sample_update (o->access, (double)access, trcv);
         snprintf (o->recov_status, sizeof(o->recov_status), "%s", recov_status);
     }
 }
@@ -1145,6 +1161,7 @@ _decode_ost_v2 (char *val, char *fs, List ost_data,
     uint64_t iops, num_exports;
     uint64_t lock_count, grant_rate, cancel_rate;
     uint64_t connect, reconnect;
+    uint64_t hits, access;
     ListIterator itr;
     
     if (lmt_ost_decode_v2 (val, &ossname, &pct_cpu, &pct_mem, &ostinfo) < 0)
@@ -1155,7 +1172,8 @@ _decode_ost_v2 (char *val, char *fs, List ost_data,
     itr = list_iterator_create (ostinfo);
     while ((s = list_next (itr))) {
         if (lmt_ost_decode_v2_ostinfo (s, &ostname,
-                                       &read_bytes, &write_bytes,
+                                       &read_bytes, &hits, 
+                                       &access, &write_bytes,
                                        &kbytes_free, &kbytes_total,
                                        &inodes_free, &inodes_total, &iops,
                                        &num_exports, &lock_count,
@@ -1163,11 +1181,11 @@ _decode_ost_v2 (char *val, char *fs, List ost_data,
                                        &connect, &reconnect,
                                        &recov_status) == 0) {
             if (!fs || _fsmatch (ostname, fs)) {
-                _update_ost (ostname, ossname, read_bytes, write_bytes,
-                             iops, num_exports, lock_count, grant_rate,
-                             cancel_rate, connect + reconnect, recov_status,
-                             kbytes_free, kbytes_total, pct_cpu, pct_mem,
-                             ost_data, tnow, trcv, stale_secs);
+                _update_ost (ostname, ossname, read_bytes, hits, access,
+                             write_bytes, iops, num_exports, lock_count, 
+                             grant_rate, cancel_rate, connect + reconnect, 
+                             recov_status, kbytes_free, kbytes_total, pct_cpu, 
+                             pct_mem, ost_data, tnow, trcv, stale_secs);
             }
             free (ostname);
             free (recov_status);
@@ -1496,6 +1514,8 @@ _summarize_ost (List ost_data, List oss_data, time_t tnow, int stale_secs)
             sample_add (o2->grant_rate, o->grant_rate);
             sample_add (o2->cancel_rate, o->cancel_rate);
             sample_add (o2->connect, o->connect);
+            sample_add (o2->hits, o->hits);
+            sample_add (o2->access, o->access);
             if (o->ost_metric_timestamp < o2->ost_metric_timestamp)
                 o2->ost_metric_timestamp = o->ost_metric_timestamp;
             /* Ensure recov_status and oscstate reflect any unrecovered or
