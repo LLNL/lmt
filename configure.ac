@@ -45,6 +45,11 @@ AC_C_BIGENDIAN
 AC_C_CONST
 
 ##
+# Checks for standard libraries
+##
+AC_CHECK_LIB(m, cos)
+
+##
 # Checks for library functions
 ##
 AC_CHECK_FUNCS( \
