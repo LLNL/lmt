@@ -1,5 +1,5 @@
 Name: lmt
-Version: 3.1.2
+Version: 3.1.3
 Release: 1
 
 # TODO: lmt-utils subpackage for ltop (once ltop can read proc directly)
@@ -7,7 +7,7 @@ Release: 1
 License: GPL
 Group: Applications/System
 Summary: Lustre Montitoring Tool
-URL: http://code.google.com/p/lmt
+URL: http://github.com/chaos/lmt
 Packager: Jim Garlick <garlick@llnl.gov>
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
