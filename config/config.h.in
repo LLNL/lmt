@@ -85,6 +85,9 @@
 /* Define to 1 if you have the `lua' library (-llua). */
 #undef HAVE_LIBLUA
 
+/* Define to 1 if you have the `m' library (-lm). */
+#undef HAVE_LIBM
+
 /* Define this if a modern libltdl is already installed */
 #undef HAVE_LTDL
 
