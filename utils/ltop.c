@@ -116,12 +116,18 @@ typedef struct {
     uint64_t t;                 /* time stamp */
 } ts_t;
 
+typedef struct {
+    char     fsname[17];       /* file system name */
+    uint64_t num_ost;          /* number of OSTs */
+} fsstat_t;
+
 static void _poll_cerebro (char *fs, List mdt_data, List ost_data,
                            int stale_secs, FILE *recf, time_t *tp);
 static void _play_file (char *fs, List mdt_data, List ost_data,
                         List time_series, int stale_secs, FILE *playf,
                         time_t *tp, int *tdiffp);
 static void _update_display_help (WINDOW *win);
+static char *_choose_fs (WINDOW *win, FILE *playf, int stale_secs);
 static void _update_display_top (WINDOW *win, char *fs, List mdt_data,
                                  List ost_data, int stale_secs, FILE *recf,
                                  FILE *playf, time_t tnow, int pause);
@@ -136,6 +142,7 @@ static void _clear_tags (List ost_data);
 static void _tag_nth_ost (List ost_data, int selost, List ost_data2);
 static void _sort_ostlist (List ost_data, time_t tnow, char k, int *ip);
 static char *_find_first_fs (FILE *playf, int stale_secs);
+static List _find_all_fs (FILE *playf, int stale_secs);
 static void _record_file (FILE *f, time_t tnow, time_t trcv, char *node,
                           char *name, char *s);
 static int _rewind_file (FILE *f, List time_series, int count);
@@ -189,8 +196,8 @@ main (int argc, char *argv[])
     int c;
     WINDOW *topwin, *ostwin;
     int ostcount, selost = -1, minost = 0;
-    int ostview = 1, resort = 0, recompute = 0;
-    char *fs = NULL;
+    int ostview = 1, resort = 0, recompute = 0, repoll = 0;
+    char *fs = NULL, *newfs;
     int sopt = 0;
     int sample_period = 2; /* seconds */
     int stale_secs = 12; /* seconds */
@@ -213,7 +220,7 @@ main (int argc, char *argv[])
     while ((c = GETOPT (argc, argv, OPTIONS, longopts)) != -1) {
         switch (c) {
             case 'f':   /* --filesystem FS */
-                fs = optarg;
+                fs = xstrdup (optarg);
                 break;
             case 't':   /* --sample-period SECS */
                 sample_period = strtoul (optarg, NULL, 10);
@@ -341,6 +348,17 @@ main (int argc, char *argv[])
                 else
                     _tag_nth_ost (oss_data, selost, ost_data);
                 break;
+            case 'f':
+                newfs = _choose_fs (topwin, playf, stale_secs);
+                if (newfs) {
+                    if (strcmp (newfs, fs) != 0) {
+                        free (fs);
+                        fs = xstrdup (newfs);
+                        repoll = 1;
+                    }
+                    free (newfs);
+                }
+                break;
             case '>':               /* change sorting column (ost/oss) */
             case '<': 
             case 't': 
@@ -428,6 +446,11 @@ main (int argc, char *argv[])
         }
         if (c != ERR && c != '?')
             showhelp = 0;
+        if (repoll) {
+            _list_empty_out (mdt_data);
+            _list_empty_out (ost_data);
+            last_sample = 0; /* force resample */
+        }
         if (time (NULL) - last_sample >= sample_period) {
             if (!pause) {
                 if (playf)
@@ -461,6 +484,7 @@ main (int argc, char *argv[])
     list_destroy (mdt_data);
     list_destroy (oss_data);
     list_destroy (time_series);
+    free (fs);
     
     if (recf) {
         if (fclose (recf) == EOF)
@@ -497,6 +521,7 @@ static void _update_display_help (WINDOW *win)
     mvwprintw (win, y++, 2, "Tab        Fast-fwd playback one minute");
     mvwprintw (win, y++, 2, "Backspace  Rewind playback one minute");
     mvwprintw (win, y++, 2, "c          Toggle OST/OSS view");
+    mvwprintw (win, y++, 2, "f          Select filesystem to monitor");
     mvwprintw (win, y++, 2, ">          Sort on next right column");
     mvwprintw (win, y++, 2, "<          Sort on next left column");
     mvwprintw (win, y++, 2, "s          Sort on OSS name (ascending)");
@@ -634,6 +659,152 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                    "", "", "");
     }
     wrefresh (win);
+}
+
+/*  Used for list_find_first () of fsstat_t by filesystem name.
+ */
+static int
+_match_fsstat(fsstat_t *fsstat, char *fsname)
+{
+    return (strcmp (fsstat->fsname, fsname) == 0);
+}
+
+/* Trivial destructor for fstat record.
+ */
+static void
+_destroy_fsstat (fsstat_t *f)
+{
+    free (f);
+}
+
+/* Create an fsstat record.
+ */
+static fsstat_t *
+_create_fsstat (char *fsname, uint64_t osts)
+{
+    fsstat_t *f = xmalloc (sizeof (*f));
+    memset (f, 0, sizeof (*f));
+    strncpy (f->fsname, fsname, sizeof (f->fsname) - 1);
+    f->num_ost = osts;
+    return f;
+}
+
+/* Display a menu allowing selection from a list of file systems available
+ * for monitoring.
+ */
+static void
+_update_display_choose_fs (int selfs, WINDOW *win, List fsl)
+{
+    int y = 0;
+    fsstat_t *f;
+    ListIterator fsitr;
+    fsitr = list_iterator_create (fsl);
+    int hdr_rows = 3; /* rows in header */
+
+    wclear (win);
+    mvwprintw (win, y++, 0, "Select a filesystem to monitor.");
+    mvwprintw (win, y++, 0, "");
+    wattron (win, A_REVERSE);
+    mvwprintw (win, y++, 0, "NAME              OSTs");
+    wattroff (win, A_REVERSE);
+
+    for (; (f = list_next (fsitr)); y++) {
+        if (y - hdr_rows == selfs)
+            wattron (win, A_UNDERLINE);
+        mvwprintw (win, y, 0, "%-17s %4d", f->fsname, f->num_ost);
+        if (y - hdr_rows == selfs)
+            wattroff (win, A_UNDERLINE);
+    }
+
+    list_iterator_destroy (fsitr);
+    wrefresh (win);
+}
+
+/* Return a list of fsstat_t records containing file system names
+ * and OST counts for all available file systems.
+ */
+static List
+_find_all_fs (FILE *playf, int stale_secs)
+{
+    List ost_data = list_create ((ListDelF)_destroy_oststat);
+    List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
+    List fsl      = list_create ((ListDelF)_destroy_fsstat);
+    ListIterator itr;
+    mdtstat_t *m;
+    oststat_t *o;
+    fsstat_t *f;
+
+    if (playf)
+        _play_file (NULL, mdt_data, ost_data, NULL, stale_secs,
+                    playf, NULL, NULL);
+    else
+        _poll_cerebro (NULL, mdt_data, ost_data, stale_secs, NULL, NULL);
+
+    itr = list_iterator_create (mdt_data);
+    while ((m = list_next (itr))) {
+        if (!(f = list_find_first (fsl, (ListFindF)_match_fsstat, m->fsname)))
+            list_append (fsl, _create_fsstat (m->fsname, 0));
+    }
+    list_iterator_destroy (itr);
+    itr = list_iterator_create (ost_data);
+    while ((o = list_next (itr))) {
+        if (!(f = list_find_first (fsl, (ListFindF)_match_fsstat, o->fsname)))
+            list_append (fsl, _create_fsstat (o->fsname, 1));
+        else
+            f->num_ost++;
+    }
+
+    list_iterator_destroy (itr);
+    list_destroy (ost_data);
+    list_destroy (mdt_data);
+    return fsl;
+}
+
+/* Return a heap-allocated string containing name of selected
+ * file system, or NULL if no selection was made.
+ */
+static char *
+_choose_fs (WINDOW *win, FILE *playf, int stale_secs)
+{
+    int selfs = 0, fscount = 0, i, loop, c;
+    fsstat_t *f;
+    char *ret = NULL;
+    List fsl = _find_all_fs (playf, stale_secs);
+    ListIterator fsitr = list_iterator_create (fsl);
+
+    _update_display_choose_fs (selfs, win, fsl);
+    fscount = list_count (fsl);
+    loop = fscount;
+    while (loop && !ret) {
+        switch ((c = getch ())) {
+            case KEY_UP:    /* UpArrow|k - move highlight up */
+            case 'k':       /* vi */
+                if (selfs > 0)
+                    _update_display_choose_fs (--selfs, win, fsl);
+                break;
+            case KEY_DOWN:  /* DnArrow|j - move highlight down */
+            case 'j':       /* vi */
+                if (selfs < fscount - 1)
+                    _update_display_choose_fs (++selfs, win, fsl);
+                break;
+            case '\n':      /* Enter|Space selects filesystem */
+            case KEY_ENTER:
+            case ' ':
+                for (i=0; (f = list_next (fsitr)); i++)
+                    if (i == selfs)
+                        ret = xstrdup (f->fsname);
+                break;
+            case ERR:       /* timeout */
+                break;
+            default:        /* Any other key returns to main screen */
+                loop = 0;
+                break;
+        }
+    }
+
+    list_iterator_destroy (fsitr);
+    list_destroy (fsl);
+    return ret;
 }
 
 /* Left "truncate" s by returning an offset into it such that the new
@@ -1436,37 +1607,23 @@ _rewind_file_to (FILE *f, List time_series, time_t target)
 }
 
 /* Peek at the data to find a default file system to monitor.
+ * Ignore file systems with no OSTs.
  */
 static char *
 _find_first_fs (FILE *playf, int stale_secs)
 {
-    List ost_data = list_create ((ListDelF)_destroy_oststat);
-    List mdt_data = list_create ((ListDelF)_destroy_mdtstat);
+    List fsl = _find_all_fs (playf, stale_secs);
     ListIterator itr;
-    mdtstat_t *m;
-    oststat_t *o;
+    fsstat_t *f;
     char *ret = NULL;
 
-    if (playf) {
-        _play_file (NULL, mdt_data, ost_data, NULL, stale_secs,
-                    playf, NULL, NULL);
-        if (fseek (playf, 0, SEEK_SET) < 0)
-            err_exit ("error rewinding playback file");
-    } else
-        _poll_cerebro (NULL, mdt_data, ost_data, stale_secs, NULL, NULL);
-
-    itr = list_iterator_create (mdt_data);
-    while (!ret && (m = list_next (itr)))
-        ret = xstrdup (m->fsname);
+    itr = list_iterator_create (fsl);
+    while (!ret && (f = list_next (itr))) {
+        if (f->num_ost > 0)
+            ret = xstrdup (f->fsname);
+    }
     list_iterator_destroy (itr);
-
-    itr = list_iterator_create (ost_data);
-    while (!ret && (o = list_next (itr)))
-        ret = xstrdup (o->fsname);
-    list_iterator_destroy (itr);
-
-    list_destroy (ost_data);
-    list_destroy (mdt_data);
+    list_destroy (fsl);
 
     return ret;
 }
