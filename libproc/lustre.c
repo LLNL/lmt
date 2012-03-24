@@ -247,17 +247,10 @@ _build_osd_stats_path (pctx_t ctx, char *name, char **stats)
 
     if (strstr (name, "-MDT")) {
         if (lustre_version >= LUSTRE_2_0) {
-            if (_find_lustre_backfs_type (ctx) == BACKFS_ZFS) {
-                if ((ret = _build_mdt_path (ctx,
-                                            PROC_FS_LUSTRE_1_8_MDT_STATS,
-                                            stats)) < 0)
-                    goto done;
-            } else {
-                if ((ret = _build_mdt_path (ctx,
-                                            PROC_FS_LUSTRE_2_0_MDT_STATS,
-                                            stats)) < 0)
-                    goto done;
-            }
+            if ((ret = _build_mdt_path (ctx,
+                                        PROC_FS_LUSTRE_2_0_MDT_STATS,
+                                        stats)) < 0)
+                goto done;
         } else {
             if ((ret = _build_mdt_path (ctx,
                                         PROC_FS_LUSTRE_1_8_MDT_STATS,
