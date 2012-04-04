@@ -7,8 +7,8 @@ Release: 1
 License: GPL
 Group: Applications/System
 Summary: Lustre Montitoring Tool
-URL: http://code.google.com/p/lmt
-Packager: Jim Garlick <garlick@llnl.gov>
+URL: http://github.com/chaos/lmt
+Packager: Ned Bass <bass6@llnl.gov>
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: mysql, mysql-devel
