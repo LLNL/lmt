@@ -449,6 +449,7 @@ main (int argc, char *argv[])
         if (repoll) {
             _list_empty_out (mdt_data);
             _list_empty_out (ost_data);
+            repoll = 0;
             last_sample = 0; /* force resample */
         }
         if (time (NULL) - last_sample >= sample_period) {
@@ -468,6 +469,9 @@ main (int argc, char *argv[])
 
         if (recompute) {
             ostcount = list_count (ostview ? ost_data : oss_data);
+            delwin (ostwin);
+            if (!(ostwin = newwin (ostcount + 1, 80, TOPWIN_LINES, 0)))
+                err_exit ("error initializing subwindow");
             if (!ostview)
                 _summarize_ost (ost_data, oss_data, tcycle, stale_secs);
             resort = 1;
