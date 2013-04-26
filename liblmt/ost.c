@@ -156,7 +156,9 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     if (_get_iops (ctx, name, &iops) < 0) {
         if (lmt_conf_get_proto_debug ())
             err ("error reading lustre %s brw_stats", name);
-        goto done;
+	/* As of 2.4 (if not earlier), osd-zfs and osd-liskfs lack
+	 * the brw_stats file in proc like obdfilter used to have.
+	 * But this should be a non-fatal event. */
     }
     if (proc_lustre_files (ctx, name, &filesfree, &filestotal) < 0) {
         if (lmt_conf_get_proto_debug ())
