@@ -65,6 +65,14 @@ _get_mem_usage (pctx_t ctx, double *fp)
     return 0;
 }
 
+/*
+ * Read the "pages per bulk r/w"  histogram from the
+ * brw_stats file.  Then sum rpc counts from all of the
+ * histogram bins, including both reads and writes,
+ * into a single number representing all bulk RPCs
+ * that this target has handled.  ltop calls these
+ * "IOPs".
+ */
 static int
 _get_iops (pctx_t ctx, char *name, uint64_t *iopsp)
 {
