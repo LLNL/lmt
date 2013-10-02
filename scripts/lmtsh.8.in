@@ -1,0 +1,113 @@
+.TH lmtsh 8 "@META_DATE@" "@META_ALIAS@" "@META_NAME@"
+.SH NAME
+lmtsh \- display stored data about a Lustre file system
+.SH SYNOPSIS
+.B "lmtsh [OPTIONS]
+.SH DESCRIPTION
+.B lmtsh
+displays data from a MySQL database about a Lustre file system
+monitored by LMT.
+.SH OPTIONS
+.B lmtsh
+accepts the following command line options:
+.TP
+.I "-d"
+Debug mode
+.TP
+.I -v
+Verbose mode
+.TP
+.I "-f FSNAME"
+Connect to FSNAME (default is first found)
+.TP
+.I "-c CONFIG"
+Use alternate config file
+.TP
+.I -l
+List file systems and exit
+.SH "AVAILABLE COMMANDS"
+.TP
+.B "cat table"
+Print contents of table
+.TP
+.B "clr table"
+Clear contents of table; 'agg' to clear all agg tables
+.TP
+.B "dt t1 t2"
+Show diff in seconds between two timestamps (or ts ids)
+.TP
+.B "fs [filesys]"
+List available filesystems, or connect to given one
+.TP
+.B "getwindow table startTime endTime|+interval field(s)"
+Get window of data between startTime (ts|tsid) and
+endTime (ts or tsid or +interval), returning field(s)
+.TP
+.B "head [\-N] table"
+Print the first N records from table (default=100)
+.TP
+.B "ost [ostname|ostid]"
+List available OSTs, or info about specific one
+.TP
+.B "t [table]"
+List available tables, or describe given table
+.TP
+.B "tail [\-N] table"
+Print the last N records from table (default=100)
+.TP
+.B "ts ts|tsid ..."
+Print information about given timestamp or timestamp id
+.TP
+.B "ts1 table"
+Print earliest timestamp (and id) from table
+.TP
+.B "tsn table"
+Print latest timestamp (and id) from table
+.TP
+.B "vo [varname|vid]"
+Print all ost var id/names, or just the specific one(s)
+.TP
+.B "vt table"
+List all variable ids associated with table
+.TP
+.B "! command"
+Execute command in a shell
+.SH EXAMPLES
+.TP
+.B "clr OST_AGGREGATE_YEAR"
+Clear contents of OST_AGGREGATE_YEAR
+.TP
+.B "dt 41 '2007\-02\-03 04:05:06'"
+Print number of seconds between TS_ID 41 and time
+.TP
+.B "fs ti2" 
+Disconnect from current filesys and connect to ti2
+.TP
+.B "os"t 3
+Print info about ost 3
+.TP
+.B "t"
+List all tables
+.TP
+.B "t VERSION"
+Describe table VERSION
+.TP
+.B "ts 455790"
+Print into about TS_ID 455790
+.TP
+.B "ts '2007\-02\-03 04:05:06'  "
+Print into about given timestamp
+.TP
+.B "ts1 OST_DATA"
+Print earliest timestamp and id from OST_DATA
+.TP
+.B "tsn OST_DATA"
+Print latest timestamp and id from OST_DATA
+.TP
+.B "v"
+Print all variable id/names
+.TP
+.B "vt OST_AGGREGATE_HOUR"
+List all var ids associated with OST_AGGREGATE_HOUR
+.SH SEE ALSO
+lmt.conf(5), lmtinit(8), lmt_agg.cron(8)
