@@ -24,7 +24,8 @@ cronlib_SCRIPTS = \
 	lmt_agg.cron
 
 man8_MANS = \
-	lmt_agg.cron.8
+	lmt_agg.cron.8 \
+	lmtsh.8
 
 CLEANFILES = \
 	lmtsh \
@@ -35,5 +36,6 @@ CLEANFILES = \
         lmt_update_other_agg \
         lmt_update_router_agg \
 	LMT.pm \
-	lmt_agg.cron.8
+	lmt_agg.cron.8 \
+	lmtsh.8
 
