@@ -15556,7 +15556,7 @@ _ACEOF
 ##
 # Epilogue
 ##
-ac_config_files="$ac_config_files lmt.spec Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 scripts/Makefile scripts/LMT.pm scripts/lmt_agg.cron.8"
+ac_config_files="$ac_config_files lmt.spec Makefile liblsd/Makefile libproc/Makefile liblmt/Makefile liblmtdb/Makefile utils/Makefile cerebro/Makefile cerebro/metric/Makefile cerebro/monitor/Makefile test/Makefile etc/Makefile etc/lmt.conf etc/lmt.conf.5 utils/ltop.1 utils/lmtinit.8 scripts/Makefile scripts/LMT.pm scripts/lmt_agg.cron.8 scripts/lmtsh.8"
 
 
 ac_config_files="$ac_config_files scripts/lmtsh"
@@ -16531,6 +16531,7 @@ do
     "scripts/Makefile") CONFIG_FILES="$CONFIG_FILES scripts/Makefile" ;;
     "scripts/LMT.pm") CONFIG_FILES="$CONFIG_FILES scripts/LMT.pm" ;;
     "scripts/lmt_agg.cron.8") CONFIG_FILES="$CONFIG_FILES scripts/lmt_agg.cron.8" ;;
+    "scripts/lmtsh.8") CONFIG_FILES="$CONFIG_FILES scripts/lmtsh.8" ;;
     "scripts/lmtsh") CONFIG_FILES="$CONFIG_FILES scripts/lmtsh" ;;
     "scripts/lmt_update_fs_agg") CONFIG_FILES="$CONFIG_FILES scripts/lmt_update_fs_agg" ;;
     "scripts/lmt_update_mds_agg") CONFIG_FILES="$CONFIG_FILES scripts/lmt_update_mds_agg" ;;

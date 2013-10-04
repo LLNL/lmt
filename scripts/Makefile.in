@@ -43,7 +43,8 @@ DIST_COMMON = $(dist_scriptlib_DATA) $(srcdir)/LMT.pm.in \
 	$(srcdir)/lmt_update_fs_agg.in $(srcdir)/lmt_update_mds_agg.in \
 	$(srcdir)/lmt_update_ost_agg.in \
 	$(srcdir)/lmt_update_other_agg.in \
-	$(srcdir)/lmt_update_router_agg.in $(srcdir)/lmtsh.in
+	$(srcdir)/lmt_update_router_agg.in $(srcdir)/lmtsh.8.in \
+	$(srcdir)/lmtsh.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/x_ac_cerebro.m4 \
 	$(top_srcdir)/config/x_ac_check_cond_lib.m4 \
@@ -56,9 +57,9 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config/config.h
-CONFIG_CLEAN_FILES = LMT.pm lmt_agg.cron.8 lmtsh lmt_update_fs_agg \
-	lmt_update_mds_agg lmt_update_ost_agg lmt_update_other_agg \
-	lmt_update_router_agg lmt_agg.cron
+CONFIG_CLEAN_FILES = LMT.pm lmt_agg.cron.8 lmtsh.8 lmtsh \
+	lmt_update_fs_agg lmt_update_mds_agg lmt_update_ost_agg \
+	lmt_update_other_agg lmt_update_router_agg lmt_agg.cron
 CONFIG_CLEAN_VPATH_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -280,7 +281,8 @@ cronlib_SCRIPTS = \
 	lmt_agg.cron
 
 man8_MANS = \
-	lmt_agg.cron.8
+	lmt_agg.cron.8 \
+	lmtsh.8
 
 CLEANFILES = \
 	lmtsh \
@@ -291,7 +293,8 @@ CLEANFILES = \
         lmt_update_other_agg \
         lmt_update_router_agg \
 	LMT.pm \
-	lmt_agg.cron.8
+	lmt_agg.cron.8 \
+	lmtsh.8
 
 all: all-am
 
@@ -329,6 +332,8 @@ $(am__aclocal_m4_deps):
 LMT.pm: $(top_builddir)/config.status $(srcdir)/LMT.pm.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 lmt_agg.cron.8: $(top_builddir)/config.status $(srcdir)/lmt_agg.cron.8.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+lmtsh.8: $(top_builddir)/config.status $(srcdir)/lmtsh.8.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 lmtsh: $(top_builddir)/config.status $(srcdir)/lmtsh.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
