@@ -302,6 +302,9 @@ while ( defined (my $cmd = $term->readline($prompt)) ) {
 	
 	if ($table eq "TIMESTAMP_INFO") {
 	    $q = "select * from TIMESTAMP_INFO order by TIMESTAMP $order limit $n";
+	} elsif ($table eq "OSS_DATA") {
+	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
+		"order by TIMESTAMP $order,OSS_ID $order limit $n";
 	} elsif ($table eq "OST_DATA") {
 	    $q = "select x1.*,TIMESTAMP from $table as x1,TIMESTAMP_INFO where x1.TS_ID=TIMESTAMP_INFO.TS_ID " .
 		"order by TIMESTAMP $order,OST_ID $order limit $n";
