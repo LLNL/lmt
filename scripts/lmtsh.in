@@ -25,8 +25,18 @@ use Getopt::Std;
 use LMT;
 use Term::ReadLine;
 
+my @allFilesystemAggTables = ("FILESYSTEM_AGGREGATE_HOUR",  "FILESYSTEM_AGGREGATE_DAY",
+			      "FILESYSTEM_AGGREGATE_WEEK", "FILESYSTEM_AGGREGATE_MONTH",
+			      "FILESYSTEM_AGGREGATE_YEAR");
+my @allMdsAggTables = ("MDS_AGGREGATE_HOUR",  "MDS_AGGREGATE_DAY", "MDS_AGGREGATE_WEEK",
+		       "MDS_AGGREGATE_MONTH", "MDS_AGGREGATE_YEAR");
 my @allOstAggTables = ("OST_AGGREGATE_HOUR",  "OST_AGGREGATE_DAY", "OST_AGGREGATE_WEEK",
 		       "OST_AGGREGATE_MONTH", "OST_AGGREGATE_YEAR");
+my @allRouterAggTables = ("ROUTER_AGGREGATE_HOUR",  "ROUTER_AGGREGATE_DAY",
+			  "ROUTER_AGGREGATE_WEEK", "ROUTER_AGGREGATE_MONTH",
+			  "ROUTER_AGGREGATE_YEAR");
+my @allAggTables = (@allFilesystemAggTables, @allMdsAggTables,
+		    @allOstAggTables, @allRouterAggTables);
 
 my @commands = qw/cat clr dt fs getwindow head ost t tail ts ts1 tsn vo vt help/;
 
@@ -270,8 +280,10 @@ while ( defined (my $cmd = $term->readline($prompt)) ) {
 	    }
 	}
 	if ($args[0] eq "agg") {
-	    print "Clearing contents of tables: @allOstAggTables\n";
-	    $lmt->clearTable(@allOstAggTables);
+	    print "Clearing contents of tables: @allAggTables\n";
+	    foreach (@allAggTables) {
+		$lmt->clearTable($_);
+	    }
 	} elsif (@args) {
 	    print "Clearing contents of tables: @args\n";
 	    $lmt->clearTable(@args);
