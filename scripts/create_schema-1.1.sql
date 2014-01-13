@@ -76,7 +76,7 @@ create table VERSION (
     TS_ID           int unsigned    not null,
     primary key(VERSION_ID),
     key(TS_ID),
-    foreign key(TS_ID) references TIMESTAMP_ID(TS_ID),
+    foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
     index(VERSION_ID),
     index(TS_ID)
 );
@@ -166,7 +166,7 @@ create table OSS_DATA (
     PCT_MEMORY      float                    comment '%MEM',
     primary key (OSS_ID,TS_ID),
     foreign key(OSS_ID) references OSS_INFO(OSS_ID),
-    foreign key(TS_ID) references TIMESTAMP_ID(TS_ID),
+    foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
     index(TS_ID),
     index(OSS_ID)
 );
@@ -180,7 +180,7 @@ create table OSS_INTERFACE_DATA (
     ACTUAL_RATE     integer                  comment 'ACT RATE',
     primary key (OSS_INTERFACE_ID,TS_ID),
     foreign key(OSS_INTERFACE_ID) references OSS_INTERFACE_INFO(OSS_INTERFACE_ID),
-    foreign key(TS_ID) references TIMESTAMP_ID(TS_ID),
+    foreign key(TS_ID) references TIMESTAMP_INFO(TS_ID),
     index(TS_ID),
     index(OSS_INTERFACE_ID)
 );
