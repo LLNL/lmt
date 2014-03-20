@@ -1062,7 +1062,7 @@ _cmp_oststat_bylcr (oststat_t *o1, oststat_t *o2)
 static int
 _cmp_oststat_byconn (oststat_t *o1, oststat_t *o2)
 {
-    return -1 * sample_val_cmp (o1->connect, o2->connect, sort_tnow);
+    return -1 * sample_rate_cmp (o1->connect, o2->connect, sort_tnow);
 }
 
 /* Used for list_sort () of OST list by iops (descending order).
