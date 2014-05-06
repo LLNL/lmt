@@ -197,7 +197,7 @@ lmt_conf_init (int vopt, char *path)
             path = PATH_LMTCONF; /* missing default config file is not fatal */
     }
     if (path) {
-        L = lua_open ();
+        L = luaL_newstate();
         luaL_openlibs(L);
 
         if (luaL_loadfile (L, path) || lua_pcall (L, 0, 0, 0)) {
