@@ -1,4 +1,6 @@
 Makefile
+Makefile.in
+configure
 *.o
 *.lo
 *.la
@@ -11,3 +13,6 @@ libltdl
 /config.log
 /config.status
 /lmt.spec
+/INSTALL
+/aclocal.m4
+/autom4te.cache/
