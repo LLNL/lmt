@@ -134,6 +134,7 @@ static void _update_display_ost (WINDOW *win, List ost_data, int minost,
                                  int selost, int stale_secs, time_t tnow,
                                  int i);
 static void _destroy_oststat (oststat_t *o);
+static int _fsmatch (char *name, char *fs);
 static void _destroy_mdtstat (mdtstat_t *m);
 static void _summarize_ost (List ost_data, List oss_data, time_t tnow,
                             int stale_secs);
@@ -906,14 +907,19 @@ _update_display_ost (WINDOW *win, List ost_data, int minost, int selost,
     wrefresh (win);
 }
 
-/*  Used for list_find_first () of MDT by target name, e.g. fs-MDTxxxx.
+/*  Used for list_find_first () of MDT by filesystem and target name, e.g. fs-MDTxxxx.
  */
 static int
 _match_mdtstat (mdtstat_t *m, char *name)
 {
+    int targetmatch;
+    int fsmatch;
     char *p = strstr (name, "-MDT");
 
-    return (strcmp (m->name, p ? p + 4 : name) == 0);
+    fsmatch = _fsmatch(name, m->fsname);
+    targetmatch = (strcmp (m->name, p ? p + 4 : name) == 0);
+
+    return (targetmatch && fsmatch);
 }
 
 /* Create an mdtstat record.
@@ -969,9 +975,14 @@ _destroy_mdtstat (mdtstat_t *m)
 static int
 _match_oststat (oststat_t *o, char *name)
 {
+    int targetmatch;
+    int fsmatch;
     char *p = strstr (name, "-OST");
 
-    return (strcmp (o->name, p ? p + 4 : name) == 0);
+    fsmatch = _fsmatch(name, o->fsname);
+    targetmatch = (strcmp (o->name, p ? p + 4 : name) == 0);
+
+    return (targetmatch && fsmatch);
 }
 
 /*  Used for list_find_first () of OST by oss name.
