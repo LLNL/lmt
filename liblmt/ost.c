@@ -49,6 +49,7 @@
 #include "ost.h"
 #include "util.h"
 #include "lmtconf.h"
+#include "common.h"
 
 static int
 _get_mem_usage (pctx_t ctx, double *fp)
@@ -89,36 +90,6 @@ _get_iops (pctx_t ctx, char *name, uint64_t *iopsp)
 }
 
 static int
-_get_recovstr (pctx_t ctx, char *name, char *s, int len)
-{
-    hash_t rh = NULL;
-    shash_t *status, *completed_clients, *time_remaining;
-    int res = -1;
-
-    if (proc_lustre_hashrecov (ctx, name, &rh) < 0) {
-        if (lmt_conf_get_proto_debug ())
-            err ("error reading lustre %s recovery_status from proc", name);
-        goto done;
-    }
-    if (!(status = hash_find (rh, "status:"))) {
-        if (lmt_conf_get_proto_debug ())
-            err ("error parsing lustre %s recovery_status from proc", name);
-        goto done;
-    }
-    completed_clients = hash_find (rh, "completed_clients:");
-    time_remaining = hash_find (rh, "time_remaining:");
-    /* N.B. ltop depends on placement of status in the first field */
-    snprintf (s, len, "%s %s %ss remaining", status->val,
-              completed_clients ? completed_clients->val : "",
-              time_remaining ? time_remaining->val : "0");
-    res = 0;
-done:
-    if (rh)
-        hash_destroy (rh);
-    return res;
-}
-
-static int
 _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
 {
     char *uuid = NULL;
@@ -130,7 +101,7 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     uint64_t connect, reconnect;
     hash_t stats_hash = NULL;
     int n, retval = -1;
-    char recov_str[64];
+    char recov_str[RECOVERY_STR_SIZE];
 
     if (proc_lustre_uuid (ctx, name, &uuid) < 0) {
         if (lmt_conf_get_proto_debug ())
@@ -189,7 +160,7 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
             err ("error reading lustre %s ldlm cancel_rate from proc", name);
         goto done;
     }
-    if (_get_recovstr (ctx, name, recov_str, sizeof (recov_str)) < 0)
+    if (get_recovstr (ctx, name, recov_str, sizeof (recov_str)) < 0)
         goto done;
     n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64
                   ";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64

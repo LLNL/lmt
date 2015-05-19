@@ -134,7 +134,7 @@ main (int argc, char *argv[])
         else if (!strcmp (metric, "ost"))
             n = lmt_ost_string_v2 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "mdt"))
-            n = lmt_mdt_string_v1 (ctx, buf, sizeof (buf));
+            n = lmt_mdt_string_v2 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "osc"))
             n = lmt_osc_string_v1 (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "router"))

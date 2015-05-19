@@ -202,10 +202,10 @@ lmt_db_insert_ost_v2 (char *s)
     itr = list_iterator_create (ostinfo);
     while ((ostr = list_next (itr)))
         _insert_ostinfo (ossname, pct_cpu, pct_mem, ostr);
-    list_iterator_destroy (itr);        
+    list_iterator_destroy (itr);
 done:
     if (ossname)
-        free (ossname);    
+        free (ossname);
     if (ostinfo)
         list_destroy (ostinfo);
 }
@@ -226,12 +226,12 @@ _insert_mds_ops (lmt_db_t db, char *mdtname, char *s)
     }
 done:
     if (opname)
-        free (opname);    
+        free (opname);
 }
 
 /* helper for lmt_db_insert_mdt_v1 () */
 static void
-_insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s)
+_insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s, int ver)
 {
     ListIterator itr;
     lmt_db_t db;
@@ -239,10 +239,22 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s)
     uint64_t inodes_free, inodes_total;
     uint64_t kbytes_free, kbytes_total;
     List mdops = NULL;
+    char *recov_status = NULL;
+    int rc;
 
-    if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free, &inodes_total,
-                                   &kbytes_free, &kbytes_total, &mdops) < 0)
+    if (ver==1)
+        rc = lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
+                    &inodes_total, &kbytes_free, &kbytes_total, &mdops);
+    else if (ver==2)
+        rc = lmt_mdt_decode_v2_mdtinfo (s, &mdtname, &inodes_free,
+                    &inodes_total, &kbytes_free, &kbytes_total, &recov_status,
+                    &mdops);
+    else
         goto done;
+
+    if (rc<0)
+        goto done;
+
     if (!(db = _svc_to_db (mdtname)))
         goto done;
     if (lmt_db_insert_mds_data (db, mdsname, mdtname, pct_cpu,
@@ -254,10 +266,12 @@ _insert_mds (char *mdsname, float pct_cpu, float pct_mem, char *s)
     itr = list_iterator_create (mdops);
     while ((op = list_next (itr)))
         _insert_mds_ops (db, mdtname, op);
-    list_iterator_destroy (itr);        
+    list_iterator_destroy (itr);
 done:
+    if (recov_status)
+        free (recov_status);
     if (mdtname)
-        free (mdtname);    
+        free (mdtname);
     if (mdops)
         list_destroy (mdops);
 }
@@ -266,6 +280,20 @@ done:
 void
 lmt_db_insert_mdt_v1 (char *s)
 {
+    lmt_db_insert_mdt_v1_v2 (s, 1);
+}
+
+/* lmt_mdt_v2: mds + multipe mdt's w/ recovery info */
+void
+lmt_db_insert_mdt_v2 (char *s)
+{
+    lmt_db_insert_mdt_v1_v2 (s, 2);
+}
+
+/* lmt_mdt_v1 and lmt_mdt_v2 helper */
+void
+lmt_db_insert_mdt_v1_v2 (char *s, int ver)
+{
     ListIterator itr;
     char *mdt, *mdsname = NULL;
     float pct_cpu, pct_mem;
@@ -273,11 +301,11 @@ lmt_db_insert_mdt_v1 (char *s)
 
     if (_init_db_ifneeded () < 0)
         goto done;
-    if (lmt_mdt_decode_v1 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+    if (lmt_mdt_decode_v1_v2 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, ver) < 0)
         goto done;
     itr = list_iterator_create (mdtinfo);
     while ((mdt = list_next (itr)))
-        _insert_mds (mdsname, pct_cpu, pct_mem, mdt);
+        _insert_mds (mdsname, pct_cpu, pct_mem, mdt, ver);
     list_iterator_destroy (itr);        
 done:
     if (mdsname)

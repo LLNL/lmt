@@ -35,6 +35,7 @@
 #include <sys/utsname.h>
 #include <inttypes.h>
 #include <math.h>
+#include <assert.h>
 
 #include "list.h"
 #include "hash.h"
@@ -49,6 +50,7 @@
 #include "mdt.h"
 #include "util.h"
 #include "lmtconf.h"
+#include "common.h"
 
 /* This is the hardwired order of ops in mdt_v1 (count=21)
  */
@@ -164,6 +166,8 @@ static const char *optab_mds_v2[] = {
 };
 const int optablen_mds_v2 = sizeof (optab_mds_v2) / sizeof(optab_mds_v2[0]);
 const int optablen_mdt_v1 = sizeof (optab_mdt_v1) / sizeof(optab_mdt_v1[0]);
+/* lmt_mdt_v1 and v2 have same operations, difference in mdtinfo */
+const int optablen_mdt_v2 = sizeof (optab_mdt_v1) / sizeof(optab_mdt_v1[0]);
 
 static int
 _get_mem_usage (pctx_t ctx, double *fp)
@@ -206,6 +210,7 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
     char *uuid = NULL;
     hash_t stats = NULL;
     int i, used, n, retval = -1;
+    char recov_str[RECOVERY_STR_SIZE];
 
     if (proc_lustre_uuid (ctx, name, &uuid) < 0) {
         if (lmt_conf_get_proto_debug ())
@@ -227,8 +232,13 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
             err ("error reading lustre %s stats from proc", name);
         goto done;
     }
-    n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
-                  uuid, filesfree, filestotal, kbytesfree, kbytestotal);
+
+    if (get_recovstr (ctx, name, recov_str, sizeof (recov_str)) < 0)
+        goto done;
+
+    n = snprintf (s, len, "%s;%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";%s;",
+                  uuid, filesfree, filestotal, kbytesfree, kbytestotal,
+                  recov_str);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
             msg ("string overflow");
@@ -253,7 +263,7 @@ done:
 }
 
 int
-lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
+lmt_mdt_string_v2 (pctx_t ctx, char *s, int len)
 {
     static uint64_t cpuused = 0, cputot = 0;
     struct utsname uts;
@@ -261,6 +271,7 @@ lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
     double cpupct, mempct;
     List mdtlist = NULL;
     ListIterator itr = NULL;
+    char verstr[2]="2";
     char *name;
 
     if (proc_lustre_mdtlist (ctx, &mdtlist) < 0)
@@ -281,7 +292,7 @@ lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
     if (_get_mem_usage (ctx, &mempct) < 0) {
         goto done;
     }
-    n = snprintf (s, len, "1;%s;%f;%f;", uts.nodename, cpupct, mempct);
+    n = snprintf (s, len, "%s;%s;%f;%f;", verstr, uts.nodename, cpupct, mempct);
     if (n >= len) {
         if (lmt_conf_get_proto_debug ())
             msg ("string overflow");
@@ -293,7 +304,7 @@ lmt_mdt_string_v1 (pctx_t ctx, char *s, int len)
         if (_get_mdtstring (ctx, name, s + used, len - used) < 0)
             goto done;
     }
-    if (s[strlen (s) - 1] == ';') /* chomp traling semicolon */
+    if (s[strlen (s) - 1] == ';') /* chomp trailing semicolon */
         s[strlen (s) - 1] = '\0';
     retval = 0;
 done:
@@ -304,33 +315,53 @@ done:
     return retval;
 }
 
-int
-lmt_mdt_decode_v1 (const char *s, char **mdsnamep, float *pct_cpup,
-                   float *pct_memp, List *mdtinfop)
+/* parse the src, extracting mds information.  If fail, return NULL.
+ * otherwise, return pointer to first char after the mds info
+ */
+static const char *
+_parse_and_skip_mds_info_v1 (const char *src, char *mdsname, float *pct_cpu,
+                            float *pct_mem)
 {
-    const int mdtfields = 5 + 3 * optablen_mdt_v1;
+    if (sscanf (src, "%*f;%[^;];%f;%f;", mdsname, pct_cpu, pct_mem) != 3) {
+        if (lmt_conf_get_proto_debug ())
+            msg ("lmt_mdt_v1_v2: parse error: mdsinfo");
+        return NULL;
+    }
+    if (!(src = strskip (src, 4, ';'))) {
+        if (lmt_conf_get_proto_debug ())
+            msg ("lmt_mdt_v1_v2: parse error: skipping mdsinfo");
+    }
+
+    return src;
+}
+
+int
+lmt_mdt_decode_v1_v2 (const char *s, char **mdsnamep, float *pct_cpup,
+                   float *pct_memp, List *mdtinfop, int version)
+{
+    int mdtfields = -1;
     int retval = -1;
     char *mdsname = xmalloc (strlen(s) + 1);
     char *cpy = NULL;
     float pct_mem, pct_cpu;
     List mdtinfo = list_create ((ListDelF)free);
 
-    if (sscanf (s, "%*f;%[^;];%f;%f;", mdsname, &pct_cpu, &pct_mem) != 3) {
-        if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1: parse error: mdsinfo");
+    assert (version == 1 || version == 2);
+
+    /* lmt_mdt_v1 and lmt_mdt_v2 mds info portion is the same */
+    if ( ! (s = _parse_and_skip_mds_info_v1 (s, mdsname, &pct_cpu, &pct_mem)))
         goto done;
-    }
-    if (!(s = strskip (s, 4, ';'))) {
-        if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1: parse error: skipping mdsinfo");
-        goto done;
-    }
-    mdtinfo = list_create ((ListDelF)free);
+
+    if (version == 1)
+        mdtfields = 5 + 3 * optablen_mdt_v1;
+    else
+        mdtfields = 6 + 3 * optablen_mdt_v2;
+
     while ((cpy = strskipcpy (&s, mdtfields, ';')))
         list_append (mdtinfo, cpy);
     if (strlen (s) > 0) {
         if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1: parse error: string not exhausted");
+            msg ("lmt_mdt_v%d: parse error: string not exhausted",version);
         goto done;
     }
     *mdsnamep = mdsname;
@@ -346,36 +377,56 @@ done:
     return retval;
 }
 
-int
-lmt_mdt_decode_v1_mdtinfo (const char *s, char **mdtnamep,
+static int
+_lmt_mdt_decode_mdtinfo_helper (const char *s, char **mdtnamep,
                            uint64_t *inodes_freep, uint64_t *inodes_totalp,
                            uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                           int mdtinfo_version, char **recovery_statusp,
                            List *mdopsp)
 {
     int retval = -1;
     char *mdtname = xmalloc (strlen(s) + 1);
+    char *recovery_status = NULL;
     char *cpy = NULL;
     uint64_t kbytes_free, kbytes_total;
     uint64_t inodes_free, inodes_total;
     List mdops = list_create ((ListDelF)free);
     int i = 0;
 
+    assert (mdtinfo_version == 1 || mdtinfo_version == 2);
+    assert (mdtinfo_version == 1 ? recovery_statusp == NULL : recovery_statusp != NULL);
+
     if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
                 mdtname, &inodes_free, &inodes_total,
                 &kbytes_free, &kbytes_total) != 5) {
         if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1: parse error: mdtinfo");
+            msg ("lmt_mdt_helper: parse error: mdtinfo");
         goto done;
     }
     if (!(s = strskip (s, 5, ';'))) {
         if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1: parse error: skipping mdtinfo");
+            msg ("lmt_mdt_helper: parse error: skipping mdtinfo");
         goto done;
     }
+
+    if (mdtinfo_version == 2) {
+        recovery_status = xmalloc (strlen(s) + 1);
+        if (sscanf (s, "%[^;]", recovery_status) != 1) {
+            if (lmt_conf_get_proto_debug ())
+                msg ("lmt_mdt_v2: parse error: mdtinfo recovery_status");
+            goto done;
+        }
+        if (!(s = strskip (s, 1, ';'))) {
+            if (lmt_conf_get_proto_debug ())
+                msg ("lmt_mdt_v2: parse error: skipping mdtinfo recovery_status");
+            goto done;
+        }
+    }
+
     while ((cpy = strskipcpy (&s, 3, ';'))) {
         if (i >= optablen_mdt_v1) {
             if (lmt_conf_get_proto_debug ())
-                msg ("lmt_mdt_v1: parse error: too many mdops");
+                msg ("lmt_mdt_helper: parse error: too many mdops");
             free (cpy);
             goto done;
         }
@@ -384,22 +435,50 @@ lmt_mdt_decode_v1_mdtinfo (const char *s, char **mdtnamep,
     }
     if (strlen (s) > 0) {
         if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1: parse error: mdtinfo: string not exhausted");
+            msg ("lmt_mdt_helper: parse error: mdtinfo: string not exhausted");
         goto done;
     }
+
     *mdtnamep = mdtname;
     *inodes_freep = inodes_free;
     *inodes_totalp = inodes_total;
     *kbytes_freep = kbytes_free;
     *kbytes_totalp = kbytes_total;
     *mdopsp = mdops;
+    if (mdtinfo_version == 2)
+        *recovery_statusp = recovery_status;
+
     retval = 0;
 done:
     if (retval < 0) {
         free (mdtname);
+        free (recovery_status);
         list_destroy (mdops);
     }
     return retval;
+}
+
+int
+lmt_mdt_decode_v1_mdtinfo (const char *s, char **mdtnamep,
+                           uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                           uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                           List *mdopsp)
+{
+    return _lmt_mdt_decode_mdtinfo_helper (s, mdtnamep, inodes_freep, inodes_totalp,
+                           kbytes_freep, kbytes_totalp, 1, NULL, mdopsp);
+
+}
+
+int
+lmt_mdt_decode_v2_mdtinfo (const char *s, char **mdtnamep,
+                           uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                           uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                           char **recovery_status, List *mdopsp)
+{
+    return _lmt_mdt_decode_mdtinfo_helper (s, mdtnamep, inodes_freep, inodes_totalp,
+                           kbytes_freep, kbytes_totalp, 2, recovery_status,
+                           mdopsp);
+
 }
 
 /* N.B. This function is doing double duty as lmt_mds_decode_v2_mdops.
