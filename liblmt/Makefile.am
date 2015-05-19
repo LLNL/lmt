@@ -17,6 +17,8 @@ liblmt_la_SOURCES = \
 	util.h \
 	lmtconf.c \
 	lmtconf.h  \
+	common.c \
+	common.h  \
 	lmt.h
 
 if CEREBRO

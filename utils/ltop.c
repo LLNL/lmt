@@ -59,6 +59,7 @@
 #include "osc.h"
 #include "router.h"
 
+#include "common.h"
 #include "lmtcerebro.h"
 #include "lmtconf.h"
 
@@ -84,7 +85,7 @@ typedef struct {
     sample_t kbytes_total;      /* total space (kbytes) */
     sample_t pct_cpu;
     sample_t pct_mem;
-    char recov_status[32];      /* free form string representing recov status */
+    char recov_status[RECOVERY_STR_SIZE];      /* free form string representing recov status */
     time_t ost_metric_timestamp;/* cerebro timestamp for ost metric (not osc) */
     char ossname[MAXHOSTNAMELEN];/* oss hostname */
     int tag;                    /* display this ost line underlined */
@@ -93,6 +94,8 @@ typedef struct {
 typedef struct {
     char fsname[17];            /* file system name */
     char name[17];              /* target index (4 hex digitis) */
+    char recov_status[RECOVERY_STR_SIZE];      /* free form string representing recov status */
+    char tgtstate[2];           /* single char state (blank if unknown) */
     sample_t inodes_free;       /* free inode count */
     sample_t inodes_total;      /* total inode count */
     sample_t open;              /* open ops/sec */
@@ -216,6 +219,8 @@ main (int argc, char *argv[])
     err_init (argv[0]);
     optind = 0;
     opterr = 0;
+
+    lmt_conf_set_proto_debug(1);
 
     while ((c = GETOPT (argc, argv, OPTIONS, longopts)) != -1) {
         switch (c) {
@@ -420,6 +425,8 @@ main (int argc, char *argv[])
                 break;
             case KEY_RIGHT:         /* RightArrow - ffwd 1 sample_period */
                 if (playf) {
+                    _list_empty_out (mdt_data);
+                    _list_empty_out (ost_data);
                     _play_file (fs, mdt_data, ost_data, time_series,
                                 stale_secs, playf, &tcycle, &sample_period);
                     last_sample = time (NULL);
@@ -563,8 +570,18 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     double open = 0, close = 0, getattr = 0, setattr = 0;
     double link = 0, unlink = 0, rmdir = 0, mkdir = 0;
     double statfs = 0, rename = 0, getxattr = 0;
+    char recovery_status[RECOVERY_STR_SIZE]="";
+    int recov_status_len;
     oststat_t *o;
     mdtstat_t *m;
+
+    /*
+     * Recovery status fits between filesystem name and indicators like "RECORDING"
+     * The former takes up 12+strlen(fs) columns
+     * The indicators are displayed starting at column 68
+     * Some blank spaces on either side are desirable.
+     */
+    recov_status_len = 68 - (12 + strlen(fs) + 4);
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
@@ -590,6 +607,18 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
         getxattr      += sample_rate (m->getxattr, tnow);
         minodes_free  += sample_val (m->inodes_free, tnow) / (1024*1024);
         minodes_total += sample_val (m->inodes_total, tnow) / (1024*1024);
+        if (m->recov_status && strstr(m->recov_status,"RECOV")) {
+            /*
+             * Multiple MDTs may be in recovery, but display room is
+             * limited.  We print the full status of the first MDT in recovery
+             * we find.  This allows the user to tell whether the count of
+             * reconnected clients is increasing.
+             */
+            if (recovery_status[0] == '\0')
+                snprintf(recovery_status, recov_status_len, "MDT%s %s",
+                         m->name, m->recov_status);
+       }
+
         if (m->mdt_metric_timestamp > trcv)
             trcv = m->mdt_metric_timestamp;
     }
@@ -597,7 +626,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
 
     wclear (win);
 
-    mvwprintw (win, y, 0, "Filesystem: %s", fs);
+    mvwprintw (win, y, 0, "Filesystem: %s  %s", fs, recovery_status);
     if (pause) {
         wattron (win, A_REVERSE);
         mvwprintw (win, y, 73, "PAUSED");
@@ -933,6 +962,8 @@ _create_mdtstat (char *name, int stale_secs)
     memset (m, 0, sizeof (*m));
     strncpy (m->name, mdtx ? mdtx + 4 : name, sizeof(m->name) - 1);
     strncpy (m->fsname, name, mdtx ? mdtx - name : sizeof (m->fsname) - 1);
+    *m->tgtstate = '\0';
+    *m->recov_status='\0';
     m->inodes_free =  sample_create (stale_secs);
     m->inodes_total = sample_create (stale_secs);
     m->open =         sample_create (stale_secs);
@@ -1369,13 +1400,17 @@ _decode_ost_v2 (char *val, char *fs, List ost_data,
 static void
 _update_mdt (char *mdtname, char *mdsname, uint64_t inodes_free,
              uint64_t inodes_total, uint64_t kbytes_free,
-             uint64_t kbytes_total, List mdops, List mdt_data,
-             time_t tnow, time_t trcv, int stale_secs)
+             uint64_t kbytes_total, float pct_cpu, float pct_mem,
+             char *recov_status, List mdops, List mdt_data, time_t tnow,
+             time_t trcv, int stale_secs, int version)
 {
     char *opname, *s;
     ListIterator itr;
     mdtstat_t *m;
     uint64_t samples, sum, sumsquares;
+
+    assert (version==1 || version==2);
+    assert (version==1 ? recov_status==NULL : recov_status!=NULL );
 
     if (!(m = list_find_first (mdt_data, (ListFindF)_match_mdtstat, mdtname))) {
         m = _create_mdtstat (mdtname, stale_secs);
@@ -1397,10 +1432,13 @@ _update_mdt (char *mdtname, char *mdsname, uint64_t inodes_free,
             sample_invalidate (m->rename);
             sample_invalidate (m->getxattr);
             snprintf (m->mdsname, sizeof (m->mdsname), "%s", mdsname);
+            m->recov_status[0]='\0';
         }
         m->mdt_metric_timestamp = trcv;
         sample_update (m->inodes_free, (double)inodes_free, trcv);
         sample_update (m->inodes_total, (double)inodes_total, trcv);
+        if (version==2)
+            snprintf (m->recov_status, sizeof (m->recov_status), "%s", recov_status);
         itr = list_iterator_create (mdops);
         while ((s = list_next (itr))) {
             if (lmt_mdt_decode_v1_mdops (s, &opname,
@@ -1445,7 +1483,7 @@ _decode_mdt_v1 (char *val, char *fs, List mdt_data,
     uint64_t inodes_free, inodes_total;
     ListIterator itr;
 
-    if (lmt_mdt_decode_v1 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+    if (lmt_mdt_decode_v1_v2 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 1) < 0)
         return;
     itr = list_iterator_create (mdtinfo);
     while ((s = list_next (itr))) {
@@ -1454,9 +1492,45 @@ _decode_mdt_v1 (char *val, char *fs, List mdt_data,
                                        &kbytes_total, &mdops) == 0) {
             if (!fs || _fsmatch (mdtname, fs)) {
                 _update_mdt (mdtname, mdsname, inodes_free, inodes_total,
-                             kbytes_free, kbytes_total, mdops, mdt_data,
-                             tnow, trcv, stale_secs);
+                             kbytes_free, kbytes_total, pct_cpu, pct_mem,
+                             NULL, mdops, mdt_data, tnow, trcv, stale_secs,
+                             1);
             }
+            free (mdtname);
+            list_destroy (mdops);
+        }
+    }
+    list_iterator_destroy (itr);
+    list_destroy (mdtinfo);
+    free (mdsname);
+}
+
+static void
+_decode_mdt_v2 (char *val, char *fs, List mdt_data,
+                time_t tnow, time_t trcv, int stale_secs)
+{
+    List mdops, mdtinfo;
+    char *s, *mdsname, *mdtname;
+    float pct_cpu, pct_mem;
+    uint64_t kbytes_free, kbytes_total;
+    uint64_t inodes_free, inodes_total;
+    ListIterator itr;
+
+    char *recov_info;
+
+    if (lmt_mdt_decode_v1_v2 (val, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 2) < 0)
+        return;
+    itr = list_iterator_create (mdtinfo);
+    while ((s = list_next (itr))) {
+        if (lmt_mdt_decode_v2_mdtinfo (s, &mdtname, &inodes_free,
+                                       &inodes_total, &kbytes_free,
+                                       &kbytes_total, &recov_info,
+                                       &mdops) == 0) {
+            if (!fs || _fsmatch (mdtname, fs))
+                _update_mdt (mdtname, mdsname, inodes_free, inodes_total,
+                             kbytes_free, kbytes_total, pct_cpu, pct_mem,
+                             recov_info, mdops, mdt_data, tnow, trcv, stale_secs,
+                             2);
             free (mdtname);
             list_destroy (mdops);
         }
@@ -1497,6 +1571,8 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
             _record_file (recf, tnow, trcv, node, name, s);
         if (!strcmp (name, "lmt_mdt") && vers == 1)
             _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
+        else if (!strcmp (name, "lmt_mdt") && vers == 2)
+            _decode_mdt_v2 (s, fs, mdt_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_ost") && vers == 2)
             _decode_ost_v2 (s, fs, ost_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_osc") && vers == 1)
@@ -1562,6 +1638,8 @@ _play_file (char *fs, List mdt_data, List ost_data, List time_series,
             msg_exit ("Parse error reading metric version in playback file");
         if (!strcmp (name, "lmt_mdt") && vers == 1)
             _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
+        if (!strcmp (name, "lmt_mdt") && vers == 2)
+            _decode_mdt_v2 (s, fs, mdt_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_ost") && vers == 2)
             _decode_ost_v2 (s, fs, ost_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_osc") && vers == 1)

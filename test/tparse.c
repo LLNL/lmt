@@ -50,6 +50,8 @@
 #include "util.h"
 #include "lmtconf.h"
 
+#include "common.h"
+
 const char *oss_v1_str =
     "1.0;tycho1;0.100000;98.810898";
 const char *ost_v1_str =
@@ -80,6 +82,16 @@ const char *mdt_v1_str =
     "8205730;0;0;143656;0;0;882908;0;0;4;0;0;98;0;0;4;0;0;5022;0;0;96;0;0;499;"
     "0;0;0;0;0;"
     "lc2-MDT0000;413253193;467523892;1653012772;1688473892;"
+    "68;0;0;8;0;0;0;0;0;0;0;0;0;0;0;5;0;0;0;0;0;0;0;0;0;0;0;2;0;0;141790;0;0;"
+    "8205730;0;0;143656;0;0;882908;0;0;4;0;0;98;0;0;4;0;0;5022;0;0;96;0;0;499;"
+    "0;0;0;0;0";
+const char *mdt_v2_str =
+    "2;tycho-mds2;0.000000;1.561927;"
+    "lc1-MDT0000;413253193;467523892;1653012772;1688473892;RECOVERING 1/1009;"
+    "68;0;0;8;0;0;0;0;0;0;0;0;0;0;0;5;0;0;0;0;0;0;0;0;0;0;0;2;0;0;141790;0;0;"
+    "8205730;0;0;143656;0;0;882908;0;0;4;0;0;98;0;0;4;0;0;5022;0;0;96;0;0;499;"
+    "0;0;0;0;0;"
+    "lc2-MDT0000;413253193;467523892;1653012772;1688473892;COMPLETED 100/100;"
     "68;0;0;8;0;0;0;0;0;0;0;0;0;0;0;5;0;0;0;0;0;0;0;0;0;0;0;2;0;0;141790;0;0;"
     "8205730;0;0;143656;0;0;882908;0;0;4;0;0;98;0;0;4;0;0;5022;0;0;96;0;0;499;"
     "0;0;0;0;0";
@@ -251,7 +263,7 @@ _parse_mdt_v1 (const char *s)
     ListIterator itr = NULL;
     char *mdi;
 
-    if (lmt_mdt_decode_v1 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo) < 0)
+    if (lmt_mdt_decode_v1_v2 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 1) < 0)
         goto done;
     if (!(itr = list_iterator_create (mdtinfo)))
         goto done;
@@ -268,6 +280,52 @@ _parse_mdt_v1 (const char *s)
     }
     retval = 0;
 done:
+    if (mdsname)
+        free (mdsname);
+    if (itr)
+        list_iterator_destroy (itr);
+    if (mdtinfo)
+        list_destroy (mdtinfo);
+    return retval;
+}
+
+int
+_parse_mdt_v2 (const char *s)
+{
+    int retval = -1;
+    char *mdsname = NULL;
+    char *mdtname = NULL;
+    float pct_cpu, pct_mem;
+    uint64_t inodes_free, inodes_total;
+    uint64_t kbytes_free, kbytes_total;
+    List mdtinfo = NULL;
+    List mdops = NULL;
+    ListIterator itr = NULL;
+    char *mdi;
+    char *recov_str = NULL;
+
+    /* char *recov_info; */
+
+    if (lmt_mdt_decode_v1_v2 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 2) < 0)
+        goto done;
+    if (!(itr = list_iterator_create (mdtinfo)))
+        goto done;
+    while ((mdi = list_next (itr))) {
+        if (lmt_mdt_decode_v2_mdtinfo (mdi, &mdtname, &inodes_free,
+                     &inodes_total, &kbytes_free, &kbytes_total, &recov_str,
+                     &mdops) < 0)
+            goto done;
+        free (mdtname);
+        if (_parse_mdt_v1_mdops (mdops) < 0) {
+            list_destroy (mdops); 
+            goto done;
+        }
+        list_destroy (mdops); 
+    }
+    retval = 0;
+done:
+    if (recov_str)
+        free (recov_str);
     if (mdsname)
         free (mdsname);
     if (itr)
@@ -417,18 +475,18 @@ void
 parse_current_short (void)
 {
     int n;
-    char *mdt_v1_str_short = xstrdup (mdt_v1_str);
+    char *mdt_v2_str_short = xstrdup (mdt_v2_str);
     char *ost_v2_str_short = xstrdup (ost_v2_str);
 
-    mdt_v1_str_short[strlen (mdt_v1_str_short) - 35] = '\0';
-    n = _parse_mdt_v1 (mdt_v1_str_short);
-    msg ("mdt_v1(truncated): %s", n < 0 ? "FAIL" : "OK");
+    mdt_v2_str_short[strlen (mdt_v2_str_short) - 35] = '\0';
+    n = _parse_mdt_v2 (mdt_v2_str_short);
+    msg ("mdt_v2(truncated): %s", n < 0 ? "FAIL" : "OK");
 
     ost_v2_str_short[strlen (ost_v2_str_short) - 35] = '\0';
     n = _parse_ost_v2 (ost_v2_str_short);
     msg ("ost_v2(truncated): %s", n < 0 ? "FAIL" : "OK");
 
-    free (mdt_v1_str_short);
+    free (mdt_v2_str_short);
     free (ost_v2_str_short);
 }
 
@@ -436,21 +494,21 @@ void
 parse_current_long (void)
 {
     int n;
-    int mdtlen = strlen (mdt_v1_str) + 36;
+    int mdtlen = strlen (mdt_v2_str) + 36;
     int ostlen = strlen (ost_v2_str) + 36;
-    char *mdt_v1_str_long = xmalloc (mdtlen);
+    char *mdt_v2_str_long = xmalloc (mdtlen);
     char *ost_v2_str_long = xmalloc (ostlen);
 
-    snprintf (mdt_v1_str_long, mdtlen, "%ssdfdfsdlafwererefsdf", mdt_v1_str);
-    n = _parse_mdt_v1 (mdt_v1_str_long);
-    msg ("mdt_v1(elongated): %s", n < 0 ? "FAIL" : "OK");
+    snprintf (mdt_v2_str_long, mdtlen, "%ssdfdfsdlafwererefsdf", mdt_v2_str);
+    n = _parse_mdt_v2 (mdt_v2_str_long);
+    msg ("mdt_v2(elongated): %s", n < 0 ? "FAIL" : "OK");
 
     /* we're too dumb to detect this case, oh well */
     snprintf (ost_v2_str_long, ostlen, "%ssdfdfsdlafwererefsdf", ost_v2_str);
     n = _parse_ost_v2 (ost_v2_str_long);
     msg ("ost_v2(elongated): %s", n < 0 ? "FAIL" : "OK");
 
-    free (mdt_v1_str_long);
+    free (mdt_v2_str_long);
     free (ost_v2_str_long);
 }
 
@@ -459,8 +517,8 @@ parse_current (void)
 {
     int n;
 
-    n = _parse_mdt_v1 (mdt_v1_str);
-    msg ("mdt_v1: %s", n < 0 ? "FAIL" : "OK");
+    n = _parse_mdt_v2 (mdt_v2_str);
+    msg ("mdt_v2: %s", n < 0 ? "FAIL" : "OK");
     n = _parse_ost_v2 (ost_v2_str);
     msg ("ost_v2: %s", n < 0 ? "FAIL" : "OK");
     n = _parse_osc_v1 (osc_v1_str);
@@ -471,6 +529,7 @@ void
 parse_legacy (void)
 {
     int n;
+
 
     n = _parse_oss_v1 (oss_v1_str);
     msg ("oss_v1: %s", n < 0 ? "FAIL" : "OK");
@@ -483,6 +542,9 @@ parse_legacy (void)
 
     n = _parse_mds_v2 (mds_v2_str);
     msg ("mds_v2: %s", n < 0 ? "FAIL" : "OK");
+
+    n = _parse_mdt_v1 (mdt_v1_str);
+    msg ("mdt_v1: %s", n < 0 ? "FAIL" : "OK");
 }
 
 /*
