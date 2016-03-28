@@ -1,6 +1,6 @@
 
 
-#define RECOVERY_STR_SIZE   32
+#define RECOVERY_STR_SIZE   64
 
 int
 get_recovstr (pctx_t ctx, char *name, char *s, int len);

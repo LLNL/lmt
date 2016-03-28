@@ -576,12 +576,16 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     mdtstat_t *m;
 
     /*
-     * Recovery status fits between filesystem name and indicators like "RECORDING"
-     * The former takes up 12+strlen(fs) columns
-     * The indicators are displayed starting at column 68
-     * Some blank spaces on either side are desirable.
+     * Recovery status fits between filesystem name and indicators
+     * like "RECORDING". The former takes up 12+strlen(fs) columns.
+     * The indicators are displayed starting at column 68. Some blank
+     * spaces on either side are desirable.
+     *
+     * We also need to make sure we don't overflow the recovery_status.
      */
     recov_status_len = 68 - (12 + strlen(fs) + 4);
+    recov_status_len = (RECOVERY_STR_SIZE < recov_status_len ?
+                        RECOVERY_STR_SIZE : recov_status_len);
 
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
@@ -607,20 +611,27 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
         getxattr      += sample_rate (m->getxattr, tnow);
         minodes_free  += sample_val (m->inodes_free, tnow) / (1024*1024);
         minodes_total += sample_val (m->inodes_total, tnow) / (1024*1024);
-        if (m->recov_status && strstr(m->recov_status,"RECOV")) {
-            /*
-             * Multiple MDTs may be in recovery, but display room is
-             * limited.  We print the full status of the first MDT in recovery
-             * we find.  This allows the user to tell whether the count of
-             * reconnected clients is increasing.
-             */
-            if (recovery_status[0] == '\0')
-                snprintf(recovery_status, recov_status_len, "MDT%s %s",
-                         m->name, m->recov_status);
-       }
 
-        if (m->mdt_metric_timestamp > trcv)
-            trcv = m->mdt_metric_timestamp;
+        /*
+         * recovery_status is just a string, and has no timestamp.
+         */
+        if ((tnow - m->common.tgt_metric_timestamp) < stale_secs) {
+            if (m->common.recov_status && strstr(m->common.recov_status,"RECOV")) {
+                /*
+                 * Multiple MDTs may be in recovery, but display room
+                 * is limited.  We print the full status of the first
+                 * MDT in recovery we find.  This allows the user to
+                 * tell whether the count of reconnected clients is
+                 * increasing.
+                 */
+                if (recovery_status[0] == '\0')
+                    snprintf(recovery_status, recov_status_len, "MDT%s %s",
+                             m->common.name, m->common.recov_status);
+           }
+        }
+
+        if (m->common.tgt_metric_timestamp > trcv)
+            trcv = m->common.tgt_metric_timestamp;
     }
     list_iterator_destroy (itr);
 
