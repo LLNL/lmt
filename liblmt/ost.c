@@ -96,7 +96,7 @@ _get_oststring_v2 (pctx_t ctx, char *name, char *s, int len)
     uint64_t filesfree, filestotal;
     uint64_t kbytesfree, kbytestotal;
     uint64_t read_bytes, write_bytes;
-    uint64_t iops, num_exports;
+    uint64_t iops=0, num_exports;
     uint64_t lock_count, grant_rate, cancel_rate;
     uint64_t connect, reconnect;
     hash_t stats_hash = NULL;
