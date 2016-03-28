@@ -24,6 +24,38 @@ Log raw data from the session to FILE, so it can be played back with \fI\-p\fR.
 .I "-p,--play FILE"
 Play back raw data from FILE recorded with \fI\-r\fR or with the
 interactive \fIR\fR command.
+.SH "MDT FIELD DESCRIPTIONS"
+.TP
+\fIMDT\fR
+The mdt index, in hex.  In the compressed view (c below), the number of MDT's
+on the MDS is displayed in parenthesis.
+.TP
+\fIMDS\fR
+The MDS hostname.
+.TP
+\fIOpen\fR
+The number of file opens per second.
+.TP
+\fIClose\fR
+The number of file closes per second.
+.TP
+\fIGetattr\fR
+The number of file or directory getattrs per second.
+.TP
+\fISetattr\fR
+The number of file or directory setattrs per second.
+.TP
+\fIUnlink\fR
+The number of file unlinks per second.
+.TP
+\fIMkdir\fR
+The number of mkdirs per second.
+.TP
+\fIRmdir\fR
+The number of rmdirs per second.
+.TP
+\fIRename\fR
+The number of files or directories renamed per second.
 .SH "OST FIELD DESCRIPTIONS"
 .TP
 \fIOST\fR
@@ -66,14 +98,15 @@ The lock grant rate.
 \fILCR\fR
 The lock cancellation rate.
 .TP
-\fI%cpu
-The percentage of cpu in use on the OSS.
-.TP
-\fI%mem
-The percentage of memory in use on the OSS.
-.TP
 \fI%spc
 The percentage of OST storage space in use.
+.SH "COMMON FIELD DESCRIPTIONS"
+.TP
+\fI%cpu
+The percentage of cpu in use on the server.
+.TP
+\fI%mem
+The percentage of memory in use on the server.
 .SH "INTERACTIVE COMMANDS"
 .B ltop
 responds to the following single character commands interactively:
@@ -84,61 +117,89 @@ Terminate the
 program.
 .TP
 \fIPageDown\fR
-Page down through OST information if it won't fit on screen.
+Page down through target information if it won't fit on screen.
 .TP
 \fIPageUp\fR
-Page up through OST information if it won't fit on screen.
+Page up through target information if it won't fit on screen.
 .TP
 \fIc\fR
-Toggle compressed OST view.  The default mode is to display one line per OST.
-In compressed mode, one line per OSS is displayed.  Numerical data is summed
-in the OSS view except for the export count where the minimum export count
-of any OST is displayed.  Also if any of the OST's is in recovery, recovery
-information for that OST will be shown in the OSS view.
+Toggle compressed target view.  The default mode is to display one line per
+target.  In compressed mode, one line per server is displayed.  Numerical data
+is summed in the server view except for the export count where the minimum
+export count of any target is displayed.  Also if any of the target's is in
+recovery, recovery information for that target will be shown in the server
+view.
 .TP
 \fI>\fR
-Sort OST/OSS view by the next field to the right, wrapping around at the end.
-Initially, entries are sorted by the leftmost field, OST index.
+Sort MDT/OST window by the next field to the right, wrapping around at the end.
+Initially, entries are sorted by the leftmost field, OST/MDT index.
 .TP
 \fI<\fR
-Sort OST/OSS view by the next field to the left, wrapping around at the end.
-Initially, entries are sorted by the leftmost field, OST index.
+Sort MDT/OST window by the next field to the left, wrapping around at the end.
+Initially, entries are sorted by the leftmost field, OST/MDT index.
+.TP
+\fIt\fR
+Sort by target index, ascending order.
 .TP
 \fIs\fR
-Sort by OSS name, ascending order.
+Sort by server name, ascending order.
 .TP
 \fIx\fR
 Sort by export count, ascending order.
 .TP
 \fIC\fR
-Sort by (re-)connect rate, descending order.
+Sort by (re-)connect rate, descending order (OST).
 .TP
 \fIr\fR
-Sort by read bandwidth, descending order.
+Sort by read bandwidth, descending order (OST).
 .TP
 \fIw\fR
-Sort by write bandwidth, descending order.
+Sort by write bandwidth, descending order (OST).
 .TP
 \fIi\fR
-Sort by IOPS, descending order.
+Sort by IOPS, descending order (OST).
 .TP
 \fIl\fR
-Sort by lock count, descending order.
+Sort by lock count, descending order (OST).
 .TP
 \fIg\fR
-Sort by lock grant rate, descending order.
+Sort by lock grant rate, descending order (OST).
 .TP
 \fIL\fR
-Sort by lock cancellation rate, descending order.
+Sort by lock cancellation rate, descending order (OST).
+.TP
+\fIo\fR
+Sort by file open rate, descending order (MDT).
+.TP
+\fIC\fR
+Sort by file close rate, descending order (MDT).
+.TP
+\fIg\fR
+Sort by getattr rate, descending order (MDT).
+.TP
+\fIS\fR
+Sort by setattr rate, descending order (MDT).
+.TP
+\fIU\fR
+Sort by file unlink rate, descending order (MDT).
+.TP
+\fIM\fR
+Sort by mkdir rate, descending order (MDT).
+.TP
+\fIr\fR
+Sort by rmdir rate, descending order (MDT).
+.TP
+\fIR\fR
+Sort by rename rate, descending order (MDT).
 .TP
 \fIu\fR
 Sort by percent cpu utilization, descending order.
 .TP
 \fIm\fR
-Sort by percent memory utilization , descending order.
+Sort by percent memory utilization, descending order.
 .TP
 \fIS\fR
-Sort by percent disk space utilization , descending order.
+Sort by percent disk space utilization, descending order (OST).
 .TP
 \fIDOWN\fR
 Move cursor down.
