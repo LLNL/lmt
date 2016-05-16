@@ -133,6 +133,7 @@ typedef struct {
 
 typedef struct {
     char     fsname[17];       /* file system name */
+    uint64_t num_mdt;          /* number of MDTs */
     uint64_t num_ost;          /* number of OSTs */
 } fsstat_t;
 
@@ -977,11 +978,12 @@ _destroy_fsstat (fsstat_t *f)
 /* Create an fsstat record.
  */
 static fsstat_t *
-_create_fsstat (char *fsname, uint64_t osts)
+_create_fsstat (char *fsname, uint64_t mdts, uint64_t osts)
 {
     fsstat_t *f = xmalloc (sizeof (*f));
     memset (f, 0, sizeof (*f));
     strncpy (f->fsname, fsname, sizeof (f->fsname) - 1);
+    f->num_mdt = mdts;
     f->num_ost = osts;
     return f;
 }
@@ -1002,13 +1004,13 @@ _update_display_choose_fs (int selfs, WINDOW *win, List fsl)
     mvwprintw (win, y++, 0, "Select a filesystem to monitor.");
     mvwprintw (win, y++, 0, "");
     wattron (win, A_REVERSE);
-    mvwprintw (win, y++, 0, "NAME              OSTs");
+    mvwprintw (win, y++, 0, "NAME              MDTs    OSTs");
     wattroff (win, A_REVERSE);
 
     for (; (f = list_next (fsitr)); y++) {
         if (y - hdr_rows == selfs)
             wattron (win, A_UNDERLINE);
-        mvwprintw (win, y, 0, "%-17s %4d", f->fsname, f->num_ost);
+        mvwprintw (win, y, 0, "%-17s %4d    %4d", f->fsname, f->num_mdt, f->num_ost);
         if (y - hdr_rows == selfs)
             wattroff (win, A_UNDERLINE);
     }
@@ -1041,14 +1043,16 @@ _find_all_fs (FILE *playf, int stale_secs)
     while ((m = list_next (itr))) {
         if (!(f = list_find_first (fsl, (ListFindF)_match_fsstat,
                                    m->common.fsname)))
-            list_append (fsl, _create_fsstat (m->common.fsname, 0));
+            list_append (fsl, _create_fsstat (m->common.fsname, 1, 0));
+        else
+            f->num_mdt++;
     }
     list_iterator_destroy (itr);
     itr = list_iterator_create (ost_data);
     while ((o = list_next (itr))) {
         if (!(f = list_find_first (fsl, (ListFindF)_match_fsstat,
                                    o->common.fsname)))
-            list_append (fsl, _create_fsstat (o->common.fsname, 1));
+            list_append (fsl, _create_fsstat (o->common.fsname, 0, 1));
         else
             f->num_ost++;
     }
@@ -2154,7 +2158,7 @@ _rewind_file_to (FILE *f, List time_series, time_t target)
 }
 
 /* Peek at the data to find a default file system to monitor.
- * Ignore file systems with no OSTs.
+ * Ignore file systems with no OSTs or no MDTs.
  */
 static char *
 _find_first_fs (FILE *playf, int stale_secs)
@@ -2166,7 +2170,7 @@ _find_first_fs (FILE *playf, int stale_secs)
 
     itr = list_iterator_create (fsl);
     while (!ret && (f = list_next (itr))) {
-        if (f->num_ost > 0)
+        if (f->num_ost > 0 && f->num_mdt > 0)
             ret = xstrdup (f->fsname);
     }
     list_iterator_destroy (itr);
