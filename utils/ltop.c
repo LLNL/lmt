@@ -755,8 +755,8 @@ static void _update_display_help (WINDOW *win)
     wclear (win);
     wattron (win, A_REVERSE);
     mvwprintw (win, y++, 0,
-              "Help for Interactive Commands - ltop version %s-%s",
-               META_VERSION, META_RELEASE);
+              "Help for Interactive Commands - ltop version %s",
+              PACKAGE_VERSION);
     wattroff (win, A_REVERSE);
     y++;
     mvwprintw (win, y++, 2, "z/Z        switch between OST/MDT window");

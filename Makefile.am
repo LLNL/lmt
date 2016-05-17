@@ -8,4 +8,4 @@ if CEREBRO
 SUBDIRS += cerebro
 endif
 
-EXTRA_DIST = META lmt.spec
+EXTRA_DIST = lmt.spec

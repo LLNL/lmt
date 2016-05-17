@@ -1,4 +1,4 @@
-.TH ltop 1 "@META_DATE@" "@META_ALIAS@" "@META_NAME@"
+.TH ltop 1 "2016-04-01" "@PACKAGE_NAME@-@PACKAGE_VERSION@" "@PACKAGE_NAME@"
 .SH NAME
 ltop \- display live information about a Lustre file system
 .SH SYNOPSIS
