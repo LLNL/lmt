@@ -22,7 +22,7 @@ Lustre Monitoring Tool
 Summary: Lustre Monitoring Tools Server
 Group: Applications/System
 Requires: cerebro >= 1.3
-Requires: mysql-server >= 4.1.20
+Requires: mysql-compat-server >= 4.1.20
 Requires: perl-DBI
 %description server
 Lustre Monitoring Tools (LMT) Server
