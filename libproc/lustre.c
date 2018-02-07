@@ -133,6 +133,45 @@ typedef enum {
 
 /*
  * Fill-in the supplied version components with the Lustre version
+ * found in /sys.
+ *
+ * Returns -1 on error, 0 or greater on success.
+ */
+int
+sys_fs_lustre_version (pctx_t ctx, int *major, int *minor, int *patch,
+                       int *fix)
+{
+    int ret;
+    char version[256];
+
+    if ((ret = proc_openf (ctx, PROC_FS_LUSTRE_VERSION)) < 0)
+        goto done;
+
+    if ((ret = proc_gets (ctx, NULL, version, sizeof (version))) < 0)
+        goto close;
+
+    /* first, get the numbers which must be present in a version string */
+    if ((ret = sscanf (version, "%d.%d.%d", major, minor, patch)) != 3) {
+        errno = EINVAL;
+        ret = -1;
+        goto close;
+    }
+
+    /* now, get the optional fix value or set it to 0 */
+    if (sscanf (version, "%*d.%*d.%*d.%d", fix) != 1)
+        *fix = 0;
+
+close:
+    proc_close (ctx);
+done:
+    if (ret < 0)
+        ret = -1;
+
+    return ret;
+}
+
+/*
+ * Fill-in the supplied version components with the Lustre version
  * found in /proc.
  *
  * Returns -1 or less on error, 0 or greater on success.
@@ -173,13 +212,23 @@ _packed_lustre_version (pctx_t ctx)
 {
     int ret = -1;
     int major = 0, minor = 0, patch = 0, fix = 0;
+    pctx_t ctx_sys;
 
-    if ((ret = proc_fs_lustre_version (ctx, &major, &minor, &patch, &fix)) < 0)
-        goto done;
+    ret = proc_fs_lustre_version(ctx, &major, &minor, &patch, &fix);
 
-    ret = PACKED_VERSION(major, minor, patch, fix);
-done:
-    return ret;
+    if (ret < 0) {
+        ctx_sys = proc_create("/sys");
+        if (!ctx_sys)
+            return -1;
+
+        ret = sys_fs_lustre_version (ctx_sys, &major, &minor, &patch, &fix);
+        proc_destroy(ctx_sys);
+    }
+
+    if (ret < 0)
+        return -1;
+
+    return PACKED_VERSION (major, minor, patch, fix);
 }
 
 /*
