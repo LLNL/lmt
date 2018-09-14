@@ -433,10 +433,10 @@ main (int argc, char *argv[])
     _sort_tgtlist (mdt_data, tcycle, mdt_col[mdt_fp].fun);
     assert (ostview);
     assert (mdtview);
-    if ((mdtcount = list_count (mdt_data)) == 0)
-        msg_exit ("no MDT data found for file system `%s'", fs);
-    if ((ostcount = list_count (ost_data)) == 0)
-        msg_exit ("no OST data found for file system `%s'", fs);
+    mdtcount = list_count (mdt_data);
+    ostcount = list_count (ost_data);
+    if (mdtcount == 0 && ostcount == 0)
+        msg_exit ("Neither MDT nor OST data found for file system `%s'", fs);
 
     /* Initialize curses and create the windows.  more curses below. */
     if (!(topwin = initscr ()))
