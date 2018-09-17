@@ -319,12 +319,17 @@ size_windows(int total_size, int mdts, int osts,
             } else {
                 int detail_size = total_size - TOPWIN_LINES;
                 /*
-                 * OST and MDT section sizes proportional to target counts,
+                 * OST and MDT window sizes proportional to target counts,
                  * except that we allow space for at least 2 MDTs since we know
                  * there is more than one MDT.
                  */
                 *mdtlines = 2 + ((float)detail_size*mdts) / ((float)mdts+osts);
+
+                /*
+                 * Make sure both MDT and OST windows have at least 2 rows.
+                 */
                 *mdtlines = (*mdtlines < 3 ? 3 : *mdtlines);
+                *mdtlines = ((detail_size - *mdtlines) < 3 ? (detail_size - 3) : *mdtlines);
                 *mdtlines = (*mdtlines > (mdts+2) ? (mdts+2) : *mdtlines);
             }
         }
