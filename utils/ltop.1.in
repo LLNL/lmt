@@ -116,6 +116,9 @@ Terminate the
 .B ltop
 program.
 .TP
+\fIz\fR
+Switch the cursor between the OST and MDT windows.
+.TP
 \fIPageDown\fR
 Page down through target information if it won't fit on screen.
 .TP
