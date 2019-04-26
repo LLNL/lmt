@@ -5,7 +5,7 @@ test_versions() {
 
     for path in lustre_versions/*; do
         version=$(basename $path)
-        $test_bin $path/proc >$TEST-$version.out 2>&1
+        $test_bin $path/ >$TEST-$version.out 2>&1
 
         if diff $path/outputs/$TEST.exp \
                 $TEST-$version.out >$TEST-$version.diff; then

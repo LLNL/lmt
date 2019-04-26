@@ -28,7 +28,7 @@ test_metrics() {
     while read line; do
         ref_string="$(eval echo "\"$line\"")"
         m_name=$(echo $ref_string | cut -f1 -d:)
-        tst_string=$(../utils/lmtmetric -r $path/proc -m $m_name)
+        tst_string=$(../utils/lmtmetric -r $path/ -m $m_name)
         echo $tst_string >> $out_file
         if [ "$ref_string" != "$tst_string" ]; then
             echo $ref_string >> $ref_file

@@ -44,10 +44,14 @@
 
 #define PCTX_MAGIC  0xf00f5542
 
+#define PROC_ROOT_PROC                  "proc"
+#define PROC_ROOT_SYS                   "sys"
+
 struct proc_ctx_struct {
 	int	    pctx_magic;
     char    pctx_root[PATH_MAX];
     char    *pctx_path;
+    char    *pctx_real_root;
     int     pctx_pathlen;
     FILE    *pctx_fp;
     DIR     *pctx_dp;    
@@ -61,9 +65,11 @@ proc_create (const char *root)
 
     if (!(ctx = malloc (sizeof (*ctx))))
         msg_exit ("out of memory");
-    snprintf (ctx->pctx_root, sizeof (ctx->pctx_root), "%s/", root);
-    ctx->pctx_path = ctx->pctx_root + strlen (ctx->pctx_root);
-    ctx->pctx_pathlen = sizeof (ctx->pctx_root) - strlen (ctx->pctx_root);
+    if (!(ctx->pctx_real_root = strdup (root)))
+        msg_exit ("out of memory");
+    ctx->pctx_root[0] = '\0';
+    ctx->pctx_path = ctx->pctx_root;
+    ctx->pctx_pathlen = sizeof (ctx->pctx_root);
     ctx->pctx_fp = NULL;
     ctx->pctx_dp = NULL;
     ctx->pctx_stat_pvt = NULL;
@@ -78,6 +84,7 @@ proc_destroy (pctx_t ctx)
     assert (ctx->pctx_magic == PCTX_MAGIC);
     assert (!ctx->pctx_fp && !ctx->pctx_dp);
     ctx->pctx_magic = 0;
+    free (ctx->pctx_real_root);
     free (ctx);
 }
 
@@ -99,10 +106,25 @@ _open (pctx_t ctx)
 int
 proc_open (pctx_t ctx, const char *path)
 {
+    struct stat buf;
+
     assert (ctx->pctx_magic == PCTX_MAGIC);
     assert (!ctx->pctx_fp && !ctx->pctx_dp);
 
+    snprintf (ctx->pctx_root, sizeof (ctx->pctx_root), "%s%s/",
+      ctx->pctx_real_root, PROC_ROOT_SYS);
+    ctx->pctx_path = ctx->pctx_root + strlen (ctx->pctx_root);
+    ctx->pctx_pathlen = sizeof (ctx->pctx_root) - strlen (ctx->pctx_root);
     snprintf (ctx->pctx_path, ctx->pctx_pathlen, "%s", path);
+
+    if (stat(ctx->pctx_root, &buf) != 0) {
+        snprintf (ctx->pctx_root, sizeof (ctx->pctx_root), "%s%s/",
+          ctx->pctx_real_root, PROC_ROOT_PROC);
+        ctx->pctx_path = ctx->pctx_root + strlen (ctx->pctx_root);
+        ctx->pctx_pathlen = sizeof (ctx->pctx_root) - strlen (ctx->pctx_root);
+        snprintf (ctx->pctx_path, ctx->pctx_pathlen, "%s", path);
+    }
+
     return _open (ctx);
 }
 
@@ -111,9 +133,12 @@ proc_vopenf (pctx_t ctx, const char *fmt, va_list ap)
 {
     assert (ctx->pctx_magic == PCTX_MAGIC);
     assert (!ctx->pctx_fp && !ctx->pctx_dp);
+    char    tmp[PATH_MAX];
+    int     rc;
 
-    (void)vsnprintf (ctx->pctx_path, ctx->pctx_pathlen, fmt, ap);
-    return _open (ctx);
+    (void)vsnprintf (tmp, sizeof(tmp), fmt, ap);
+    rc = proc_open(ctx, tmp);
+    return rc;
 }
 
 int
@@ -218,6 +243,7 @@ proc_readdir (pctx_t ctx, proc_readdir_flag_t flag, char **namep)
     assert (!ctx->pctx_fp);
     assert (ctx->pctx_dp);
 
+    errno = 0;
     while ((d = readdir (ctx->pctx_dp))) { 
         if (d->d_name[0] == '.') /* ignore ".", "..", ".svn", etc */
             continue;
