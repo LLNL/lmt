@@ -78,7 +78,7 @@ usage()
     fprintf (stderr,
 "Usage: lmtmetric [OPTIONS]\n"
 "   -m,--metric NAME            select ost|mdt|osc|router|sysstat\n"
-"   -r,--proc-root DIR          select proc root other than /proc\n"
+"   -r,--root DIR               select root for (sys,proc) other than /\n"
 "   -t,--update-period SECS     [default: run once]\n"
     );
     exit (1);
@@ -89,7 +89,7 @@ main (int argc, char *argv[])
 {
     pctx_t ctx;
     char buf[CEREBRO_MAX_DATA_STRING_LEN];
-    char *proc_root = "/proc";
+    char *proc_root = "/";
     char *metric = NULL;
     unsigned long update_period = 0;
     int c, n = 0;

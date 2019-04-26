@@ -217,7 +217,7 @@ _packed_lustre_version (pctx_t ctx)
     ret = proc_fs_lustre_version(ctx, &major, &minor, &patch, &fix);
 
     if (ret < 0) {
-        ctx_sys = proc_create("/sys");
+        ctx_sys = proc_create("/");
         if (!ctx_sys)
             return -1;
 

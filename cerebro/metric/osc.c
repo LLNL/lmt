@@ -65,7 +65,7 @@ _get_metric_value (unsigned int *metric_value_type,
                    unsigned int *metric_value_len,
                    void **metric_value)
 {
-    pctx_t ctx = proc_create ("/proc");
+    pctx_t ctx = proc_create ("/");
     char *buf = xmalloc (CEREBRO_MAX_DATA_STRING_LEN);
     int retval = -1;
 
