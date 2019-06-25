@@ -84,6 +84,7 @@ typedef struct {
                                 /* from osc */
     sample_t pct_cpu;
     sample_t pct_mem;
+    sample_t pct_used;
     int tag;                    /* display this target line underlined */
 } generic_target_t;
 
@@ -117,6 +118,8 @@ typedef struct {
     sample_t rmdir;             /* rmdir ops/sec */
     sample_t statfs;            /* statfs ops/sec */
     sample_t rename;            /* rename ops/sec */
+    sample_t kbytes_free;       /* free space (kbytes) */
+    sample_t kbytes_total;      /* total space (kbytes) */
     sample_t getxattr;          /* getxattr ops/sec */
 } mdtstat_t;
 
@@ -214,10 +217,13 @@ static int _cmp_mdtstat_byunlink (mdtstat_t *m1, mdtstat_t *m2);
 static int _cmp_mdtstat_byrmdir (mdtstat_t *m1, mdtstat_t *m2);
 static int _cmp_mdtstat_bymkdir (mdtstat_t *m1, mdtstat_t *m2);
 static int _cmp_mdtstat_byrename (mdtstat_t *m1, mdtstat_t *m2);
+static int _cmp_mdtstat_byspc     (mdtstat_t *m1, mdtstat_t *m2);
+static int _cmp_mdtstat_byino     (mdtstat_t *m1, mdtstat_t *m2);
 
-/* Top of display fixed.  We also assume 80 chars wide.
+/* Top of display fixed.
  */
 #define TOPWIN_LINES    7       /* lines in topwin */
+#define WINDOW_WIDTH   90       /* width of windows */
 
 #define OPTIONS "f:t:s:r:p:"
 #if HAVE_GETOPT_LONG
@@ -276,6 +282,8 @@ sort_t mdt_col[] = {
     { .fun = (ListCmpF)_cmp_mdtstat_byrename, .k =  'R', .h = "%sRenam"      },
     { .fun = (ListCmpF)_cmp_tgtstat_bycpu,    .k =  'u', .h = " %s%%cpu"     },
     { .fun = (ListCmpF)_cmp_tgtstat_bymem,    .k =  'm', .h = " %s%%mem"     },
+    { .fun = (ListCmpF)_cmp_mdtstat_byspc,    .k =  'T', .h = " %s%%spc"     },
+    { .fun = (ListCmpF)_cmp_mdtstat_byino,    .k =  'T', .h = " %s%%ino"     },
 };
 
 static void
@@ -341,7 +349,7 @@ void
 create_target_window(WINDOW **targetwin, int targetlines, int start_y)
 {
     if (targetlines>=2) {
-        if (!(*targetwin = newwin (targetlines, 80, start_y, 0)))
+        if (!(*targetwin = newwin (targetlines, WINDOW_WIDTH, start_y, 0)))
                 err_exit ("error initializing subwindow");
     } else {
         *targetwin = NULL;
@@ -1161,6 +1169,14 @@ _update_display_mdt (WINDOW *win, int line, void *target, int stale_secs,
      *      man ltop "OSC status"
      *      comment at _update_osc()
      */
+    double ktot  = sample_val (m->kbytes_total, tnow);
+    double kfree = sample_val (m->kbytes_free,  tnow);
+    double pct_used  = ktot  > 0 ? ((ktot  - kfree)  / ktot)*100.0 : 0;
+
+/* for inodes */
+    double uktot     = sample_val (m->inodes_total, tnow);
+    double ukfree    = sample_val (m->inodes_free,  tnow);
+    double ipct_used = uktot > 0 ? ((uktot - ukfree) / uktot)*100.0 : 0;
 
     if ((tnow - m->common.tgt_metric_timestamp) > stale_secs) {
         // available info is expired 
@@ -1175,7 +1191,7 @@ _update_display_mdt (WINDOW *win, int line, void *target, int stale_secs,
         /* mdt is not in recovery */
         mvwprintw (win, line, 0, "%4.4s %12.12s"
                    " %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f"
-                   " %5.0f %5.0f",
+                   " %5.0f %5.0f %5.0f %5.0f",
                    m->common.name, _ltrunc (m->common.servername, 10),
                    sample_rate (m->open, tnow),
                    sample_rate (m->close, tnow),
@@ -1186,7 +1202,8 @@ _update_display_mdt (WINDOW *win, int line, void *target, int stale_secs,
                    sample_rate (m->rmdir, tnow),
                    sample_rate (m->rename, tnow),
                    sample_val (m->common.pct_cpu, tnow),
-                   sample_val (m->common.pct_mem, tnow)
+                   sample_val (m->common.pct_mem, tnow),
+                   pct_used, ipct_used
                    );
     }
 }
@@ -1346,6 +1363,8 @@ _create_mdtstat (char *name, int stale_secs)
     m->rmdir =        sample_create (stale_secs);
     m->statfs =       sample_create (stale_secs);
     m->rename =       sample_create (stale_secs);
+    m->kbytes_free =  sample_create (stale_secs);
+    m->kbytes_total = sample_create (stale_secs);
     m->common.pct_cpu =      sample_create (stale_secs);
     m->common.pct_mem =      sample_create (stale_secs);
     m->getxattr =     sample_create (stale_secs);
@@ -1369,6 +1388,8 @@ _destroy_mdtstat (mdtstat_t *m)
     sample_destroy (m->rmdir);
     sample_destroy (m->statfs);
     sample_destroy (m->rename);
+    sample_destroy (m->kbytes_free);
+    sample_destroy (m->kbytes_total);
     sample_destroy (m->common.pct_cpu);
     sample_destroy (m->common.pct_mem);
     sample_destroy (m->getxattr);
@@ -1550,14 +1571,64 @@ _cmp_oststat_byspc (oststat_t *o1, oststat_t *o2)
 {
     double t1 = sample_val (o1->kbytes_total, sort_tnow);
     double f1 = sample_val (o1->kbytes_free, sort_tnow);
-    double p1 = t1 > 0 ? ((t1 - f1) / t1)*100.0 : 0;
+    double p1 = t1 > 0 ? ((t1 - f1) / t1) : 0;
     double t2 = sample_val (o2->kbytes_total, sort_tnow);
     double f2 = sample_val (o2->kbytes_free, sort_tnow);
-    double p2 = t2 > 0 ? ((t2 - f2) / t2)*100.0 : 0;
-    int ret = p1 == p2 ? 0 : p1 < p2 ? -1 : 1; /* ascending */
+    double p2 = t2 > 0 ? ((t2 - f2) / t2) : 0;
+    int ret;
+
+    if (p1 == p2)
+        ret = 0;
+    else if (p1 < p2) /* ascending */
+        ret = -1;
+    else
+        ret = 1;
 
     return -1 * ret;
 }
+
+static int
+_cmp_mdtstat_byspc (mdtstat_t *m1, mdtstat_t *m2)
+{
+    double t1 = sample_val (m1->kbytes_total, sort_tnow);
+    double f1 = sample_val (m1->kbytes_free,  sort_tnow);
+    double p1 = t1 > 0 ? ((t1 - f1) / t1) : 0;
+    double t2 = sample_val (m2->kbytes_total, sort_tnow);
+    double f2 = sample_val (m2->kbytes_free,  sort_tnow);
+    double p2 = t2 > 0 ? ((t2 - f2) / t2) : 0;
+    int ret;
+
+    if (p1 == p2)
+        ret = 0;
+    else if (p1 < p2) /* ascending */
+        ret = -1;
+    else
+        ret = 1;
+
+    return (-1 * ret);
+}
+
+static int
+_cmp_mdtstat_byino (mdtstat_t *m1, mdtstat_t *m2)
+{
+    double t1 = sample_val (m1->inodes_total, sort_tnow);
+    double f1 = sample_val (m1->inodes_free,  sort_tnow);
+    double p1 = t1 > 0 ? ((t1 - f1) / t1) : 0;
+    double t2 = sample_val (m2->inodes_total, sort_tnow);
+    double f2 = sample_val (m2->inodes_free,  sort_tnow);
+    double p2 = t2 > 0 ? ((t2 - f2) / t2) : 0;
+    int ret;
+
+    if (p1 == p2)
+        ret = 0;
+    else if (p1 < p2) /* ascending */
+        ret = -1;
+    else
+        ret = 1;
+
+    return (-1 * ret);
+}
+
 
 /* Used for list_sort () of MDT list by opens (descending order).
  */
@@ -1888,6 +1959,8 @@ _update_mdt (char *mdtname, char *servername, uint64_t inodes_free,
             sample_invalidate (m->rmdir);
             sample_invalidate (m->statfs);
             sample_invalidate (m->rename);
+            sample_invalidate (m->kbytes_free);
+            sample_invalidate (m->kbytes_total);
             sample_invalidate (m->getxattr);
             sample_invalidate (m->common.pct_cpu);
             sample_invalidate (m->common.pct_mem);
@@ -1898,6 +1971,8 @@ _update_mdt (char *mdtname, char *servername, uint64_t inodes_free,
         m->common.tgt_metric_timestamp = trcv;
         sample_update (m->inodes_free, (double)inodes_free, trcv);
         sample_update (m->inodes_total, (double)inodes_total, trcv);
+        sample_update (m->kbytes_free, (double)kbytes_free, trcv);
+        sample_update (m->kbytes_total, (double)kbytes_total, trcv);
         sample_update (m->common.pct_cpu, (double)pct_cpu, trcv);
         sample_update (m->common.pct_mem, (double)pct_mem, trcv);
         if (version==2)
@@ -2265,6 +2340,11 @@ _single_mdt_update_summary (void *mdt_v, void *summary_v)
     sample_add (summary->rmdir, mdt->rmdir);
     sample_add (summary->statfs, mdt->statfs);
     sample_add (summary->rename, mdt->rename);
+
+    sample_add (summary->inodes_total, mdt->inodes_total);
+    sample_add (summary->inodes_free, mdt->inodes_free);
+    sample_add (summary->kbytes_total, mdt->kbytes_total);
+    sample_add (summary->kbytes_free, mdt->kbytes_free);
     sample_add (summary->getxattr, mdt->getxattr);
 
     /* %cpu and %mem are per-server, and so the initial copy

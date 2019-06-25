@@ -276,20 +276,6 @@ done:
         list_destroy (mdops);
 }
 
-/* lmt_mdt_v1: mds + multipe mdt's */
-void
-lmt_db_insert_mdt_v1 (char *s)
-{
-    lmt_db_insert_mdt_v1_v2 (s, 1);
-}
-
-/* lmt_mdt_v2: mds + multipe mdt's w/ recovery info */
-void
-lmt_db_insert_mdt_v2 (char *s)
-{
-    lmt_db_insert_mdt_v1_v2 (s, 2);
-}
-
 /* lmt_mdt_v1 and lmt_mdt_v2 helper */
 void
 lmt_db_insert_mdt_v1_v2 (char *s, int ver)
@@ -312,6 +298,20 @@ done:
         free (mdsname);    
     if (mdtinfo)
         list_destroy (mdtinfo);
+}
+
+/* lmt_mdt_v1: mds + multipe mdt's */
+void
+lmt_db_insert_mdt_v1 (char *s)
+{
+    lmt_db_insert_mdt_v1_v2 (s, 1);
+}
+
+/* lmt_mdt_v2: mds + multipe mdt's w/ recovery info */
+void
+lmt_db_insert_mdt_v2 (char *s)
+{
+    lmt_db_insert_mdt_v1_v2 (s, 2);
 }
 
 /* lmt_router_v1: router */
