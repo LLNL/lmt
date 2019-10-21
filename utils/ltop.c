@@ -2238,7 +2238,7 @@ _rewind_file_to (FILE *f, List time_series, time_t target)
 }
 
 /* Peek at the data to find a default file system to monitor.
- * Ignore file systems with no OSTs or no MDTs.
+ * Ignore file systems with no OSTs and no MDTs.
  */
 static char *
 _find_first_fs (FILE *playf, int stale_secs)
@@ -2250,7 +2250,7 @@ _find_first_fs (FILE *playf, int stale_secs)
 
     itr = list_iterator_create (fsl);
     while (!ret && (f = list_next (itr))) {
-        if (f->num_ost > 0 && f->num_mdt > 0)
+        if (f->num_ost > 0 || f->num_mdt > 0)
             ret = xstrdup (f->fsname);
     }
     list_iterator_destroy (itr);
