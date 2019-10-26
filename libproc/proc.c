@@ -249,7 +249,7 @@ proc_readdir (pctx_t ctx, proc_readdir_flag_t flag, char **namep)
             continue;
         if ((flag & PROC_READDIR_NODIR) && d->d_type == DT_DIR)
             continue;
-        if ((flag & PROC_READDIR_NOFILE) && d->d_type != DT_DIR)
+        if ((flag & PROC_READDIR_NOFILE) && d->d_type != DT_DIR && d->d_type != DT_LNK)
             continue;
         if (!(name = strdup (d->d_name)))
             msg_exit ("out of memory");
