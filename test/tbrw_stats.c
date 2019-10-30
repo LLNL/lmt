@@ -64,12 +64,16 @@ main (int argc, char *argv[])
     List srvlist;
     ListIterator itr;
     char *name;
+    int maj, min, patch, fix;
 
     err_init (argv[0]);
     if (argc != 2)
         msg_exit ("missing proc argument");
 
     ctx = proc_create (argv[1]);
+
+    if (proc_fs_lustre_version (ctx, &maj, &min, &patch, &fix) < 0)
+        msg_exit ("unable to determine lustre version");
 
     if (proc_lustre_ostlist (ctx, &srvlist) < 0)
         err_exit ("error looking for ost's");
@@ -79,8 +83,10 @@ main (int argc, char *argv[])
     while ((name = list_next (itr))) {
         dump_brw_stats (ctx, name, BRW_RPC, "pages per bulk r/w");
         dump_brw_stats (ctx, name, BRW_DISPAGES, "discontiguous pages");
-        dump_brw_stats (ctx, name, BRW_DISBLOCKS, "discontiguous blocks");
-        dump_brw_stats (ctx, name, BRW_FRAG, "disk fragmented I/Os");
+        if (PACKED_VERSION(maj,min,patch,fix) < LUSTRE_2_10) {
+            dump_brw_stats (ctx, name, BRW_DISBLOCKS, "discontiguous blocks");
+            dump_brw_stats (ctx, name, BRW_FRAG, "disk fragmented I/Os");
+        }
         dump_brw_stats (ctx, name, BRW_FLIGHT, "disk I/Os in flight");
         dump_brw_stats (ctx, name, BRW_IOTIME, "I/O time (1/1000s)");
         dump_brw_stats (ctx, name, BRW_IOSIZE, "disk I/O size");
