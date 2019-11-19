@@ -193,6 +193,9 @@ _find_mdt_dir (pctx_t ctx)
 {
     int lustre_version = _packed_lustre_version (ctx);
 
+    if (lustre_version == -1)
+        msg_exit ("failed to determine lustre version");
+
     /* Keep adding to the top of this as changes accrue */
     if (lustre_version >= LUSTRE_2_0)
        return PROC_FS_LUSTRE_2_0_MDT_DIR;
@@ -1033,19 +1036,36 @@ _read_lustre_version_string(pctx_t ctx, char **version_string)
     rh = hash_create (STATS_HASH_SIZE, (hash_key_f)hash_key_string,
                       (hash_cmp_f)strcmp, (hash_del_f)_destroy_shash);
 
+    /*
+     * For Lustre <= 2.8 version file was 3-record key-value format.
+     * Afterwards it was just a bare version string.
+     */
     ret = _hash_stats (ctx, rh);
-
     proc_close (ctx);
 
-    if (!(version = hash_find (rh, "lustre:"))) {
-        ret = -1;
-        goto done;
+    if (hash_count(rh) > 0) {
+        if (!(version = hash_find (rh, "lustre:"))) {
+            ret = -1;
+            goto done;
+        }
+
+        if (!(*version_string = strdup(version->val)))
+            msg_exit ("out of memeory");
+        ret = 0;
+
+    } else {
+        char buf[64];
+        int rc;
+
+        rc = proc_gets (ctx, PROC_FS_LUSTRE_VERSION, buf, sizeof(buf));
+        if (rc < 0) {
+            msg_exit ("Unable to read version string");
+        }
+        if (!(*version_string = strdup(buf)))
+            msg_exit ("out of memory");
+        ret = 0;
     }
 
-    if (!(*version_string = strdup(version->val)))
-        msg_exit ("out of memeory");
-
-    ret = 0;
 done:
     if (rh)
         hash_destroy(rh);
