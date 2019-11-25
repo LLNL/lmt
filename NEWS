@@ -1,4 +1,15 @@
 ========================================================================
+Release Notes for LMT 3.2.8                                 25 Nov 2019
+========================================================================
+
+* #49 handle lustre version file containing bare version
+* #49 Revert "Add /sys in Lustre version checking (#31)"
+* Recovery status reported for any status other than COMPLETE
+* #33 build: Fix autotools warnings
+* #30 Fix "lmtmetric: osc metric: No such file or directory"
+* #44 Fully expand ${prefix} in configure so make install works
+
+========================================================================
 Release Notes for LMT 3.2.7                                 23 Oct 2019
 ========================================================================
 
