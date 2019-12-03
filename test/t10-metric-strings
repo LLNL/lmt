@@ -24,7 +24,12 @@ test_metrics() {
     rm -f $ref_file
     rm -f $fault_file
     rm -f $diff_file
-    
+  
+    if [[ $path =~ missing_version || $path =~ bad_version ]]; then
+        echo "  $version: PASS"
+	return
+    fi
+ 
     while read line; do
         ref_string="$(eval echo "\"$line\"")"
         m_name=$(echo $ref_string | cut -f1 -d:)

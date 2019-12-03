@@ -73,7 +73,7 @@ main (int argc, char *argv[])
     ctx = proc_create (argv[1]);
 
     if (proc_fs_lustre_version (ctx, &maj, &min, &patch, &fix) < 0)
-        msg_exit ("unable to determine lustre version");
+        err_exit ("proc_fs_lustre_version failed");
 
     if (proc_lustre_ostlist (ctx, &srvlist) < 0)
         err_exit ("error looking for ost's");

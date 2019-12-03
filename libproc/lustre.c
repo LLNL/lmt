@@ -135,7 +135,7 @@ typedef enum {
  * Fill-in the supplied version components with the Lustre version
  * found in /proc.
  *
- * Returns -1 or less on error, 0 or greater on success.
+ * Returns <0 on error, 0 or greater on success.
  */
 int
 proc_fs_lustre_version (pctx_t ctx, int *major, int *minor, int *patch,
@@ -166,7 +166,7 @@ done:
 
 /*
  * Read the Lustre version from /proc and pack it into an int.
- * Returns the packed version or -1 on error.
+ * Returns the packed version or <0 on error.
  */
 static int
 _packed_lustre_version (pctx_t ctx)
@@ -193,8 +193,8 @@ _find_mdt_dir (pctx_t ctx)
 {
     int lustre_version = _packed_lustre_version (ctx);
 
-    if (lustre_version == -1)
-        msg_exit ("failed to determine lustre version");
+    if (lustre_version < 0)
+        err_exit ("_packed_lustre_version failed");
 
     /* Keep adding to the top of this as changes accrue */
     if (lustre_version >= LUSTRE_2_0)
@@ -247,6 +247,9 @@ _build_osd_stats_path (pctx_t ctx, char *name, char **stats)
     int ret = -1;
     int lustre_version = _packed_lustre_version (ctx);
 
+    if (lustre_version < 0)
+        err_exit ("_packed_lustre_version failed");
+
     if (strstr (name, "-MDT")) {
         if (lustre_version >= LUSTRE_2_0) {
             if ((ret = _build_mdt_path (ctx,
@@ -281,6 +284,9 @@ static char *
 _find_osd_dir (pctx_t ctx)
 {
     int lustre_version = _packed_lustre_version (ctx);
+
+    if (lustre_version < 0)
+        err_exit ("_packed_lustre_version failed");
 
     /* Keep adding to the top of this as changes accrue */
     if (lustre_version >= LUSTRE_2_0) {
@@ -952,6 +958,9 @@ proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp)
     int lustre_version = _packed_lustre_version (ctx);
     char *stats;
 
+    if (lustre_version < 0)
+        err_exit ("_packed_lustre_version failed");
+
     if ((ret = _build_osd_stats_path (ctx, name, &stats)) < 0)
         goto done;
 
@@ -1045,6 +1054,7 @@ _read_lustre_version_string(pctx_t ctx, char **version_string)
 
     if (hash_count(rh) > 0) {
         if (!(version = hash_find (rh, "lustre:"))) {
+            errno = EIO;
             ret = -1;
             goto done;
         }
@@ -1059,7 +1069,9 @@ _read_lustre_version_string(pctx_t ctx, char **version_string)
 
         rc = proc_gets (ctx, PROC_FS_LUSTRE_VERSION, buf, sizeof(buf));
         if (rc < 0) {
-            msg_exit ("Unable to read version string");
+            errno = EIO;
+            ret = -1;
+            goto done;
         }
         if (!(*version_string = strdup(buf)))
             msg_exit ("out of memory");
