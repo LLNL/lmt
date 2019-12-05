@@ -135,13 +135,13 @@ typedef enum {
  * Fill-in the supplied version components with the Lustre version
  * found in /proc.
  *
- * Returns -1 or less on error, 0 or greater on success.
+ * Returns <0 on error, 0 or greater on success.
  */
 int
 proc_fs_lustre_version (pctx_t ctx, int *major, int *minor, int *patch,
                         int *fix)
 {
-    int ret = -1;
+    int ret;
     char *version_string = NULL;
 
     if ((ret = _read_lustre_version_string (ctx, &version_string)) < 0)
@@ -179,6 +179,9 @@ _packed_lustre_version (pctx_t ctx)
 
     ret = PACKED_VERSION(major, minor, patch, fix);
 done:
+    if (ret < -1)
+        ret = -1;
+
     return ret;
 }
 
@@ -194,7 +197,7 @@ _find_mdt_dir (pctx_t ctx)
     int lustre_version = _packed_lustre_version (ctx);
 
     if (lustre_version == -1)
-        msg_exit ("failed to determine lustre version");
+        err ("failed to determine lustre version");
 
     /* Keep adding to the top of this as changes accrue */
     if (lustre_version >= LUSTRE_2_0)
@@ -1059,7 +1062,7 @@ _read_lustre_version_string(pctx_t ctx, char **version_string)
 
         rc = proc_gets (ctx, PROC_FS_LUSTRE_VERSION, buf, sizeof(buf));
         if (rc < 0) {
-            msg_exit ("Unable to read version string");
+            err ("Unable to read version string");
         }
         if (!(*version_string = strdup(buf)))
             msg_exit ("out of memory");
