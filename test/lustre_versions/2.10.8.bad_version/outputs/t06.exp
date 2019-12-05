@@ -1,0 +1,11 @@
+trecov: ost: lquake-OST0000
+trecov: lquake-OST0000: last_transno:='1078036791296'
+trecov: lquake-OST0000: replayed_requests:='0'
+trecov: lquake-OST0000: completed_clients:='108/108'
+trecov: lquake-OST0000: status:='COMPLETE'
+trecov: lquake-OST0000: IR:='DISABLED'
+trecov: lquake-OST0000: VBR:='DISABLED'
+trecov: lquake-OST0000: recovery_duration:='87'
+trecov: lquake-OST0000: recovery_start:='1572044837'
+trecov: failed to determine lustre version: Input/output error
+trecov: error looking for mdt's: No such file or directory

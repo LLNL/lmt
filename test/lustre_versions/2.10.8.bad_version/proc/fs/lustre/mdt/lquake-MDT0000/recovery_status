@@ -1,0 +1,8 @@
+status: COMPLETE
+recovery_start: 1572044838
+recovery_duration: 61
+completed_clients: 107/107
+replayed_requests: 0
+last_transno: 687194767360
+VBR: DISABLED
+IR: DISABLED

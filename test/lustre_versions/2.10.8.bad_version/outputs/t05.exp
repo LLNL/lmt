@@ -1,0 +1,19 @@
+tstats: ost: lquake-OST0000
+tstats: lquake-OST0000: snapshot_time='1572404799.950459989 secs.nsecs'
+tstats: lquake-OST0000: punch='8214 samples [reqs]'
+tstats: lquake-OST0000: write_bytes='5370989 samples [bytes] 1 1048576 2798370021441'
+tstats: lquake-OST0000: read_bytes='7688839 samples [bytes] 4096 1048576 2092334829568'
+tstats: lquake-OST0000: disconnect='3 samples [reqs]'
+tstats: lquake-OST0000: reconnect='110 samples [reqs]'
+tstats: lquake-OST0000: connect='2 samples [reqs]'
+tstats: lquake-OST0000: destroy='3152534 samples [reqs]'
+tstats: lquake-OST0000: sync='128 samples [reqs]'
+tstats: lquake-OST0000: create='583 samples [reqs]'
+tstats: lquake-OST0000: ping='1285673 samples [reqs]'
+tstats: lquake-OST0000: get_info='18 samples [reqs]'
+tstats: lquake-OST0000: setattr='540 samples [reqs]'
+tstats: lquake-OST0000: statfs='297051 samples [reqs]'
+tstats: lquake-OST0000: commitrw='13059828 samples [reqs]'
+tstats: lquake-OST0000: preprw='13059828 samples [reqs]'
+tstats: failed to determine lustre version: Input/output error
+tstats: error looking for mdt's: No such file or directory
