@@ -1,0 +1,6 @@
+Routing disabled
+net      hops priority   state router
+o2ib18     -1        0      up 172.19.1.55@o2ib100
+o2ib18     -1        0      up 172.19.1.53@o2ib100
+o2ib18     -1        0      up 172.19.1.52@o2ib100
+o2ib18     -1        0      up 172.19.1.54@o2ib100

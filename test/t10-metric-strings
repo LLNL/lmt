@@ -26,6 +26,10 @@ test_metrics() {
     rm -f $diff_file
     
     while read line; do
+	if [ -z "$line" ]; then
+		echo "skipping empty line"
+		continue
+	fi
         ref_string="$(eval echo "\"$line\"")"
         m_name=$(echo $ref_string | cut -f1 -d:)
         tst_string=$(../utils/lmtmetric -r $path/ -m $m_name)
