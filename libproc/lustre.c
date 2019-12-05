@@ -194,7 +194,7 @@ _find_mdt_dir (pctx_t ctx)
     int lustre_version = _packed_lustre_version (ctx);
 
     if (lustre_version < 0)
-        err_exit ("_packed_lustre_version failed");
+        err ("_packed_lustre_version failed");
 
     /* Keep adding to the top of this as changes accrue */
     if (lustre_version >= LUSTRE_2_0)
@@ -247,8 +247,10 @@ _build_osd_stats_path (pctx_t ctx, char *name, char **stats)
     int ret = -1;
     int lustre_version = _packed_lustre_version (ctx);
 
-    if (lustre_version < 0)
-        err_exit ("_packed_lustre_version failed");
+    if (lustre_version < 0) {
+        err ("_packed_lustre_version failed");
+        goto done;
+    }
 
     if (strstr (name, "-MDT")) {
         if (lustre_version >= LUSTRE_2_0) {
@@ -286,7 +288,7 @@ _find_osd_dir (pctx_t ctx)
     int lustre_version = _packed_lustre_version (ctx);
 
     if (lustre_version < 0)
-        err_exit ("_packed_lustre_version failed");
+        err ("_packed_lustre_version failed");
 
     /* Keep adding to the top of this as changes accrue */
     if (lustre_version >= LUSTRE_2_0) {
@@ -958,8 +960,10 @@ proc_lustre_hashstats (pctx_t ctx, char *name, hash_t *hp)
     int lustre_version = _packed_lustre_version (ctx);
     char *stats;
 
-    if (lustre_version < 0)
-        err_exit ("_packed_lustre_version failed");
+    if (lustre_version < 0) {
+        err ("_packed_lustre_version failed");
+        goto done;
+    }
 
     if ((ret = _build_osd_stats_path (ctx, name, &stats)) < 0)
         goto done;

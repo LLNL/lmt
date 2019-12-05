@@ -8,3 +8,4 @@ trecov: lquake-OST0000: VBR:='DISABLED'
 trecov: lquake-OST0000: recovery_duration:='87'
 trecov: lquake-OST0000: recovery_start:='1572044837'
 trecov: _packed_lustre_version failed: No such file or directory
+trecov: error looking for mdt's: No such file or directory
