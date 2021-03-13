@@ -997,7 +997,7 @@ _create_fsstat (char *fsname, uint64_t mdts, uint64_t osts)
 {
     fsstat_t *f = xmalloc (sizeof (*f));
     memset (f, 0, sizeof (*f));
-    strncpy (f->fsname, fsname, sizeof (f->fsname) - 1);
+    strncpy (f->fsname, fsname, sizeof (f->fsname));
     f->num_mdt = mdts;
     f->num_ost = osts;
     return f;
