@@ -1523,8 +1523,9 @@ _hostlist_create_bracketed(const char *hostlist, char *sep, char *r_op)
         return NULL;
     }
 
+    cur_tok[sizeof(cur_tok)-1] = '\0';
     while ((tok = _next_tok(sep, &str)) != NULL) {
-        strncpy(cur_tok, tok, 1024);
+        strncpy(cur_tok, tok, sizeof(cur_tok)-1);
 
         if ((p = strchr(tok, '[')) != NULL) {
             char *q, *prefix = tok;
