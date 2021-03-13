@@ -1075,7 +1075,7 @@ static hostlist_t hostlist_new(void)
     if (!new)
         goto fail1;
 
-    assert(new->magic = HOSTLIST_MAGIC);
+    assert((new->magic = HOSTLIST_MAGIC));
     mutex_init(&new->mutex);
 
     new->hr = (hostrange_t *) malloc(HOSTLIST_CHUNK * sizeof(hostrange_t));
@@ -1607,7 +1607,7 @@ void hostlist_destroy(hostlist_t hl)
     for (i = 0; i < hl->nranges; i++)
         hostrange_destroy(hl->hr[i]);
     free(hl->hr);
-    assert(hl->magic = 0x1);
+    assert((hl->magic = 0x1));
     UNLOCK_HOSTLIST(hl);
     mutex_destroy(&hl->mutex);
     free(hl);
@@ -2227,7 +2227,7 @@ static hostlist_iterator_t hostlist_iterator_new(void)
     i->idx = 0;
     i->depth = -1;
     i->next = i;
-    assert(i->magic = HOSTLIST_MAGIC);
+    assert((i->magic = HOSTLIST_MAGIC));
     return i;
 }
 
@@ -2278,7 +2278,7 @@ void hostlist_iterator_destroy(hostlist_iterator_t i)
         }
     }
     UNLOCK_HOSTLIST(i->hl);
-    assert(i->magic = 0x1);
+    assert((i->magic = 0x1));
     free(i);
 }
 

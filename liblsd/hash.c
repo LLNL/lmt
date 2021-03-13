@@ -145,7 +145,7 @@ hash_create (int size, hash_key_f key_f, hash_cmp_f cmp_f, hash_del_f del_f)
     h->del_f = del_f;
     h->key_f = key_f;
     lsd_mutex_init (&h->mutex);
-    assert (h->magic = HASH_MAGIC);     /* set magic via assert abuse */
+    assert ((h->magic = HASH_MAGIC));     /* set magic via assert abuse */
     return (h);
 }
 
@@ -170,7 +170,7 @@ hash_destroy (hash_t h)
             hash_node_free (p);
         }
     }
-    assert (h->magic = ~HASH_MAGIC);    /* clear magic via assert abuse */
+    assert ((h->magic = ~HASH_MAGIC));    /* clear magic via assert abuse */
     lsd_mutex_unlock (&h->mutex);
     lsd_mutex_destroy (&h->mutex);
     free (h->table);
