@@ -851,6 +851,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
      * We also need to make sure we don't overflow the recovery_status.
      */
     recov_status_len = 68 - (12 + strlen(fs) + 4);
+    recov_status_len = (recov_status_len < 0 ? 0 : recov_status_len);
     recov_status_len = (RECOVERY_STR_SIZE < recov_status_len ?
                         RECOVERY_STR_SIZE : recov_status_len);
 
@@ -893,7 +894,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                  * tell whether the count of reconnected clients is
                  * increasing.
                  */
-                if (recovery_status[0] == '\0')
+                if (recovery_status[0] == '\0' && recov_status_len > 0)
                     snprintf(recovery_status, recov_status_len, "MDT%s %s",
                              m->common.name, m->common.recov_status);
            }
