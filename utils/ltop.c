@@ -837,7 +837,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
     double open = 0, close = 0, getattr = 0, setattr = 0;
     double link = 0, unlink = 0, rmdir = 0, mkdir = 0;
     double statfs = 0, rename = 0, getxattr = 0;
-    char recovery_status[RECOVERY_STR_SIZE]="";
+    char recovery_status[256]="";
     int recov_status_len;
     oststat_t *o;
     mdtstat_t *m;
@@ -894,9 +894,12 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
                  * tell whether the count of reconnected clients is
                  * increasing.
                  */
-                if (recovery_status[0] == '\0' && recov_status_len > 0)
-                    snprintf(recovery_status, recov_status_len, "MDT%s %s",
+                if (recovery_status[0] == '\0') {
+                    snprintf(recovery_status, sizeof(recovery_status), "MDT%s %s",
                              m->common.name, m->common.recov_status);
+                    /* stop gcc from meddling: see -Wformat-truncation */
+                    recovery_status[recov_status_len-1] = '\0';
+                }
            }
         }
 
