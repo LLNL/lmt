@@ -46,7 +46,7 @@ int
 main (int argc, char *argv[])
 {
     pctx_t ctx;
-    char *uuid; 
+    char *uuid;
     ListIterator itr;
     List srvlist;
     char *name;

@@ -61,10 +61,10 @@ _destroy_cmetric (cmetric_t c)
         free (c->value);
     if (c->nodename)
         free (c->nodename);
-    free (c); 
+    free (c);
 }
 
-static cmetric_t 
+static cmetric_t
 _create_cmetric (char *name, char *nodename, unsigned int time,
                  unsigned int type, unsigned int size, void *value)
 {
@@ -110,7 +110,7 @@ lmt_cbr_get_time (cmetric_t c)
 static int
 _get_metric_data (cerebro_t ch, char *name, List rl)
 {
-    int retval; 
+    int retval;
     cerebro_nodelist_t n = NULL;
     cerebro_nodelist_iterator_t nitr;
     cmetric_t c;
@@ -179,7 +179,7 @@ lmt_cbr_get_metrics (char *names, List *rlp)
     }
     *rlp = rl;
     retval = 0;
-done:    
+done:
     if (itr)
         list_iterator_destroy (itr);
     if (retval < 0 && rl)

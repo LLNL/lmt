@@ -70,7 +70,7 @@ const char *mds_v2_str =
 
 const char *router_v1_str =
     "1.0;alc42;0.100000;98.810898;1845066588";
-const char *ost_v2_str = 
+const char *ost_v2_str =
     "2;tycho1;0.100000;98.810898;"
     "lc1-OST0000;15156;976;99880;116;18;28;42;128;2;1;1;1;1;COMPLETED 100/100;"
     "lc1-OST0008;15156;976;99880;116;18;28;42;128;1;1;1;1;1;COMPLETED 1/1;"
@@ -246,7 +246,7 @@ _parse_mdt_v1_mdops (List mdops)
 done:
     if (itr)
         list_iterator_destroy (itr);
-    return retval;    
+    return retval;
 }
 
 int
@@ -273,10 +273,10 @@ _parse_mdt_v1 (const char *s)
             goto done;
         free (mdtname);
         if (_parse_mdt_v1_mdops (mdops) < 0) {
-            list_destroy (mdops); 
+            list_destroy (mdops);
             goto done;
         }
-        list_destroy (mdops); 
+        list_destroy (mdops);
     }
     retval = 0;
 done:
@@ -317,10 +317,10 @@ _parse_mdt_v2 (const char *s)
             goto done;
         free (mdtname);
         if (_parse_mdt_v1_mdops (mdops) < 0) {
-            list_destroy (mdops); 
+            list_destroy (mdops);
             goto done;
         }
-        list_destroy (mdops); 
+        list_destroy (mdops);
     }
     retval = 0;
 done:
@@ -381,9 +381,9 @@ done:
     if (itr)
         list_iterator_destroy (itr);
     if (name)
-        free (name); 
+        free (name);
     if (mdsname)
-        free (mdsname); 
+        free (mdsname);
     if (mdops)
         list_destroy (mdops);
     return retval;
@@ -468,7 +468,7 @@ parse_utils (void)
         msg ("strappendfield: %s", p);
         free (p);
     }
-    
+
 }
 
 void
@@ -550,4 +550,3 @@ parse_legacy (void)
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */
-

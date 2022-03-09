@@ -79,22 +79,22 @@ struct lmt_db_struct {
 };
 
 /* sql for prepared insert statements */
-const char *sql_ins_timestamp_info = 
+const char *sql_ins_timestamp_info =
     "insert into TIMESTAMP_INFO "
-    "(TIMESTAMP) " 
+    "(TIMESTAMP) "
     "values ( FROM_UNIXTIME(?) )";
 const char *sql_ins_mds_data =
     "insert into MDS_DATA "
     "(MDS_ID, TS_ID, PCT_CPU, KBYTES_FREE, KBYTES_USED, INODES_FREE, "
     "INODES_USED) "
     "values ( ?, ?, ?, ?, ?, ?, ?)";
-const char *sql_ins_mds_ops_data = 
+const char *sql_ins_mds_ops_data =
     "insert into MDS_OPS_DATA "
     "(MDS_ID, OPERATION_ID, TS_ID, SAMPLES, SUM, SUMSQUARES) "
     "values (?, ?, ?, ?, ?, ?)";
 const char *sql_ins_oss_data =
     "insert into OSS_DATA "
-    "(OSS_ID, TS_ID, PCT_CPU, PCT_MEMORY) " 
+    "(OSS_ID, TS_ID, PCT_CPU, PCT_MEMORY) "
     "values (?, ?, ?, ?)";
 const char *sql_ins_ost_data =
     "insert into OST_DATA "
@@ -213,7 +213,7 @@ _populate_idhash_all (lmt_db_t db, const char *pfx, const char *sql)
     MYSQL_RES *res = NULL;
     MYSQL_ROW row;
     uint64_t id;
-    svcid_t *s; 
+    svcid_t *s;
 
     if (mysql_query (db->conn, sql))
         goto done;
@@ -250,7 +250,7 @@ _populate_idhash_one (lmt_db_t db, const char *pfx,
     MYSQL_RES *res = NULL;
     MYSQL_ROW row;
     uint64_t id;
-    svcid_t *s; 
+    svcid_t *s;
 
     snprintf (qry, len, tmpl, a1);
     if (mysql_query (db->conn, qry))
@@ -305,7 +305,7 @@ _populate_idhash (lmt_db_t db)
     if (_populate_idhash_all (db, "op", sql_sel_operation_info) < 0)
         goto done;
     retval = 0;
-done: 
+done:
     return retval;
 }
 
@@ -361,7 +361,7 @@ int
 lmt_db_server_map (lmt_db_t db, char *svctype, lmt_db_map_f mf, void *arg)
 {
     struct map_struct m;
-    
+
     assert (db->magic == LMT_DBHANDLE_MAGIC);
 
     m.svctype = svctype;
@@ -619,7 +619,7 @@ lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,
     _param_init_int (&param[4], MYSQL_TYPE_LONGLONG, &kbytes_used);
     _param_init_int (&param[5], MYSQL_TYPE_LONGLONG, &inodes_free);
     _param_init_int (&param[6], MYSQL_TYPE_LONGLONG, &inodes_used);
-   
+
     if (mysql_stmt_bind_param (db->ins_mds_data, param)) {
         if (lmt_conf_get_db_debug ())
             msg ("error binding parameters for insert into %s MDS_DATA: %s",
@@ -683,7 +683,7 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
     _param_init_int (&param[3], MYSQL_TYPE_LONGLONG, &samples);
     _param_init_int (&param[4], MYSQL_TYPE_LONGLONG, &sum);
     _param_init_int (&param[5], MYSQL_TYPE_LONGLONG, &sumsquares);
-   
+
     if (mysql_stmt_bind_param (db->ins_mds_ops_data, param)) {
         if (lmt_conf_get_db_debug ())
             msg ("error binding parameters for insert into %s MDS_OPS_DATA: %s",
@@ -743,7 +743,7 @@ lmt_db_insert_oss_data (lmt_db_t db, int quiet_noexist, char *ossname,
     _param_init_int (&param[1], MYSQL_TYPE_LONG, &db->timestamp_id);
     _param_init_int (&param[2], MYSQL_TYPE_FLOAT, &pct_cpu);
     _param_init_int (&param[3], MYSQL_TYPE_FLOAT, &pct_memory);
-   
+
     if (mysql_stmt_bind_param (db->ins_oss_data, param)) {
         if (lmt_conf_get_db_debug ())
             msg ("error binding parameters for insert into %s OSS_DATA: %s",
@@ -809,7 +809,7 @@ lmt_db_insert_ost_data (lmt_db_t db, char *ossname, char *ostname,
     _param_init_int (&param[5], MYSQL_TYPE_LONGLONG, &kbytes_used);
     _param_init_int (&param[6], MYSQL_TYPE_LONGLONG, &inodes_free);
     _param_init_int (&param[7], MYSQL_TYPE_LONGLONG, &inodes_used);
-   
+
     if (mysql_stmt_bind_param (db->ins_ost_data, param)) {
         if (lmt_conf_get_db_debug ())
             msg ("error binding parameters for insert into %s OST_DATA: %s",
@@ -869,7 +869,7 @@ lmt_db_insert_router_data (lmt_db_t db, char *rtrname, uint64_t bytes,
     _param_init_int (&param[1], MYSQL_TYPE_LONG, &db->timestamp_id);
     _param_init_int (&param[2], MYSQL_TYPE_LONGLONG, &bytes);
     _param_init_int (&param[3], MYSQL_TYPE_FLOAT, &pct_cpu);
-   
+
     if (mysql_stmt_bind_param (db->ins_router_data, param)) {
         if (lmt_conf_get_db_debug ())
             msg ("error binding parameters for insert into %s ROUTER_DATA: %s",
@@ -1166,7 +1166,7 @@ lmt_db_add (char *user, char *pass, char *fs, char *schema_vers,
             msg ("error executing schema sql for filesystem_%s: %s",
                  fs, mysql_error (conn));
         goto done;
-    }   
+    }
     do {
         MYSQL_RES *res;
         if ((res = mysql_store_result (conn)))

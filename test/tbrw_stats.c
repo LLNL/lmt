@@ -54,7 +54,7 @@ dump_brw_stats (pctx_t ctx, char *name, brw_t t, char *desc)
     for (i = 0; i < h->bincount; i++)
         msg ("%"PRIu64": %"PRIu64", %"PRIu64,
              h->bin[i].x, h->bin[i].yr, h->bin[i].yw);
-    histogram_destroy (h); 
+    histogram_destroy (h);
 }
 
 int
@@ -102,4 +102,3 @@ main (int argc, char *argv[])
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */
-

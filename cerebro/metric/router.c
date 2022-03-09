@@ -70,7 +70,7 @@ _get_metric_value (unsigned int *metric_value_type,
     int retval = -1;
 
     if (lmt_router_string_v1 (ctx, buf, CEREBRO_MAX_DATA_STRING_LEN) < 0)
-        goto done; 
+        goto done;
     *metric_value_type = CEREBRO_DATA_VALUE_TYPE_STRING;
     *metric_value_len = strlen (buf) + 1;
     *metric_value = buf;

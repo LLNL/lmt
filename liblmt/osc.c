@@ -82,7 +82,7 @@ _get_oscstring (pctx_t ctx, char *name, char *s, int len)
         strcpy (state, "R");
     else if (!strcmp (state, "FULL"))
         strcpy (state, "F");
-    else if (!strcmp (state, "EVICTED")) 
+    else if (!strcmp (state, "EVICTED"))
         strcpy (state, "E");
     else
         strcpy (state, "?");    /* <UNKNOWN> or ?? */
@@ -94,7 +94,7 @@ _get_oscstring (pctx_t ctx, char *name, char *s, int len)
         goto done;
     }
     retval = 0;
-done: 
+done:
     if (uuid)
         free (uuid);
     if (state)

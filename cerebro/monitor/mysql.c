@@ -78,7 +78,7 @@ _interface_version (void)
     return CEREBRO_MONITOR_INTERFACE_VERSION;
 }
 
-static int 
+static int
 _metric_update (const char *nodename,
               const char *metric_name,
               unsigned int metric_value_type,
