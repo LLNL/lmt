@@ -52,7 +52,7 @@
 #include "lmt.h"
 
 /* FIXME [schema 1.1]:
- * 
+ *
  * . There is a fixed mapping of OST->OSS in the OST_INFO table, when there
  *   should be a dynamic mapping in OST_DATA to support failover.  As a
  *   result, during failover, b/w will be attributed to the wrong OSS.
@@ -292,10 +292,10 @@ lmt_db_insert_mdt_v1_v2 (char *s, int ver)
     itr = list_iterator_create (mdtinfo);
     while ((mdt = list_next (itr)))
         _insert_mds (mdsname, pct_cpu, pct_mem, mdt, ver);
-    list_iterator_destroy (itr);        
+    list_iterator_destroy (itr);
 done:
     if (mdsname)
-        free (mdsname);    
+        free (mdsname);
     if (mdtinfo)
         list_destroy (mdtinfo);
 }
@@ -335,7 +335,7 @@ lmt_db_insert_router_v1 (char *s)
             break;
         }
     }
-    list_iterator_destroy (itr);        
+    list_iterator_destroy (itr);
 done:
     if (rtrname)
         free (rtrname);
@@ -374,12 +374,12 @@ lmt_db_insert_mds_v2 (char *s)
     itr = list_iterator_create (mdops);
     while ((op = list_next (itr)))
         _insert_mds_ops (db, mdtname, op);
-    list_iterator_destroy (itr);        
+    list_iterator_destroy (itr);
 done:
     if (mdtname)
-        free (mdtname);    
+        free (mdtname);
     if (mdsname)
-        free (mdsname);    
+        free (mdsname);
     if (mdops)
         list_destroy (mdops);
 }
@@ -403,7 +403,7 @@ lmt_db_insert_oss_v1 (char *s)
          * as there is no way to tie OSS to a particular file system.
          */
         if (lmt_db_lookup (db, "oss", ossname) < 0)
-            continue; 
+            continue;
         if (lmt_db_insert_oss_data (db, 1, ossname, pct_cpu, pct_mem) < 0) {
             _trigger_db_reconnect ();
             goto done;
@@ -411,9 +411,9 @@ lmt_db_insert_oss_v1 (char *s)
     }
 done:
     if (ossname)
-        free (ossname);    
+        free (ossname);
     if (itr)
-        list_iterator_destroy (itr);        
+        list_iterator_destroy (itr);
 }
 
 /* lmt_ost_v1: single ost (no oss info) */
@@ -443,9 +443,9 @@ lmt_db_insert_ost_v1 (char *s)
     }
 done:
     if (ostname)
-        free (ostname);    
+        free (ostname);
     if (ossname)
-        free (ossname);    
+        free (ossname);
 }
 
 /*

@@ -572,20 +572,20 @@ main (int argc, char *argv[])
                 }
                 break;
             case '>':               /* change sorting column */
-            case '<': 
-            case 't': 
-            case 's': 
-            case 'r': 
-            case 'w': 
-            case 'i': 
-            case 'x': 
-            case 'l': 
-            case 'g': 
-            case 'L': 
-            case 'C': 
-            case 'u': 
-            case 'm': 
-            case 'S': 
+            case '<':
+            case 't':
+            case 's':
+            case 'r':
+            case 'w':
+            case 'i':
+            case 'x':
+            case 'l':
+            case 'g':
+            case 'L':
+            case 'C':
+            case 'u':
+            case 'm':
+            case 'S':
                 if (in_ostwin) {
                     ost_fp = _get_sort_index (c, ost_fp, ost_col,
                                               sizeof(ost_col)/sizeof(ost_col[0]));
@@ -648,7 +648,7 @@ main (int argc, char *argv[])
                                 stale_secs, playf, &tcycle, &sample_period);
                     last_sample = time (NULL);
                     recompute = 1;
-                } 
+                }
                 break;
             case '\t':              /* tab - fast-fwd 1 minute */
                 if (playf) {
@@ -732,8 +732,8 @@ main (int argc, char *argv[])
             recompute = 0;
         }
         if (resort) {
-            _sort_tgtlist (ost_data, tcycle, ost_col[ost_fp].fun); 
-            _sort_tgtlist (oss_data, tcycle, ost_col[ost_fp].fun); 
+            _sort_tgtlist (ost_data, tcycle, ost_col[ost_fp].fun);
+            _sort_tgtlist (oss_data, tcycle, ost_col[ost_fp].fun);
             _sort_tgtlist (mdt_data, tcycle, mdt_col[mdt_fp].fun);
             _sort_tgtlist (mds_data, tcycle, mdt_col[mdt_fp].fun);
             resort = 0;
@@ -945,7 +945,7 @@ _update_display_top (WINDOW *win, char *fs, List ost_data, List mdt_data,
         mvwprintw (win, y++, 0,
           "    Inodes: %11s total, %11s used (%3s%%), %11s free",
                     "", "", "", "" );
-    } 
+    }
     mvwprintw (win, y++, 0,
       "     Space: %10.3ft total, %10.3ft used (%3.0f%%), %10.3ft free",
                tbytes_total, tbytes_total - tbytes_free,
@@ -1185,7 +1185,7 @@ _update_display_mdt (WINDOW *win, int line, void *target, int stale_secs,
     double ipct_used = uktot > 0 ? ((uktot - ukfree) / uktot)*100.0 : 0;
 
     if ((tnow - m->common.tgt_metric_timestamp) > stale_secs) {
-        // available info is expired 
+        // available info is expired
         mvwprintw (win, line, 0, "%4.4s data is stale", m->common.name);
     } else if (m->common.recov_status &&
                !strstr(m->common.recov_status,"COMPLETE")) {
@@ -1452,7 +1452,7 @@ _cmp_server_names (char *servername1, char *servername2)
     if (*p1 && *p2
             && (p1 - servername1) == (p2 - servername2)
             && !strncmp (servername1, servername2, p1 - servername1)) {
-        return (n1 < n2 ? -1 
+        return (n1 < n2 ? -1
               : n1 > n2 ? 1 : 0);
     }
     return strcmp (servername1, servername2);
@@ -2203,8 +2203,8 @@ _play_file (char *fs, List mdt_data, List ost_data, List time_series,
     if (tdiffp && !feof (f))
         *tdiffp = tdiff;
     if (ts && time_series)
-        list_prepend (time_series, ts); 
-        
+        list_prepend (time_series, ts);
+
 }
 
 /* Seek to [count] batches of cerebro data ago.
@@ -2283,7 +2283,7 @@ _single_ost_update_summary (void *ost_v, void *summary_v)
     /* Any "missing clients" on OST's should be reflected in OSS exp.
      */
     sample_min (summary->num_exports, ost->num_exports);
-    
+
     if (ost->common.tag)
         summary->common.tag = ost->common.tag;
 }

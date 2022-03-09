@@ -128,7 +128,7 @@ main (int argc, char *argv[])
         err_exit ("proc_create");
 
     do {
-        errno = 0; 
+        errno = 0;
         if (!strcmp (metric, "sysstat"))
             n = _sysstat (ctx, buf, sizeof (buf));
         else if (!strcmp (metric, "ost"))
@@ -175,4 +175,3 @@ done:
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */
-
