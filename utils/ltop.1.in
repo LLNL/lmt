@@ -7,7 +7,7 @@ ltop \- display live information about a Lustre file system
 .B ltop
 displays information about a live Lustre file system monitored by LMT.
 .SH OPTIONS
-.B ltop 
+.B ltop
 accepts the following command line options:
 .TP
 .I "-f,--filesystem FSNAME"
