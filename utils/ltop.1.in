@@ -150,14 +150,14 @@ Sort by server name, ascending order.
 \fIx\fR
 Sort by export count, ascending order.
 .TP
-\fIC\fR
-Sort by (re-)connect rate, descending order (OST).
-.TP
 \fIr\fR
-Sort by read bandwidth, descending order (OST).
+Sort by read bandwidth, descending order.
 .TP
 \fIw\fR
-Sort by write bandwidth, descending order (OST).
+Sort by write bandwidth, descending order.
+.TP
+\fIC\fR
+Sort by (re-)connect rate, descending order (OST).
 .TP
 \fIi\fR
 Sort by IOPS, descending order (OST).
@@ -174,9 +174,6 @@ Sort by lock cancellation rate, descending order (OST).
 \fIo\fR
 Sort by file open rate, descending order (MDT).
 .TP
-\fIC\fR
-Sort by file close rate, descending order (MDT).
-.TP
 \fIg\fR
 Sort by getattr rate, descending order (MDT).
 .TP
@@ -191,9 +188,6 @@ Sort by mkdir rate, descending order (MDT).
 .TP
 \fIr\fR
 Sort by rmdir rate, descending order (MDT).
-.TP
-\fIR\fR
-Sort by rename rate, descending order (MDT).
 .TP
 \fIu\fR
 Sort by percent cpu utilization, descending order.

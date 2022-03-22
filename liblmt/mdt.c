@@ -78,6 +78,34 @@ static const char *optab_mdt_v1[] = {
     "quotactl",
 };
 
+/* This is the hardwired order of ops in mdt_v3 (count=23)
+ */
+static const char *optab_mdt_v3[] = {
+    "open",
+    "close",
+    "mknod",
+    "link",
+    "unlink",
+    "mkdir",
+    "rmdir",
+    "rename",
+    "getxattr",
+    "process_config",
+    "connect",
+    "reconnect",
+    "disconnect",
+    "statfs",
+    "create",
+    "destroy",
+    "setattr",
+    "getattr",
+    "llog_init",
+    "notify",
+    "quotactl",
+    "read_bytes",
+    "write_bytes",
+};
+
 /* LEGACY
  * This is the hardwired order of ops in mds_v2 (count=81)
  */
@@ -168,6 +196,7 @@ const int optablen_mds_v2 = sizeof (optab_mds_v2) / sizeof(optab_mds_v2[0]);
 const int optablen_mdt_v1 = sizeof (optab_mdt_v1) / sizeof(optab_mdt_v1[0]);
 /* lmt_mdt_v1 and v2 have same operations, difference in mdtinfo */
 const int optablen_mdt_v2 = sizeof (optab_mdt_v1) / sizeof(optab_mdt_v1[0]);
+const int optablen_mdt_v3 = sizeof (optab_mdt_v3) / sizeof(optab_mdt_v3[0]);
 
 static int
 _get_mem_usage (pctx_t ctx, double *fp)
@@ -248,9 +277,9 @@ _get_mdtstring (pctx_t ctx, char *name, char *s, int len)
      * as required by schema 1.1.  Substitute zeroes if not found.
      * N.B. lustre-1.8.2: sum and sumsquare appear to be missing from proc.
      */
-    for (i = 0; i < optablen_mdt_v1; i++) {
+    for (i = 0; i < optablen_mdt_v3; i++) {
         used = strlen (s);
-        if (_get_mdtop (stats, optab_mdt_v1[i], s + used, len - used) < 0)
+        if (_get_mdtop (stats, optab_mdt_v3[i], s + used, len - used) < 0)
             goto done;
     }
     retval = 0;
@@ -263,7 +292,7 @@ done:
 }
 
 int
-lmt_mdt_string_v2 (pctx_t ctx, char *s, int len)
+lmt_mdt_string_v3 (pctx_t ctx, char *s, int len)
 {
     static uint64_t cpuused = 0, cputot = 0;
     struct utsname uts;
@@ -271,7 +300,7 @@ lmt_mdt_string_v2 (pctx_t ctx, char *s, int len)
     double cpupct, mempct;
     List mdtlist = NULL;
     ListIterator itr = NULL;
-    char verstr[2]="2";
+    char verstr[2]="3";
     char *name;
 
     if (proc_lustre_mdtlist (ctx, &mdtlist) < 0)
@@ -324,19 +353,19 @@ _parse_and_skip_mds_info_v1 (const char *src, char *mdsname, float *pct_cpu,
 {
     if (sscanf (src, "%*f;%[^;];%f;%f;", mdsname, pct_cpu, pct_mem) != 3) {
         if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1_v2: parse error: mdsinfo");
+            msg ("lmt_mdt_v1_v2_v3: parse error: mdsinfo");
         return NULL;
     }
     if (!(src = strskip (src, 4, ';'))) {
         if (lmt_conf_get_proto_debug ())
-            msg ("lmt_mdt_v1_v2: parse error: skipping mdsinfo");
+            msg ("lmt_mdt_v1_v2_v3: parse error: skipping mdsinfo");
     }
 
     return src;
 }
 
 int
-lmt_mdt_decode_v1_v2 (const char *s, char **mdsnamep, float *pct_cpup,
+lmt_mdt_decode_v1_v2_v3 (const char *s, char **mdsnamep, float *pct_cpup,
                    float *pct_memp, List *mdtinfop, int version)
 {
     int mdtfields = -1;
@@ -346,16 +375,18 @@ lmt_mdt_decode_v1_v2 (const char *s, char **mdsnamep, float *pct_cpup,
     float pct_mem, pct_cpu;
     List mdtinfo = list_create ((ListDelF)free);
 
-    assert (version == 1 || version == 2);
+    assert (version == 1 || version == 2 || version == 3);
 
-    /* lmt_mdt_v1 and lmt_mdt_v2 mds info portion is the same */
+    /* lmt_mdt_v1, lmt_mdt_v2, and lmt_mdt_v3 mds info portion is the same */
     if ( ! (s = _parse_and_skip_mds_info_v1 (s, mdsname, &pct_cpu, &pct_mem)))
         goto done;
 
     if (version == 1)
         mdtfields = 5 + 3 * optablen_mdt_v1;
-    else
+    else if (version == 2)
         mdtfields = 6 + 3 * optablen_mdt_v2;
+    else // version == 3
+        mdtfields = 6 + 3 * optablen_mdt_v3;
 
     while ((cpy = strskipcpy (&s, mdtfields, ';')))
         list_append (mdtinfo, cpy);
@@ -393,7 +424,7 @@ _lmt_mdt_decode_mdtinfo_helper (const char *s, char **mdtnamep,
     List mdops = list_create ((ListDelF)free);
     int i = 0;
 
-    assert (mdtinfo_version == 1 || mdtinfo_version == 2);
+    assert (mdtinfo_version == 1 || mdtinfo_version == 2 || mdtinfo_version == 3);
     assert (mdtinfo_version == 1 ? recovery_statusp == NULL : recovery_statusp != NULL);
 
     if (sscanf (s, "%[^;];%"PRIu64";%"PRIu64";%"PRIu64";%"PRIu64";",
@@ -409,29 +440,45 @@ _lmt_mdt_decode_mdtinfo_helper (const char *s, char **mdtnamep,
         goto done;
     }
 
-    if (mdtinfo_version == 2) {
+    if (mdtinfo_version == 2 || mdtinfo_version == 3) {
         recovery_status = xmalloc (strlen(s) + 1);
         if (sscanf (s, "%[^;]", recovery_status) != 1) {
             if (lmt_conf_get_proto_debug ())
-                msg ("lmt_mdt_v2: parse error: mdtinfo recovery_status");
+                msg ("lmt_mdt_v%d: parse error: mdtinfo recovery_status",
+                     mdtinfo_version);
             goto done;
         }
         if (!(s = strskip (s, 1, ';'))) {
             if (lmt_conf_get_proto_debug ())
-                msg ("lmt_mdt_v2: parse error: skipping mdtinfo recovery_status");
+                msg ("lmt_mdt_v%d: parse error: skipping mdtinfo recovery_status",
+                     mdtinfo_version);
             goto done;
         }
     }
 
-    while ((cpy = strskipcpy (&s, 3, ';'))) {
-        if (i >= optablen_mdt_v1) {
-            if (lmt_conf_get_proto_debug ())
-                msg ("lmt_mdt_helper: parse error: too many mdops");
-            free (cpy);
-            goto done;
+    if (mdtinfo_version == 1 || mdtinfo_version == 2) {
+        while ((cpy = strskipcpy (&s, 3, ';'))) {
+            if (i >= optablen_mdt_v1) {
+                if (lmt_conf_get_proto_debug ())
+                    msg ("lmt_mdt_helper: parse error: too many mdops");
+                free (cpy);
+                goto done;
+            }
+            strappendfield (&cpy, optab_mdt_v1[i++], ';');
+            list_append (mdops, cpy);
         }
-        strappendfield (&cpy, optab_mdt_v1[i++], ';');
-        list_append (mdops, cpy);
+    }
+    if (mdtinfo_version == 3) {
+        while ((cpy = strskipcpy (&s, 3, ';'))) {
+            if (i >= optablen_mdt_v3) {
+                if (lmt_conf_get_proto_debug ())
+                    msg ("lmt_mdt_helper: parse error: too many mdops");
+                free (cpy);
+                goto done;
+            }
+            strappendfield (&cpy, optab_mdt_v3[i++], ';');
+            list_append (mdops, cpy);
+        }
     }
     if (strlen (s) > 0) {
         if (lmt_conf_get_proto_debug ())
@@ -445,7 +492,7 @@ _lmt_mdt_decode_mdtinfo_helper (const char *s, char **mdtnamep,
     *kbytes_freep = kbytes_free;
     *kbytes_totalp = kbytes_total;
     *mdopsp = mdops;
-    if (mdtinfo_version == 2)
+    if (mdtinfo_version == 2 || mdtinfo_version == 3)
         *recovery_statusp = recovery_status;
 
     retval = 0;
@@ -481,7 +528,20 @@ lmt_mdt_decode_v2_mdtinfo (const char *s, char **mdtnamep,
 
 }
 
-/* N.B. This function is doing double duty as lmt_mds_decode_v2_mdops.
+int
+lmt_mdt_decode_v3_mdtinfo (const char *s, char **mdtnamep,
+                           uint64_t *inodes_freep, uint64_t *inodes_totalp,
+                           uint64_t *kbytes_freep, uint64_t *kbytes_totalp,
+                           char **recovery_status, List *mdopsp)
+{
+    return _lmt_mdt_decode_mdtinfo_helper (s, mdtnamep, inodes_freep, inodes_totalp,
+                           kbytes_freep, kbytes_totalp, 3, recovery_status,
+                           mdopsp);
+
+}
+
+/*  N.B. This function is doing quadruple duty as
+ *  lmt_mds_decode_{v1,v2,v3}_mdops and lmt_mds_decode_v2_mdops
  */
 int
 lmt_mdt_decode_v1_mdops (const char *s, char **opnamep, uint64_t *samplesp,

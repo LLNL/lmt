@@ -95,6 +95,21 @@ const char *mdt_v2_str =
     "68;0;0;8;0;0;0;0;0;0;0;0;0;0;0;5;0;0;0;0;0;0;0;0;0;0;0;2;0;0;141790;0;0;"
     "8205730;0;0;143656;0;0;882908;0;0;4;0;0;98;0;0;4;0;0;5022;0;0;96;0;0;499;"
     "0;0;0;0;0";
+const char *mdt_v3_str =
+    "3;garter1;0.028121;50.132298;"
+    "lflood-MDT0000;5117165664;6099523151;"
+    "20468662656;22185248768;COMPLETE 4/4 0s remaining;12560728;4946750865;"
+    "2298438734850635;12991835;870802383;967078918732173;12560620;4791181862;"
+    "2298256479754868;0;0;0;8955119;9524411611;101203396005067433;2246563;"
+    "884424424;73048171005888;1885928;374981055;317694200781;0;0;0;15003704;"
+    "153689200;41038810734;0;0;0;0;0;0;0;0;0;0;0;0;157798;836280;6422428;"
+    "0;0;0;0;0;0;5627;394396;102613862;17414028;45803420;9296632002;0;0;0;"
+    "0;0;0;0;0;0;106;111149056;116548232544256;"
+    "11467081;481779884032;28838527911329792;"
+    "lflood-MDT0001;5274986125;5276127580;22183103872;22187903872;"
+    "COMPLETE 4/4 0s remaining;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;48;149;993;0;0;0;0;0;0;0;0;0;0;0;0;0;"
+    "0;0;0;0;0;0;0;0;0;0;0;0;0;0";
 const char *osc_v1_str =
     "1;tycho-mds1;"
     "lc1-OST0042_UUID;FULL;lc1-OST005b_UUID;FULL;lc1-OST0015_UUID;FULL;"
@@ -263,7 +278,7 @@ _parse_mdt_v1 (const char *s)
     ListIterator itr = NULL;
     char *mdi;
 
-    if (lmt_mdt_decode_v1_v2 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 1) < 0)
+    if (lmt_mdt_decode_v1_v2_v3 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 1) < 0)
         goto done;
     if (!(itr = list_iterator_create (mdtinfo)))
         goto done;
@@ -306,12 +321,58 @@ _parse_mdt_v2 (const char *s)
 
     /* char *recov_info; */
 
-    if (lmt_mdt_decode_v1_v2 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 2) < 0)
+    if (lmt_mdt_decode_v1_v2_v3 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 2) < 0)
         goto done;
     if (!(itr = list_iterator_create (mdtinfo)))
         goto done;
     while ((mdi = list_next (itr))) {
         if (lmt_mdt_decode_v2_mdtinfo (mdi, &mdtname, &inodes_free,
+                     &inodes_total, &kbytes_free, &kbytes_total, &recov_str,
+                     &mdops) < 0)
+            goto done;
+        free (mdtname);
+        if (_parse_mdt_v1_mdops (mdops) < 0) {
+            list_destroy (mdops);
+            goto done;
+        }
+        list_destroy (mdops);
+    }
+    retval = 0;
+done:
+    if (recov_str)
+        free (recov_str);
+    if (mdsname)
+        free (mdsname);
+    if (itr)
+        list_iterator_destroy (itr);
+    if (mdtinfo)
+        list_destroy (mdtinfo);
+    return retval;
+}
+
+int
+_parse_mdt_v3 (const char *s)
+{
+    int retval = -1;
+    char *mdsname = NULL;
+    char *mdtname = NULL;
+    float pct_cpu, pct_mem;
+    uint64_t inodes_free, inodes_total;
+    uint64_t kbytes_free, kbytes_total;
+    List mdtinfo = NULL;
+    List mdops = NULL;
+    ListIterator itr = NULL;
+    char *mdi;
+    char *recov_str = NULL;
+
+    /* char *recov_info; */
+
+    if (lmt_mdt_decode_v1_v2_v3 (s, &mdsname, &pct_cpu, &pct_mem, &mdtinfo, 3) < 0)
+        goto done;
+    if (!(itr = list_iterator_create (mdtinfo)))
+        goto done;
+    while ((mdi = list_next (itr))) {
+        if (lmt_mdt_decode_v3_mdtinfo (mdi, &mdtname, &inodes_free,
                      &inodes_total, &kbytes_free, &kbytes_total, &recov_str,
                      &mdops) < 0)
             goto done;
@@ -517,8 +578,8 @@ parse_current (void)
 {
     int n;
 
-    n = _parse_mdt_v2 (mdt_v2_str);
-    msg ("mdt_v2: %s", n < 0 ? "FAIL" : "OK");
+    n = _parse_mdt_v3 (mdt_v3_str);
+    msg ("mdt_v3: %s", n < 0 ? "FAIL" : "OK");
     n = _parse_ost_v2 (ost_v2_str);
     msg ("ost_v2: %s", n < 0 ? "FAIL" : "OK");
     n = _parse_osc_v1 (osc_v1_str);
@@ -530,6 +591,8 @@ parse_legacy (void)
 {
     int n;
 
+    n = _parse_mdt_v2 (mdt_v2_str);
+    msg ("mdt_v2: %s", n < 0 ? "FAIL" : "OK");
 
     n = _parse_oss_v1 (oss_v1_str);
     msg ("oss_v1: %s", n < 0 ? "FAIL" : "OK");
