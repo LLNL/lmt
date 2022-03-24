@@ -1,4 +1,4 @@
-.TH lmtinit 8 "2016-04-01" "@PACKAGE_NAME@-@PACKAGE_VERSION@" "@PACKAGE_NAME@"
+.TH lmtinit 8 "2022-04-01" "@PACKAGE_NAME@-@PACKAGE_VERSION@" "@PACKAGE_NAME@"
 .SH NAME
 lmtinit \- initialize LMT database 
 .SH SYNOPSIS
@@ -60,6 +60,9 @@ Same as above but prompt for the password interactively.
 .I "-x,--dump-config"
 Print configuration information for read-write database connect.
 (Helper function for \flLMT.pm\fR).
+.TP
+.I "-o,--update-ops FSNAME"
+Update the known operation names for FSNAME.
 .SH MYSQL SETUP
 Refer to MySQL documentation to determine how to set up and secure your
 MySQL database, and create the LMT users.
@@ -76,6 +79,16 @@ the read/write password.  Users can be created using a variant of the
 The \fBlmt_agg.cron\fR script may optionally be run to create low-resolution
 data used to speed up real-time historical graphing in the java client.
 See \fIlmt_agg.cron(8)\fR for more information.
+.SH OPERATION UPDATING
+The operation names (such as read, write, open, etc) that the database
+will accept is set at creation time by the schema used.
+Newer versions of \fIlmt\fR may have new operation names that older
+databases can't accept. Older databases can be updated
+to accept the operation names of the current \fIlmt\fR version by using the
+\fI--update-ops\fR flag and then restarting \fIcerebrod\fR.
+Doing so will not remove any opnames from the database,
+so it will continue to be able to accept any opnames that it was
+previously able to accept.
 .SH FILES
 @X_SYSCONFDIR@/@PACKAGE@/lmt.conf
 .br

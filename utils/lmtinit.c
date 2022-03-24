@@ -51,7 +51,7 @@
 
 #include "lmtmysql.h"
 
-#define OPTIONS "a:d:lc:s:u:p:Px"
+#define OPTIONS "a:d:lc:s:u:p:Px:o:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
@@ -64,6 +64,7 @@ static const struct option longopts[] = {
     {"password",        required_argument,  0, 'p'},
     {"prompt-password", no_argument,        0, 'P'},
     {"dump-config",     no_argument,        0, 'x'},
+    {"update-ops",      required_argument,  0, 'o'},
     {0, 0, 0, 0},
 };
 #else
@@ -79,7 +80,7 @@ static void _list (char *user, char *pass);
 static void _del (char *user, char *pass, char *fsname);
 static void _add (char *user, char *pass, char *fsname, char *schemafile);
 static void _xconf (char *user, char *pass);
-
+static void _update (char *user, char *pass, char *fsname);
 
 static void
 usage(void)
@@ -94,6 +95,7 @@ usage(void)
         "  -p,--password=PASS     connect to the db with PASS\n"
         "  -P,--prompt-password   prompt for password\n"
         "  -x,--dump-config       dump config in machine readable form\n"
+        "  -o,--update-ops FS     update the mdt op names for file system\n"
     );
     exit (1);
 }
@@ -107,6 +109,7 @@ main (int argc, char *argv[])
     int lopt = 0;
     int Popt = 0;
     int xopt = 0;
+    int oopt = 0;
     char *fsname = NULL;
     char *conffile = NULL;
     char *schemafile = NULL;
@@ -147,6 +150,10 @@ main (int argc, char *argv[])
             case 'x':   /* --dump-config */
                 xopt = 1;
                 break;
+            case 'o':  /* --update-ops */
+                oopt = 1;
+                fsname = optarg;
+                break;
             default:
                 usage ();
         }
@@ -156,10 +163,10 @@ main (int argc, char *argv[])
     lmt_conf_set_db_debug (1);
     if (optind < argc)
         usage ();
-    if (!aopt && !dopt && !lopt && !xopt)
+    if (!aopt && !dopt && !lopt && !xopt && !oopt)
         usage ();
-    if (aopt + dopt + lopt + xopt > 1)
-        msg_exit ("Use only one of -a, -d, -l, and -x options.");
+    if (aopt + dopt + lopt + xopt + oopt > 1)
+        msg_exit ("Use only one of -a, -d, -l, -o, and -x options.");
     if (pass && Popt)
         msg_exit ("Use only one of -p and -P options.");
     if (xopt && (Popt || user || pass))
@@ -189,6 +196,8 @@ main (int argc, char *argv[])
         _add (user, pass, fsname, schemafile);
     else if (xopt)
         _xconf (user, pass);
+    else if (oopt)
+        _update(user, pass, fsname);
 
     exit (0);
 }
@@ -281,7 +290,14 @@ _xconf (char *user, char *pass)
     printf ("dbauth:%s\n", pass ? pass : "");
 }
 
+static void
+_update(char *user, char* pass, char *fsname)
+{
+    if (lmt_db_update_ops(user, pass, fsname) < 0) {
+        printf ("failed to update ops for %s\n", fsname);
+    }
+}
+
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */
-

@@ -198,6 +198,33 @@ const int optablen_mdt_v1 = sizeof (optab_mdt_v1) / sizeof(optab_mdt_v1[0]);
 const int optablen_mdt_v2 = sizeof (optab_mdt_v1) / sizeof(optab_mdt_v1[0]);
 const int optablen_mdt_v3 = sizeof (optab_mdt_v3) / sizeof(optab_mdt_v3[0]);
 
+/*  create a list of all the opnames
+ *  this list will likely include copies but that doesn't matter
+ */
+List get_all_opnames()
+{
+        List opnames = list_create ((ListDelF)free);
+        int i;
+        char *copy_buf;
+        int len;
+
+        /* for mdt_v2, which has the same operations */
+        for (i = 0; i < optablen_mdt_v1; i++) {
+                len = strlen(optab_mdt_v1[i]);
+                copy_buf = xmalloc(len + 1);
+                strncpy(copy_buf, optab_mdt_v1[i], len + 1);
+                list_append(opnames, copy_buf);
+        }
+        for (i = 0; i < optablen_mdt_v3; i++) {
+                len = strlen(optab_mdt_v3[i]);
+                copy_buf = xmalloc(len + 1);
+                strncpy(copy_buf, optab_mdt_v3[i], len + 1);
+                list_append(opnames, copy_buf);
+        }
+
+        return opnames;
+}
+
 static int
 _get_mem_usage (pctx_t ctx, double *fp)
 {

@@ -28,6 +28,8 @@ int lmt_db_insert_ost_data (lmt_db_t db, char *ossname, char *ostname,
 int lmt_db_insert_router_data (lmt_db_t db, char *name,
                         uint64_t bytes, float pct_cpu);
 
+int lmt_db_update_ops(char *user, char *pass, char *fs);
+
 /* accessors */
 
 char *lmt_db_fsname (lmt_db_t db);

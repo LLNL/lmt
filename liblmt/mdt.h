@@ -10,6 +10,8 @@ int lmt_mdt_decode_v3_mdtinfo (const char *s, char **mdtnamep,
 int lmt_mdt_decode_v1_mdops (const char *s, char **opnamep, uint64_t *samplesp,
                         uint64_t *sump, uint64_t *sumsquaresp);
 
+List get_all_opnames ();
+
 /* legacy */
 
 int lmt_mdt_decode_v2_mdtinfo (const char *s, char **mdtnamep,

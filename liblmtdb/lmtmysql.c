@@ -46,10 +46,14 @@
 #include "lmtmysql.h"
 #include "lmt.h"
 #include "lmtconf.h"
+#include "mdt.h"
 #include "util.h"
 #include "error.h"
 
 #define IDHASH_SIZE     256
+
+/* track if unknown opnames have been encountered */
+static int seen_unknown_opnames = 0;
 
 typedef struct {
     char *key;
@@ -162,6 +166,14 @@ const char *sql_ins_filesystem_info =
     "insert into FILESYSTEM_INFO "
     "(FILESYSTEM_NAME, FILESYSTEM_MOUNT_NAME, SCHEMA_VERSION) "
     "values ('%s', '', '%s')";
+
+/* sql for adding new operations to existing tables */
+const char *sql_check_for_operation =
+    "select * from OPERATION_INFO where OPERATION_NAME = '%s'";
+const char *sql_insert_operation_info =
+    "insert into OPERATION_INFO "
+    "(OPERATION_NAME, UNITS) "
+    "values ('%s', 'reqs')";
 
 /**
  ** Idhash functions (internal)
@@ -572,6 +584,64 @@ done:
     return retval;
 }
 
+/*  Add new op to OPERATION_INFO
+ *  Check if the op already exists to avoid attempting to
+ *  add it. This is to avoid repeatedly autoincrementing
+ *  OPERATION_INFO which happens even when the insertion fails.
+ */
+int
+_add_new_op(MYSQL *conn, char *opname)
+{
+    int len;
+    char *qry = NULL;
+    MYSQL_RES *res = NULL;
+    int retval = 0;
+
+    /* check if the op name is already in the database */
+    len = strlen (sql_check_for_operation) + strlen (opname) + 1;
+    qry = xmalloc (len);
+    snprintf(qry, len, sql_check_for_operation, opname);
+    retval = mysql_query (conn, qry);
+    if (retval) {
+        msg ("failed to check if '%s' in OPERATION_INFO: %s",
+             opname, mysql_error (conn));
+        goto done;
+    }
+    /* op name already in database */
+    res = mysql_store_result (conn);
+    if (res != NULL && mysql_num_rows (res) > 0) {
+        goto done;
+    }
+    retval = mysql_errno (conn);
+    if (retval) {
+        msg ("error in result when checking OPERATION_INFO for %s: %s",
+             opname, mysql_error (conn));
+        goto done;
+    }
+    free (qry);
+
+    /* put the opname into the database */
+    len = strlen (sql_insert_operation_info) + strlen (opname) + 1;
+    qry = xmalloc (len);
+    snprintf(qry, len, sql_insert_operation_info, opname);
+    retval = mysql_query (conn, qry);
+    if (retval) {
+        msg ("error inserting '%s' into OPERATION_INFO: %s",
+             opname, mysql_error (conn));
+        goto done;
+    }
+
+    if (mysql_affected_rows (conn) == 1) {
+        printf("added operation '%s'\n", opname);
+    }
+
+done:
+    free (qry);
+    if (res)
+        mysql_free_result (res);
+    return -retval;
+}
+
 int
 lmt_db_insert_mds_data (lmt_db_t db, char *mdsname, char *mdtname,
                         float pct_cpu,
@@ -669,6 +739,14 @@ lmt_db_insert_mds_ops_data (lmt_db_t db, char *mdtname, char *opname,
         if (lmt_conf_get_db_debug ())
             msg ("%s: no entry in %s OPERATION_INFO", opname,
                  lmt_db_fsname (db));
+        if (!seen_unknown_opnames) {
+            msg ("opname '%s' not recognized by database for file "
+                 "system '%s'. data not inserted. "
+                 "To update the database with the "
+                 "latest opnames use 'lmtinit -u <user> -o %s'",
+                 opname, lmt_db_fsname (db), lmt_db_fsname (db));
+            seen_unknown_opnames = 1;
+        }
         retval = 0; /* avoid a reconnect */
         goto done;
     }
@@ -1191,6 +1269,77 @@ done:
         free (qry);
     if (conn)
         mysql_close (conn);
+    return retval;
+}
+
+int
+lmt_db_update_ops(char *user, char *pass, char *fs)
+{
+    char *host = lmt_conf_get_db_host ();
+    int port = lmt_conf_get_db_port ();
+    MYSQL *conn = NULL;
+    int retval = 0;
+    int found_fs = 0;
+    MYSQL_RES *res = NULL;
+    MYSQL_ROW row;
+    char *fs_name = NULL;
+    int fs_name_len;
+    List opnames = NULL;
+    ListIterator itr;
+    char *opname;
+
+    /* connect */
+    if (!(conn = mysql_init (NULL)))
+        msg_exit ("out of memory");
+    if (!mysql_real_connect (conn, host, user, pass, NULL, port, NULL,
+                             CLIENT_MULTI_STATEMENTS)) {
+        if (lmt_conf_get_db_debug ())
+            msg ("lmt_db_update_ops: %s",  mysql_error (conn));
+        goto done;
+    }
+
+    /* create fs_name */
+    fs_name_len = strlen ("filesystem_") + strlen (fs) + 1;
+    fs_name = malloc(fs_name_len);
+    snprintf(fs_name, fs_name_len, "filesystem_%s", fs);
+
+    /* verify fs exists */
+    if (!(res = mysql_list_dbs (conn, "filesystem_%"))) {
+        printf("lmt_db_update_ops: unable to list lmt databases\n");
+        goto done;
+    }
+    while ((row = mysql_fetch_row (res)))
+        if (!(strncmp(row[0], fs_name, strlen(fs_name)))) {
+            found_fs = 1;
+            break;
+        }
+    if (!found_fs) {
+        printf("lmt_db_update_ops: cannot find filesystem %s\n", fs);
+        goto done;
+    }
+
+    mysql_select_db(conn, fs_name);
+
+    /* get the list of ops to insert */
+    opnames = get_all_opnames ();
+    itr = list_iterator_create (opnames);
+
+    while ((opname = list_next (itr))) {
+        if ((retval = _add_new_op(conn, opname)) < 0) {
+            printf("lmt_db_update_ops: failed to add '%s'\n", opname);
+            goto done;
+        }
+    }
+
+done:
+    free(fs_name);
+    if (opnames)
+        list_destroy (opnames);
+    if (res)
+        mysql_free_result(res);
+    if (conn)
+        mysql_close (conn);
+
     return retval;
 }
 
