@@ -19,7 +19,7 @@ AM_MAINTAINER_MODE
 ##
 AC_PROG_CC
 if test "$GCC" = yes; then
-  GCCWARN="-Wall -Werror"
+  GCCWARN="-Wall -Werror -Werror-implicit-function-declaration"
   AC_SUBST([GCCWARN])
   AC_SUBST([GCCWARNRPC])
 fi

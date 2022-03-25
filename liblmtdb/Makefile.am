@@ -1,3 +1,5 @@
+AM_CFLAGS = @GCCWARN@
+
 AM_CPPFLAGS = -I../libproc -I../liblsd -I../liblmt $(MYSQL_CFLAGS)
 
 noinst_LTLIBRARIES = liblmtdb.la
