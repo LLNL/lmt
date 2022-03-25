@@ -282,7 +282,7 @@ done:
 
 /* lmt_mdt_v1 and lmt_mdt_v2 and lmt_mdt_v3 helper */
 void
-lmt_db_insert_mdt_v1_v2_3 (char *s, int ver)
+lmt_db_insert_mdt_v1_v2_v3 (char *s, int ver)
 {
     ListIterator itr;
     char *mdt, *mdsname = NULL;
