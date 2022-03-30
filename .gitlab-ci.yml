@@ -1,0 +1,8 @@
+build:
+  variables:
+    FF_ENABLE_JOB_CLEANUP: 1
+  tags:
+    - shell
+    - rzslic
+  script:
+    sh autogen.sh && ./configure && make
