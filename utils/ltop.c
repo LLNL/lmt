@@ -2032,39 +2032,6 @@ _update_mdt (char *mdtname, char *servername, uint64_t inodes_free,
 }
 
 static void
-_decode_mdt_v1 (char *val, char *fs, List mdt_data,
-                time_t tnow, time_t trcv, int stale_secs)
-{
-    List mdops, mdtinfo;
-    char *s, *servername, *mdtname;
-    float pct_cpu, pct_mem;
-    uint64_t kbytes_free, kbytes_total;
-    uint64_t inodes_free, inodes_total;
-    ListIterator itr;
-
-    if (lmt_mdt_decode_v1_v2_v3 (val, &servername, &pct_cpu, &pct_mem, &mdtinfo, 1) < 0)
-        return;
-    itr = list_iterator_create (mdtinfo);
-    while ((s = list_next (itr))) {
-        if (lmt_mdt_decode_v1_mdtinfo (s, &mdtname, &inodes_free,
-                                       &inodes_total, &kbytes_free,
-                                       &kbytes_total, &mdops) == 0) {
-            if (!fs || _fsmatch (mdtname, fs)) {
-                _update_mdt (mdtname, servername, inodes_free, inodes_total,
-                             kbytes_free, kbytes_total, pct_cpu, pct_mem,
-                             NULL, mdops, mdt_data, tnow, trcv, stale_secs,
-                             1);
-            }
-            free (mdtname);
-            list_destroy (mdops);
-        }
-    }
-    list_iterator_destroy (itr);
-    list_destroy (mdtinfo);
-    free (servername);
-}
-
-static void
 _decode_mdt_v2 (char *val, char *fs, List mdt_data,
                 time_t tnow, time_t trcv, int stale_secs)
 {
@@ -2163,8 +2130,6 @@ _poll_cerebro (char *fs, List mdt_data, List ost_data, int stale_secs,
         trcv = lmt_cbr_get_time (c);
         if (recf)
             _record_file (recf, tnow, trcv, node, name, s);
-        if (!strcmp (name, "lmt_mdt") && vers == 1)
-            _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_mdt") && vers == 2)
             _decode_mdt_v2 (s, fs, mdt_data, tnow, trcv, stale_secs);
         else if (!strcmp (name, "lmt_mdt") && vers == 3)
@@ -2232,8 +2197,6 @@ _play_file (char *fs, List mdt_data, List ost_data, List time_series,
         }
         if (sscanf (s, "%f;", &vers) != 1)
             msg_exit ("Parse error reading metric version in playback file");
-        if (!strcmp (name, "lmt_mdt") && vers == 1)
-            _decode_mdt_v1 (s, fs, mdt_data, tnow, trcv, stale_secs);
         if (!strcmp (name, "lmt_mdt") && vers == 2)
             _decode_mdt_v2 (s, fs, mdt_data, tnow, trcv, stale_secs);
         if (!strcmp (name, "lmt_mdt") && vers == 3)
