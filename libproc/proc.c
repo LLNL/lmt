@@ -103,6 +103,34 @@ _open (pctx_t ctx)
     return 0;
 }
 
+/* check if a path exists, return 0 if it does, -1 otherwise*/
+int
+proc_exists (pctx_t ctx, const char *path)
+{
+    struct stat buf;
+    int stat_sys = 0;
+    int stat_proc = 0;
+    assert (ctx->pctx_magic == PCTX_MAGIC);
+
+    snprintf (ctx->pctx_root, sizeof (ctx->pctx_root), "%s%s/",
+              ctx->pctx_real_root, PROC_ROOT_SYS);
+    ctx->pctx_path = ctx->pctx_root + strlen (ctx->pctx_root);
+    ctx->pctx_pathlen = sizeof (ctx->pctx_root) - strlen (ctx->pctx_root);
+    snprintf (ctx->pctx_path, ctx->pctx_pathlen, "%s", path);
+    stat_sys = stat(ctx->pctx_root, &buf);
+
+    snprintf (ctx->pctx_root, sizeof (ctx->pctx_root), "%s%s/",
+              ctx->pctx_real_root, PROC_ROOT_PROC);
+    ctx->pctx_path = ctx->pctx_root + strlen (ctx->pctx_root);
+    ctx->pctx_pathlen = sizeof (ctx->pctx_root) - strlen (ctx->pctx_root);
+    snprintf (ctx->pctx_path, ctx->pctx_pathlen, "%s", path);
+    stat_proc = stat(ctx->pctx_root, &buf);
+
+    if (stat_sys != 0 && stat_proc != 0)
+        return -1;
+    return 0;
+}
+
 int
 proc_open (pctx_t ctx, const char *path)
 {

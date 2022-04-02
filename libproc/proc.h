@@ -3,6 +3,8 @@ typedef struct proc_ctx_struct *pctx_t;
 pctx_t proc_create (const char *root);
 void proc_destroy (pctx_t ctx);
 
+int proc_exists (pctx_t ctx, const char *path);
+
 int proc_open (pctx_t ctx, const char *path);
 
 int proc_openf (pctx_t ctx, const char *fmt, ...)

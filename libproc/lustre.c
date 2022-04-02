@@ -650,7 +650,12 @@ proc_lustre_ostlist (pctx_t ctx, List *lp)
 int
 proc_lustre_mdtlist (pctx_t ctx, List *lp)
 { 
-    char *mdt_dir = _find_mdt_dir (ctx);
+    char *mdt_dir;
+
+    if (proc_exists(ctx, "fs/lustre"))
+        return -1;
+
+    mdt_dir = _find_mdt_dir (ctx);
 
     return _subdirlist (ctx, mdt_dir, lp);
 }
