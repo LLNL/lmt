@@ -657,6 +657,8 @@ insert into OPERATION_INFO (OPERATION_NAME, UNITS) values ('register_page_remova
 insert into OPERATION_INFO (OPERATION_NAME, UNITS) values ('unregister_page_removal_cb', 'reqs');
 insert into OPERATION_INFO (OPERATION_NAME, UNITS) values ('register_lock_cancel_cb', 'reqs');
 insert into OPERATION_INFO (OPERATION_NAME, UNITS) values ('unregister_lock_cancel_cb', 'reqs');
+insert into OPERATION_INFO (OPERATION_NAME, UNITS) values ('read_bytes', 'reqs');
+insert into OPERATION_INFO (OPERATION_NAME, UNITS) values ('write_bytes', 'reqs');
 insert into OSS_VARIABLE_INFO (VARIABLE_NAME,VARIABLE_LABEL,THRESH_TYPE) values ('PCT_MEM','%Mem', 0);
 insert into OSS_VARIABLE_INFO (VARIABLE_NAME,VARIABLE_LABEL,THRESH_TYPE) values ('READ_RATE','Read Rate', 0);
 insert into OSS_VARIABLE_INFO (VARIABLE_NAME,VARIABLE_LABEL,THRESH_TYPE) values ('WRITE_RATE','Write Rate', 0);
