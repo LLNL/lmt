@@ -15,12 +15,13 @@ tparse: strskipcpy 1: 'foo'
 tparse: strskipcpy 1: 'bar'
 tparse: strskipcpy 1: 'baz'
 tparse: strappendfield: fubar;smurf
+tparse: mdt_v2: OK
 tparse: oss_v1: OK
 tparse: router_v1: OK
 tparse: ost_v1: OK
 tparse: mds_v2: OK
 tparse: mdt_v1: OK
-tparse: mdt_v2: OK
+tparse: mdt_v3: OK
 tparse: ost_v2: OK
 tparse: osc_v1: OK
 tparse: lmt_mdt_v2: parse error: string not exhausted

@@ -5,4 +5,4 @@ build:
     - shell
     - rzslic
   script:
-    sh autogen.sh && ./configure && make
+    sh autogen.sh && ./configure && make && make -C test check
