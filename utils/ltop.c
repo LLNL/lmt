@@ -312,7 +312,7 @@ usage (void)
  * ostlines = 1 line for the header + rest for list of targets
  */
 void
-size_windows(int total_size, int mdts, int osts,
+size_windows_proportional(int total_size, int mdts, int osts,
              int *mdtlines, int *ostlines)
 {
     if (total_size <= (TOPWIN_LINES+2)) {
@@ -347,6 +347,62 @@ size_windows(int total_size, int mdts, int osts,
     }
 }
 
+/* return the smaller of two ints or zero if the smaller is negative
+ */
+int
+min_or_zero(int x, int y) {
+    int min;
+    if (x < y) {
+        min = x;
+    } else {
+        min = y;
+    }
+    if (min < 0) {
+        min = 0;
+    }
+    return min;
+}
+
+/* Set the number of lines to be used by the OSTs and MDTs windows.
+ * but prioritizes MDTs vs OSTs based which window is currently selected
+ * the selected window gets as many lines as it needs and the other window
+ * gets the remaining lines.
+ */
+void
+size_windows_prioritize(int total_size, int mdts, int osts,
+                        int *mdtlines, int *ostlines, int in_ostwin)
+{
+    if (total_size <= (TOPWIN_LINES+2)) {
+        *mdtlines = 0;
+        *ostlines = 0;
+        return;
+    }
+
+    int detail_size = total_size - TOPWIN_LINES;
+
+    /* the number of lines either mdts or osts will get if they
+     * are prioritized
+     */
+    int priority_mdt_lines = min_or_zero(mdts + 1, detail_size);
+    int priority_ost_lines = min_or_zero(osts + 1, detail_size);
+
+    /* the lines remaining after the prioritizes lines are taken
+     */
+    int remaining_lines;
+
+    /* prioritize OSTs if OST window selected, otherwise MDTs
+     */
+    if (in_ostwin) {
+        remaining_lines = detail_size - priority_ost_lines;
+        *ostlines = priority_ost_lines;
+        *mdtlines = min_or_zero(priority_mdt_lines, remaining_lines);
+    } else {
+        remaining_lines = detail_size - priority_mdt_lines;
+        *mdtlines = priority_mdt_lines;
+        *ostlines = min_or_zero(priority_ost_lines, remaining_lines);
+    }
+}
+
 void
 create_target_window(WINDOW **targetwin, int targetlines, int start_y)
 {
@@ -371,6 +427,7 @@ main (int argc, char *argv[])
     int *tgtcount = &ostcount;
     int mdtview = 1, ostview = 1, resort = 0, recompute = 0, repoll = 0;
     int *target_view = &ostview;
+    int proportional_view = 0;
     char *fs = NULL, *newfs;
     int sopt = 0;
     int sample_period = 2; /* seconds */
@@ -457,7 +514,12 @@ main (int argc, char *argv[])
     if (!(topwin = initscr ()))
         err_exit ("error initializing parent window");
 
-    size_windows(LINES, mdtcount, ostcount, &mdtlines, &ostlines);
+    if (proportional_view)
+        size_windows_proportional(LINES, mdtcount, ostcount,
+                                  &mdtlines, &ostlines);
+    else
+        size_windows_prioritize(LINES, mdtcount, ostcount,
+                                &mdtlines, &ostlines, in_ostwin);
 
     create_target_window(&mdtwin, mdtlines, TOPWIN_LINES);
 
@@ -504,10 +566,14 @@ main (int argc, char *argv[])
         switch ((c = getch ())) {
             case 'z':               /* z - toggle between OST and MDT window */
             case 'Z':
-                if (mdtwin) {
+                if ((proportional_view && mdtwin) || !proportional_view) {
                     in_ostwin = !in_ostwin;
                     recompute = 1;
                 }
+                break;
+            case 'P':              /* toggle proportional view */
+                proportional_view = !proportional_view;
+                recompute = 1;
                 break;
             case KEY_DC:            /* Delete - turn off highlighting */
                 selost = selmdt = -1;
@@ -714,7 +780,12 @@ main (int argc, char *argv[])
             ostcount = list_count (ostview ? ost_data : oss_data);
         }
 
-        size_windows(LINES, mdtcount, ostcount, &mdtlines, &ostlines);
+        if (proportional_view)
+            size_windows_proportional(LINES, mdtcount, ostcount,
+                                      &mdtlines, &ostlines);
+        else
+            size_windows_prioritize(LINES, mdtcount, ostcount,
+                                    &mdtlines, &ostlines, in_ostwin);
 
         if (recompute) {
             if (mdtwin)

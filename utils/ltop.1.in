@@ -125,6 +125,15 @@ Page down through target information if it won't fit on screen.
 \fIPageUp\fR
 Page up through target information if it won't fit on screen.
 .TP
+\fIP\fR
+Toggle proportional and priority view. These view modes determine how many lines
+are given to MDTs vs OSTs. Proportional view sets the number of lines based on
+the relative numbers of MDTs and OSTs. Priority view displays as many lines as
+can fit of whichever category of servers is selected by the cursor and uses any
+remaining lines for the other server category. The cursor is toggled with
+.B z.
+The default is priority view of the OSTs.
+.TP
 \fIc\fR
 Toggle compressed target view.  The default mode is to display one line per
 target.  In compressed mode, one line per server is displayed.  Numerical data
