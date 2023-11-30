@@ -1,7 +1,7 @@
 ##
 # Prologue
 ##
-AC_INIT([lmt], [3.3.2])
+AC_INIT([lmt], [3.3.3])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config/config.h])
 AC_CONFIG_SRCDIR([NEWS])
@@ -38,7 +38,7 @@ AC_CHECK_HEADERS( \
 
 ##
 # Checks for typedefs, structures, and compiler characteristics
-## 
+##
 AC_C_BIGENDIAN
 AC_C_CONST
 
