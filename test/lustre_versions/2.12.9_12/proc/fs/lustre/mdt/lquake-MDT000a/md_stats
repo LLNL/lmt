@@ -1,0 +1,4 @@
+snapshot_time             1705616006.966940054 secs.nsecs
+getattr                   84 samples [reqs]
+getxattr                  84 samples [reqs]
+statfs                    1525011 samples [reqs]

@@ -1,0 +1,11 @@
+snapshot_time             1704924117.040584137 secs.nsecs
+start_time                1704403917.045921397 secs.nsecs
+elapsed_time              520199.994662740 secs.nsecs
+read_bytes                1705491 samples [bytes] 1048576 1048576 1788336930816 1875207185567318016
+write_bytes               1704066 samples [bytes] 1048576 1048576 1786842710016 1873640381497737216
+read                      1705491 samples [usecs] 966 411413 3265635927 10987721691189
+write                     1704066 samples [usecs] 345 69396350 6335271385 264311938051850251
+destroy                   480013 samples [usecs] 19 7320483 113487024 660015562831354
+create                    85 samples [usecs] 432 702932 9625730 2213291981300
+statfs                    406158 samples [usecs] 0 35 1098349 6379453
+set_info                  53469 samples [usecs] 1 43 409201 3723413

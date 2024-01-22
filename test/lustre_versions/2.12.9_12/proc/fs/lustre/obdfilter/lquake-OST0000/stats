@@ -1,0 +1,5 @@
+snapshot_time             1705616007.024163818 secs.nsecs
+write_bytes               2400 samples [bytes] 1048576 1048576 2516582400
+destroy                   20 samples [reqs]
+create                    33 samples [reqs]
+statfs                    1626647 samples [reqs]

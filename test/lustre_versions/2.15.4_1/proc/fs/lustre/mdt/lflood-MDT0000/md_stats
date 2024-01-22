@@ -1,0 +1,5 @@
+snapshot_time             1704923930.736404480 secs.nsecs
+start_time                1704407718.813190064 secs.nsecs
+elapsed_time              516211.923214416 secs.nsecs
+getattr                   2644 samples [usecs] 0 69 31018 655468
+statfs                    302669 samples [usecs] 0 33 652583 2563987

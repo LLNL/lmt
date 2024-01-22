@@ -1,0 +1,13 @@
+snapshot_time             1704923991.478523472 secs.nsecs
+start_time                1704404978.172899428 secs.nsecs
+elapsed_time              519013.305624044 secs.nsecs
+open                      640058 samples [usecs] 30 270851 64720386 2346252583002
+close                     640890 samples [usecs] 5 24584 12575327 7924284655
+mknod                     320013 samples [usecs] 46 270837 46824198 2344171746468
+unlink                    320013 samples [usecs] 150 33496 84754491 38554269547
+mkdir                     320034 samples [usecs] 61 3758761 115926351 177867624572835
+rmdir                     320034 samples [usecs] 45 19126 30646183 13824810999
+rename                    320000 samples [usecs] 51 39012 59001855 86677876049
+getattr                   1281734 samples [usecs] 1 21968 4214961 2445654325
+statfs                    304305 samples [usecs] 0 39 991008 4722372
+samedir_rename            320000 samples [usecs] 52 39014 59284639 86802807935

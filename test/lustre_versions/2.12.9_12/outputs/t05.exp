@@ -1,0 +1,108 @@
+tstats: ost: lquake-OST0000
+tstats: lquake-OST0000: snapshot_time='1705616007.024163818 secs.nsecs'
+tstats: lquake-OST0000: write_bytes='2400 samples [bytes] 1048576 1048576 2516582400'
+tstats: lquake-OST0000: destroy='20 samples [reqs]'
+tstats: lquake-OST0000: create='33 samples [reqs]'
+tstats: lquake-OST0000: statfs='1626647 samples [reqs]'
+tstats: ost: lquake-OST0001
+tstats: lquake-OST0001: snapshot_time='1705616007.021612914 secs.nsecs'
+tstats: lquake-OST0001: write_bytes='1048 samples [bytes] 1048576 1048576 1098907648'
+tstats: lquake-OST0001: destroy='20 samples [reqs]'
+tstats: lquake-OST0001: create='33 samples [reqs]'
+tstats: lquake-OST0001: statfs='1626611 samples [reqs]'
+tstats: ost: lquake-OST0002
+tstats: lquake-OST0002: snapshot_time='1705616007.042235585 secs.nsecs'
+tstats: lquake-OST0002: create='32 samples [reqs]'
+tstats: lquake-OST0002: statfs='1623077 samples [reqs]'
+tstats: ost: lquake-OST0003
+tstats: lquake-OST0003: snapshot_time='1705616007.038359217 secs.nsecs'
+tstats: lquake-OST0003: write_bytes='1672 samples [bytes] 1048576 1048576 1753219072'
+tstats: lquake-OST0003: destroy='20 samples [reqs]'
+tstats: lquake-OST0003: create='33 samples [reqs]'
+tstats: lquake-OST0003: statfs='1626583 samples [reqs]'
+tstats: mdt: lquake-MDT0000
+tstats: lquake-MDT0000: snapshot_time='1705616006.945332690 secs.nsecs'
+tstats: lquake-MDT0000: getxattr='250 samples [reqs]'
+tstats: lquake-MDT0000: getattr='1233 samples [reqs]'
+tstats: lquake-MDT0000: statfs='1525058 samples [reqs]'
+tstats: mdt: lquake-MDT0001
+tstats: lquake-MDT0001: snapshot_time='1705616006.948466577 secs.nsecs'
+tstats: lquake-MDT0001: getxattr='49 samples [reqs]'
+tstats: lquake-MDT0001: getattr='49 samples [reqs]'
+tstats: lquake-MDT0001: statfs='1525011 samples [reqs]'
+tstats: mdt: lquake-MDT0002
+tstats: lquake-MDT0002: snapshot_time='1705616006.960197404 secs.nsecs'
+tstats: lquake-MDT0002: getxattr='56 samples [reqs]'
+tstats: lquake-MDT0002: getattr='56 samples [reqs]'
+tstats: lquake-MDT0002: statfs='1525066 samples [reqs]'
+tstats: mdt: lquake-MDT0003
+tstats: lquake-MDT0003: snapshot_time='1705616006.969030197 secs.nsecs'
+tstats: lquake-MDT0003: getxattr='98 samples [reqs]'
+tstats: lquake-MDT0003: getattr='98 samples [reqs]'
+tstats: lquake-MDT0003: statfs='1525009 samples [reqs]'
+tstats: mdt: lquake-MDT0004
+tstats: lquake-MDT0004: mknod='20 samples [reqs] 1 1 20'
+tstats: lquake-MDT0004: close='128 samples [reqs] 1 1 128'
+tstats: lquake-MDT0004: snapshot_time='1705616006.980945171 secs.nsecs'
+tstats: lquake-MDT0004: open='128 samples [reqs]'
+tstats: lquake-MDT0004: rmdir='4 samples [reqs]'
+tstats: lquake-MDT0004: mkdir='4 samples [reqs]'
+tstats: lquake-MDT0004: unlink='20 samples [reqs]'
+tstats: lquake-MDT0004: getxattr='42 samples [reqs]'
+tstats: lquake-MDT0004: getattr='110 samples [reqs]'
+tstats: lquake-MDT0004: statfs='1525009 samples [reqs]'
+tstats: mdt: lquake-MDT0005
+tstats: lquake-MDT0005: snapshot_time='1705616006.959544121 secs.nsecs'
+tstats: lquake-MDT0005: getxattr='105 samples [reqs]'
+tstats: lquake-MDT0005: getattr='105 samples [reqs]'
+tstats: lquake-MDT0005: statfs='1525009 samples [reqs]'
+tstats: mdt: lquake-MDT0006
+tstats: lquake-MDT0006: snapshot_time='1705616006.968759263 secs.nsecs'
+tstats: lquake-MDT0006: getxattr='49 samples [reqs]'
+tstats: lquake-MDT0006: getattr='49 samples [reqs]'
+tstats: lquake-MDT0006: statfs='1525011 samples [reqs]'
+tstats: mdt: lquake-MDT0007
+tstats: lquake-MDT0007: snapshot_time='1705616006.963009982 secs.nsecs'
+tstats: lquake-MDT0007: getxattr='56 samples [reqs]'
+tstats: lquake-MDT0007: getattr='56 samples [reqs]'
+tstats: lquake-MDT0007: statfs='1525011 samples [reqs]'
+tstats: mdt: lquake-MDT0008
+tstats: lquake-MDT0008: snapshot_time='1705616006.957970669 secs.nsecs'
+tstats: lquake-MDT0008: getxattr='63 samples [reqs]'
+tstats: lquake-MDT0008: getattr='63 samples [reqs]'
+tstats: lquake-MDT0008: statfs='1525011 samples [reqs]'
+tstats: mdt: lquake-MDT0009
+tstats: lquake-MDT0009: snapshot_time='1705616007.511924538 secs.nsecs'
+tstats: lquake-MDT0009: getxattr='70 samples [reqs]'
+tstats: lquake-MDT0009: getattr='70 samples [reqs]'
+tstats: lquake-MDT0009: statfs='1525011 samples [reqs]'
+tstats: mdt: lquake-MDT000a
+tstats: lquake-MDT000a: snapshot_time='1705616006.966940054 secs.nsecs'
+tstats: lquake-MDT000a: getxattr='84 samples [reqs]'
+tstats: lquake-MDT000a: getattr='84 samples [reqs]'
+tstats: lquake-MDT000a: statfs='1525011 samples [reqs]'
+tstats: mdt: lquake-MDT000b
+tstats: lquake-MDT000b: snapshot_time='1705616006.986214496 secs.nsecs'
+tstats: lquake-MDT000b: getxattr='63 samples [reqs]'
+tstats: lquake-MDT000b: getattr='63 samples [reqs]'
+tstats: lquake-MDT000b: statfs='1525013 samples [reqs]'
+tstats: mdt: lquake-MDT000c
+tstats: lquake-MDT000c: snapshot_time='1705616006.995580821 secs.nsecs'
+tstats: lquake-MDT000c: getxattr='70 samples [reqs]'
+tstats: lquake-MDT000c: getattr='70 samples [reqs]'
+tstats: lquake-MDT000c: statfs='1525013 samples [reqs]'
+tstats: mdt: lquake-MDT000d
+tstats: lquake-MDT000d: snapshot_time='1705616007.003558407 secs.nsecs'
+tstats: lquake-MDT000d: getxattr='49 samples [reqs]'
+tstats: lquake-MDT000d: getattr='49 samples [reqs]'
+tstats: lquake-MDT000d: statfs='1525013 samples [reqs]'
+tstats: mdt: lquake-MDT000e
+tstats: lquake-MDT000e: snapshot_time='1705616006.993928999 secs.nsecs'
+tstats: lquake-MDT000e: getxattr='35 samples [reqs]'
+tstats: lquake-MDT000e: getattr='35 samples [reqs]'
+tstats: lquake-MDT000e: statfs='1525011 samples [reqs]'
+tstats: mdt: lquake-MDT000f
+tstats: lquake-MDT000f: snapshot_time='1705616007.010004021 secs.nsecs'
+tstats: lquake-MDT000f: getxattr='77 samples [reqs]'
+tstats: lquake-MDT000f: getattr='77 samples [reqs]'
+tstats: lquake-MDT000f: statfs='1525011 samples [reqs]'

@@ -1,0 +1,39 @@
+snapshot_time:            1704924140.551060992 secs.nsecs
+start_time:               1704313307.883855174 secs.nsecs
+elapsed_time:             610832.667205818 secs.nsecs
+
+                           read      |     write
+pages per bulk r/w     rpcs  % cum % |  rpcs        % cum %
+1:		       213  91  91   |    0   0   0
+2:		        20   8 100   |    0   0   0
+
+                           read      |     write
+discontiguous pages    rpcs  % cum % |  rpcs        % cum %
+0:		       233 100 100   |    0   0   0
+
+                           read      |     write
+disk I/Os in flight    ios   % cum % |  ios         % cum %
+1:		       233 100 100   |    0   0   0
+
+                           read      |     write
+I/O time (1/1000s)     ios   % cum % |  ios         % cum %
+8:		         2  50  50   |    0   0   0
+16:		         1  25  75   |    0   0   0
+32:		         1  25 100   |    0   0   0
+
+                           read      |     write
+disk I/O size          ios   % cum % |  ios         % cum %
+8:		         7   3   3   |    0   0   0
+16:		         0   0   3   |    0   0   0
+32:		         1   0   3   |    0   0   0
+64:		         1   0   3   |    0   0   0
+128:		       190  81  85   |    0   0   0
+256:		         1   0  85   |    0   0   0
+512:		         1   0  86   |    0   0   0
+1K:		         4   1  87   |    0   0   0
+2K:		         0   0  87   |    0   0   0
+4K:		         0   0  87   |    0   0   0
+8K:		        28  12 100   |    0   0   0
+
+                           read      |     write
+block maps msec        maps  % cum % |  maps        % cum %

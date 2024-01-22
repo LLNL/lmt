@@ -1,0 +1,10 @@
+Routing disabled
+net      hops priority   state router
+tcp129     -1        0      up 172.19.1.54@o2ib100
+tcp129     -1        0      up 172.19.1.55@o2ib100
+o2ib18     -1        0      up 172.19.1.54@o2ib100
+o2ib18     -1        0      up 172.19.1.55@o2ib100
+o2ib44     -1        0      up 172.19.1.107@o2ib100
+o2ib44     -1        0      up 172.19.1.108@o2ib100
+o2ib44     -1        0      up 172.19.1.105@o2ib100
+o2ib44     -1        0      up 172.19.1.106@o2ib100
