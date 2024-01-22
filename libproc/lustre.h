@@ -70,6 +70,8 @@ int proc_fs_lustre_version (pctx_t ctx, int *major, int *minor, int *patch,
 #define LUSTRE_1_8 PACKED_VERSION(1,8,0,0)
 #define LUSTRE_2_0 PACKED_VERSION(2,0,0,0)
 #define LUSTRE_2_10 PACKED_VERSION(2,10,0,0)
+#define LUSTRE_2_10_8 PACKED_VERSION(2,10,8,0)
+#define LUSTRE_2_15 PACKED_VERSION(2,15,0,0)
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

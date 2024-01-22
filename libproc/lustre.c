@@ -40,6 +40,7 @@
 
 #define PROC_FS_LUSTRE_OST_DIR          "fs/lustre/obdfilter"
 #define PROC_FS_LUSTRE_OSC_DIR          "fs/lustre/osc"
+#define DEBUGFS_OSP_DIR                 "kernel/debug/lustre/osp/"
 
 #define PROC_FS_LUSTRE_1_8_MDT_DIR      "fs/lustre/mds"
 #define PROC_FS_LUSTRE_2_0_MDT_DIR      "fs/lustre/mdt"
@@ -63,6 +64,8 @@
 
 #define PROC_FS_LUSTRE_OSC_OST_SERVER_UUID \
                                         "fs/lustre/osc/%s/ost_server_uuid"
+#define DEBUGFS_OSC_OST_SERVER_UUID \
+                                        "kernel/debug/lustre/osp/%s/ost_server_uuid"
 
 #define PROC_FS_LUSTRE_1_8_MDT_STATS    "%s/stats"
 #define PROC_FS_LUSTRE_2_0_MDT_STATS    "%s/md_stats"
@@ -71,7 +74,9 @@
 #define PROC_FS_LUSTRE_MDT_EXPORTS      "%s/%s/exports"
 #define PROC_FS_LUSTRE_MDT_EXPORT_STATS "%s/%s/exports/%s/stats"
 
-#define PROC_FS_LUSTRE_OST_BRW_STATS    "fs/lustre/obdfilter/%s/brw_stats"
+#define PROC_FS_LUSTRE_OST_BRW_STATS   "fs/lustre/obdfilter/%s/brw_stats"
+#define PROC_FS_LUSTRE_OSD_ZFS_BRW_STATS "fs/lustre/osd-zfs/%s/brw_stats"
+#define DEBUGFS_OST_BRW_STATS     "kernel/debug/lustre/osd-zfs/%s/brw_stats"
 
 #define PROC_FS_LUSTRE_OST_RECOVERY_STATUS \
                                         "fs/lustre/obdfilter/%s/recovery_status"
@@ -98,7 +103,9 @@
 #define PROC_FS_LUSTRE_VERSION          "fs/lustre/version"
 
 #define PROC_SYS_LNET_ROUTES            "sys/lnet/routes"
+#define DEBUGFS_LNET_ROUTES             "kernel/debug/lnet/routes"
 #define PROC_SYS_LNET_STATS             "sys/lnet/stats"
+#define DEBUGFS_LNET_STATS    "kernel/debug/lnet/stats"
 
 #define STATS_HASH_SIZE                 64
 
@@ -587,8 +594,17 @@ proc_lustre_oscinfo (pctx_t ctx, char *name, char **uuidp, char **statep)
 {
     int ret;
     char s1[32], s2[32];
+    int lustre_version = _packed_lustre_version (ctx);
+    char *osc_uuid_dir = NULL;
+    
+    if (((lustre_version >= LUSTRE_1_8) && (lustre_version <= LUSTRE_2_10_8)) ||
+            lustre_version < 0)
+        osc_uuid_dir = PROC_FS_LUSTRE_OSC_OST_SERVER_UUID;
+    else
+        osc_uuid_dir = DEBUGFS_OSC_OST_SERVER_UUID;
+    
 
-    if ((ret = proc_openf (ctx, PROC_FS_LUSTRE_OSC_OST_SERVER_UUID, name)) < 0)
+    if ((ret = proc_openf (ctx, osc_uuid_dir, name)) < 0)
         goto done;
     if (proc_scanf (ctx, NULL, "%31s %31s", s1, s2) != 2) {
         errno = EIO;
@@ -663,7 +679,16 @@ proc_lustre_mdtlist (pctx_t ctx, List *lp)
 int
 proc_lustre_osclist (pctx_t ctx, List *lp)
 {
-    return _subdirlist (ctx, PROC_FS_LUSTRE_OSC_DIR, lp);
+    int lustre_version = _packed_lustre_version (ctx);
+    char *osc_dir = NULL;
+    
+    if (((lustre_version >= LUSTRE_1_8) && (lustre_version <= LUSTRE_2_10_8)) ||
+            lustre_version < 0)
+        osc_dir = PROC_FS_LUSTRE_OSC_DIR;
+    else
+        osc_dir = DEBUGFS_OSP_DIR;
+    
+    return _subdirlist (ctx, osc_dir, lp);
 }
 
 int
@@ -1116,9 +1141,16 @@ done:
 int
 proc_lustre_lnet_newbytes (pctx_t ctx, uint64_t *valp)
 {
-    int n;
-
-    n = proc_scanf (ctx, PROC_SYS_LNET_STATS, "%*u %*u %*u %*u %*u "
+    int n = 0;
+    int lustre_version = _packed_lustre_version (ctx);
+    char *lnet_stats = NULL;
+    
+    if (((lustre_version >= LUSTRE_1_8) && (lustre_version <= LUSTRE_2_10_8)) ||
+            lustre_version < 0)
+        lnet_stats = PROC_SYS_LNET_STATS;
+    else
+        lnet_stats = DEBUGFS_LNET_STATS;
+    n = proc_scanf (ctx, lnet_stats, "%*u %*u %*u %*u %*u "
                     "%*u %*u %*u %*u %"PRIu64" %*u", valp);
     if (n < 0)
         return -1;
@@ -1134,8 +1166,16 @@ proc_lustre_lnet_routing_enabled (pctx_t ctx, int *valp)
 {
     char buf[32];
     int retval = 0;
+    int lustre_version = _packed_lustre_version (ctx);
+    char *lnet_routes = NULL;
+    
+    if (((lustre_version >= LUSTRE_1_8) && (lustre_version <= LUSTRE_2_10_8)) ||
+            lustre_version < 0)
+        lnet_routes = PROC_SYS_LNET_ROUTES;
+    else
+        lnet_routes = DEBUGFS_LNET_ROUTES;
 
-    if (proc_gets (ctx, PROC_SYS_LNET_ROUTES, buf, sizeof (buf)) < 0) {
+    if (proc_gets (ctx, lnet_routes, buf, sizeof (buf)) < 0) {
         if (errno == 0)
             errno = EIO;
         retval = -1;
@@ -1293,10 +1333,20 @@ proc_lustre_brwstats (pctx_t ctx, char *name, brw_t t, histogram_t **hp)
 {
     int ret = -1;
     histogram_t *h = NULL;
-
+    int lustre_version = _packed_lustre_version (ctx);
+    char *fs_lustre_ost_brw_stats = NULL;
+    
+    if (((lustre_version >= LUSTRE_1_8) && (lustre_version <= LUSTRE_2_10_8)) ||
+            lustre_version < 0)
+        fs_lustre_ost_brw_stats = PROC_FS_LUSTRE_OST_BRW_STATS;
+    else if ((lustre_version > LUSTRE_2_10_8) && (lustre_version < LUSTRE_2_15))
+        fs_lustre_ost_brw_stats = PROC_FS_LUSTRE_OSD_ZFS_BRW_STATS;
+    else
+        fs_lustre_ost_brw_stats = DEBUGFS_OST_BRW_STATS;
+        
     if (strstr (name, "-OST"))
-        ret = proc_openf (ctx, PROC_FS_LUSTRE_OST_BRW_STATS, name);
-    else 
+        ret = proc_openf (ctx, fs_lustre_ost_brw_stats, name);
+    else
         errno = EINVAL;
     if (ret < 0)
         goto done;
