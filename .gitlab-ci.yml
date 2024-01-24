@@ -7,7 +7,6 @@ build lmt:
   variables:
     FF_ENABLE_JOB_CLEANUP:
       value: 1
-      description: "enable job cleanup"
   tags:
     - shell
     - rzslic
