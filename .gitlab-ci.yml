@@ -1,8 +1,13 @@
-build:
+stages:
+  - build
+
+build lmt:
+  stage: build
   variables:
-    FF_ENABLE_JOB_CLEANUP: 1
+    FF_ENABLE_JOB_CLEANUP:
+      value: "1"
   tags:
     - shell
-    - rzslic
+    - tyche3
   script:
     sh autogen.sh && ./configure && make && make -C test check
