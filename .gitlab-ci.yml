@@ -6,7 +6,7 @@ build lmt:
   stage: build
   variables:
     FF_ENABLE_JOB_CLEANUP:
-      value: 1
+      value: "1"
   tags:
     - shell
     - rzslic
