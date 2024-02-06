@@ -46,7 +46,7 @@ int
 get_recovstr (pctx_t ctx, char *name, char *s, int len)
 {
     hash_t rh = NULL;
-    shash_t *status, *completed_clients, *time_remaining;
+    shash_t *status, *completed_clients, *time_remaining, *waitingfor;
     int res = -1;
 
     if (proc_lustre_hashrecov (ctx, name, &rh) < 0) {
@@ -59,12 +59,16 @@ get_recovstr (pctx_t ctx, char *name, char *s, int len)
             err ("error parsing lustre %s recovery_status from proc", name);
         goto done;
     }
+    waitingfor = hash_find (rh, "non-ready");
     completed_clients = hash_find (rh, "completed_clients:");
     time_remaining = hash_find (rh, "time_remaining:");
     /* N.B. ltop depends on placement of status in the first field */
-    snprintf (s, len, "%s %s %ss remaining", status->val,
-              completed_clients ? completed_clients->val : "",
-              time_remaining ? time_remaining->val : "0");
+    if (waitingfor)
+        snprintf (s, len, "%s on %s", status->val, waitingfor->val);
+    else
+        snprintf (s, len, "%s %s %ss remaining", status->val,
+                  completed_clients ? completed_clients->val : "",
+                  time_remaining ? time_remaining->val : "0");
     res = 0;
 done:
     if (rh)
