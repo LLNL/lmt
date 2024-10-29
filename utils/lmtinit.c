@@ -51,7 +51,7 @@
 
 #include "lmtmysql.h"
 
-#define OPTIONS "a:d:lc:s:u:p:Px:o:"
+#define OPTIONS "a:d:lc:s:u:p:Pxo:"
 #if HAVE_GETOPT_LONG
 #define GETOPT(ac,av,opt,lopt) getopt_long (ac,av,opt,lopt,NULL)
 static const struct option longopts[] = {
@@ -161,10 +161,20 @@ main (int argc, char *argv[])
     if (lmt_conf_init (1, conffile) < 0)
         exit (1);
     lmt_conf_set_db_debug (1);
-    if (optind < argc)
+    if (optind < argc) {
+        int i;
+        printf("ERROR: unexpected arguments, have %d expected %d\n", optind, argc);
+        printf("\t");
+        for (i=0; i<argc; i++)
+            printf("%s%s", argv[i], i<(argc-1) ? " " : "");
+        printf("\n");
         usage ();
-    if (!aopt && !dopt && !lopt && !xopt && !oopt)
+    }
+    if (!aopt && !dopt && !lopt && !xopt && !oopt) {
+        printf("ERROR: one of these must be enabled: -a -d -l -x -o (%d,%d,%d,%d,%d)\n",
+            aopt, dopt, lopt, xopt, oopt);
         usage ();
+    }
     if (aopt + dopt + lopt + xopt + oopt > 1)
         msg_exit ("Use only one of -a, -d, -l, -o, and -x options.");
     if (pass && Popt)
