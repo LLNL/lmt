@@ -1263,7 +1263,8 @@ _update_display_mdt (WINDOW *win, int line, void *target, int stale_secs,
         // available info is expired
         mvwprintw (win, line, 0, "%4.4s data is stale", m->common.name);
     } else if (m->common.recov_status &&
-               !strstr(m->common.recov_status,"COMPLETE")) {
+	       !strstr(m->common.recov_status,"COMPLETE") &&
+	       !strstr(m->common.recov_status,"INACTIVE")) {
         /* mdt is in recovery or not running - display recovery stats */
         mvwprintw (win, line, 0, "%4.4s   %10.10s %s",
                    m->common.name, _ltrunc (m->common.servername, 10),
@@ -1304,7 +1305,9 @@ _update_display_ost (WINDOW *win, int line, void *target, int stale_secs,
         mvwprintw (win, line, 0, "%4.4s %1.1s data is stale",
                    o->common.name, o->common.tgtstate);
     /* ost is in recovery - display recovery stats */
-    } else if (strncmp (o->common.recov_status, "COMPLETE", 8) != 0) {
+    } else if (o->common.recov_status &&
+	       !strstr(o->common.recov_status,"COMPLETE") &&
+	       !strstr(o->common.recov_status,"INACTIVE")) {
         mvwprintw (win, line, 0, "%4.4s %1.1s %10.10s   %s",
                    o->common.name, o->common.tgtstate,
                    _ltrunc (o->common.servername, 10),
