@@ -1,3 +1,8 @@
+default:
+  id_tokens:
+    SITE_ID_TOKEN:
+      aud: https://izlc.llnl.gov/gitlab
+
 stages:
   - build
 
