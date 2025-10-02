@@ -318,33 +318,30 @@ size_windows_proportional(int total_size, int mdts, int osts,
     if (total_size <= (TOPWIN_LINES+2)) {
         *mdtlines = 0;
         *ostlines = 0;
-    } else {
-        if (mdts < 2) {
-            // no need for per-mdt lines OR
-            *mdtlines = 0;
-        } else {
-            if (total_size <= (TOPWIN_LINES + 5)) {
-                // only big enough for topwin + small OST section
-                *mdtlines = 0;
-            } else {
-                int detail_size = total_size - TOPWIN_LINES;
-                /*
-                 * OST and MDT window sizes proportional to target counts,
-                 * except that we allow space for at least 2 MDTs since we know
-                 * there is more than one MDT.
-                 */
-                *mdtlines = 2 + ((float)detail_size*mdts) / ((float)mdts+osts);
-
-                /*
-                 * Make sure both MDT and OST windows have at least 2 rows.
-                 */
-                *mdtlines = (*mdtlines < 3 ? 3 : *mdtlines);
-                *mdtlines = ((detail_size - *mdtlines) < 3 ? (detail_size - 3) : *mdtlines);
-                *mdtlines = (*mdtlines > (mdts+2) ? (mdts+2) : *mdtlines);
-            }
-        }
-        *ostlines = total_size - (TOPWIN_LINES + *mdtlines);
+        return;
     }
+
+    if ((mdts < 2) || (total_size <= (TOPWIN_LINES + 5))) {
+        // no need for per-mdt lines OR
+        // only big enough for topwin + small OST section
+        *mdtlines = 0;
+    } else {
+        int detail_size = total_size - TOPWIN_LINES;
+        /*
+         * OST and MDT window sizes proportional to target counts,
+         * except that we allow space for at least 2 MDTs since we know
+         * there is more than one MDT.
+         */
+        *mdtlines = 2 + ((float)detail_size*mdts) / ((float)mdts+osts);
+
+        /*
+         * Make sure both MDT and OST windows have at least 2 rows.
+         */
+        *mdtlines = (*mdtlines < 3 ? 3 : *mdtlines);
+        *mdtlines = ((detail_size - *mdtlines) < 3 ? (detail_size - 3) : *mdtlines);
+        *mdtlines = (*mdtlines > (mdts+2) ? (mdts+2) : *mdtlines);
+    }
+    *ostlines = total_size - (TOPWIN_LINES + *mdtlines);
 }
 
 /* return the smaller of two ints or zero if the smaller is negative
