@@ -270,6 +270,7 @@ sort_t ost_col[] = {
     { .fun = (ListCmpF)_cmp_tgtstat_bymem,   .k = 'm',  .h = "%s%%mem"      },
     { .fun = (ListCmpF)_cmp_oststat_byspc,   .k = 'S',  .h = "%s%%spc"      },
 };
+#define OST_ROW_FMT "%4.4s %1.1s %10.10s %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f %4.0f %4.0f %4.0f"
 
 sort_t mdt_col[] = {
     { .fun = (ListCmpF)_cmp_tgtstat_bytarget, .k =  't', .h = "%sMDT "      },
@@ -287,6 +288,7 @@ sort_t mdt_col[] = {
     { .fun = (ListCmpF)_cmp_mdtstat_byspc,    .k =  'T', .h = " %s%%spc"     },
     { .fun = (ListCmpF)_cmp_mdtstat_byino,    .k =  'T', .h = "%s%%ino"      },
 };
+#define MDT_ROW_FMT "%4.4s %12.12s %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f"
 
 static void
 usage (void)
@@ -1268,9 +1270,7 @@ _update_display_mdt (WINDOW *win, int line, void *target, int stale_secs,
                    m->common.recov_status);
     } else {
         /* mdt is not in recovery */
-        mvwprintw (win, line, 0, "%4.4s %12.12s"
-                   " %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f %5.0f"
-                   " %5.0f %5.0f %5.0f %5.0f",
+        mvwprintw (win, line, 0, MDT_ROW_FMT,
                    m->common.name, _ltrunc (m->common.servername, 10),
                    sample_rate (m->open, tnow),
                    sample_rate (m->read_bytes, tnow),
@@ -1311,9 +1311,7 @@ _update_display_ost (WINDOW *win, int line, void *target, int stale_secs,
                    o->common.recov_status);
     /* ost is not in running (state == COMPLETE) */
     } else {
-        mvwprintw (win, line, 0, "%4.4s %1.1s %10.10s"
-                   " %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f"
-                   " %4.0f %4.0f %4.0f",
+        mvwprintw (win, line, 0, OST_ROW_FMT,
                    o->common.name, o->common.tgtstate,
                    _ltrunc (o->common.servername, 10),
                    sample_val (o->num_exports, tnow),
