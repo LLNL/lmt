@@ -263,14 +263,14 @@ sort_t ost_col[] = {
     { .fun = (ListCmpF)_cmp_oststat_byrbw,   .k = 'r',  .h = "%srMB/s"      },
     { .fun = (ListCmpF)_cmp_oststat_bywbw,   .k = 'w',  .h = "%swMB/s"      },
     { .fun = (ListCmpF)_cmp_oststat_byiops,  .k = 'i',  .h = " %sIOPS"      },
-    { .fun = (ListCmpF)_cmp_oststat_bylocks, .k = 'l',  .h = "  %sLOCKS"    },
-    { .fun = (ListCmpF)_cmp_oststat_bylgr,   .k = 'g',  .h = " %sLGR"       },
-    { .fun = (ListCmpF)_cmp_oststat_bylcr,   .k = 'L',  .h = " %sLCR"       },
+    { .fun = (ListCmpF)_cmp_oststat_bylocks, .k = 'l',  .h = "   %sLOCKS"    },
+    { .fun = (ListCmpF)_cmp_oststat_bylgr,   .k = 'g',  .h = "  %sLGR"       },
+    { .fun = (ListCmpF)_cmp_oststat_bylcr,   .k = 'L',  .h = "  %sLCR"       },
     { .fun = (ListCmpF)_cmp_tgtstat_bycpu,   .k = 'u',  .h = "%s%%cpu"      },
     { .fun = (ListCmpF)_cmp_tgtstat_bymem,   .k = 'm',  .h = "%s%%mem"      },
     { .fun = (ListCmpF)_cmp_oststat_byspc,   .k = 'S',  .h = "%s%%spc"      },
 };
-#define OST_ROW_FMT "%4.4s %1.1s %10.10s %5.0f %4.0f %5.0f %5.0f %5.0f %7.0f %4.0f %4.0f %4.0f %4.0f %4.0f"
+#define OST_ROW_FMT "%4.4s %1.1s %10.10s %5.0f %4.0f %5.0f %5.0f %5.0f %8.0f %5.0f %5.0f %4.0f %4.0f %4.0f"
 
 sort_t mdt_col[] = {
     { .fun = (ListCmpF)_cmp_tgtstat_bytarget, .k =  't', .h = "%sMDT "      },
